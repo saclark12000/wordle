@@ -2,6 +2,7 @@
 // Utilities
 // -----------------------------
 const $ = (id) => document.getElementById(id);
+const DEFAULT_CSV_PATH = 'resources/wordleData.csv';
 const CROWN_COL_NAMES = ['👑','ðŸ‘‘','crown'];
 const CROWN_ROUND_COL_NAMES = ['👑 Round','ðŸ‘‘ Round','crown round'];
 
@@ -133,6 +134,7 @@ let normalizedWordle = []; // tidy rows
 let wordleDateField = null;
 let chart = null;
 let kingContext = { leaderboard: [], dataset: [] };
+let autoRenderConfig = { preset: 'wordle_king_wins', limit: 25, done: false };
 
 // -----------------------------
 // Wordle normalization
@@ -337,16 +339,12 @@ function computePlayerMetrics(norm, player) {
   const buckets = { '1':0,'2':0,'3':0,'4':0,'5':0,'6':0,'X':0,'totalPointValue':0 };
   let kingWins = 0;
   for (const r of norm) {
-    console.log('LOGGGGEEEDD computePlayerMetrics for r of norm: ' + JSON.stringify(r));
-    
     if (r.player !== player) continue;
     if (r.isCrown) kingWins += 1;
     if (r.solved && r.guesses) {
       const key = String(r.guesses);
       if (buckets[key] !== undefined) buckets[key] += 1;
       buckets['totalPointValue'] += getGuessPoint(key);
-      console.log('bucket says : ' + buckets[key]);
-      console.log('bucket says : ' + buckets['totalPointValue']);
     } else {
       buckets['X'] += 1;
       buckets['totalPointValue'] += 1;
@@ -586,8 +584,7 @@ function renderKingPlayerDetail(player, metrics) {
   container.innerHTML = `
     <button class="kingTable__back" type="button" data-king-back="true">← Back to King Wins</button>
     <h3>${escapeHtml(player)}</h3>
-    <div class="status">Total king wins: <strong>${metrics.kingWins}</strong></div>
-    <div class="status">Total point value: <strong>${metrics.buckets['totalPointValue']}</strong></div>
+    <div class="status">Total point value : <strong>${metrics.buckets['totalPointValue']}</strong></div>
     <table>
       <thead><tr><th>Metric</th><th>Count</th></tr></thead>
       <tbody>
@@ -633,6 +630,12 @@ function onCsvLoaded(rows, columns, sourceName) {
       `Detected Wordle summary format. Normalized to <strong>${normalizedWordle.length}</strong> player-day rows across <strong>${players}</strong> unique players. Pick a preset and hit <strong>Render</strong>.`,
       'ok'
     );
+    if (!autoRenderConfig.done) {
+      $('preset').value = autoRenderConfig.preset;
+      $('limit').value = autoRenderConfig.limit;
+      autoRenderConfig.done = true;
+      requestAnimationFrame(() => render());
+    }
   } else {
     wordleDateField = null;
     updateLastDaysDefault(0);
@@ -664,6 +667,20 @@ function parseCsvText(text, sourceName) {
       onCsvLoaded(rows, columns, sourceName);
     }
   });
+}
+
+async function loadDefaultCsv() {
+  try {
+    const res = await fetch(DEFAULT_CSV_PATH, { cache: 'no-cache' });
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    const text = await res.text();
+    parseCsvText(text, DEFAULT_CSV_PATH);
+  } catch (err) {
+    console.error('Failed to load default CSV', err);
+    setStatus($('loadStatus'), `Failed to load default CSV (${DEFAULT_CSV_PATH}). Use the file picker instead.`, 'warn');
+  }
 }
 
 function render() {
@@ -819,6 +836,7 @@ function clearAll() {
   $('file').value = '';
   $('filter').value = '';
   $('preset').value = '';
+  $('limit').value = autoRenderConfig.limit;
   setStatus($('loadStatus'), 'No CSV loaded.', '');
   setStatus($('chartStatus'), '', '');
 }
@@ -866,3 +884,4 @@ $('kingTable').addEventListener('click', (event) => {
 
 // initialize
 clearAll();
+loadDefaultCsv();
