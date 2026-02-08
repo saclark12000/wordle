@@ -252,3 +252,26 @@ th {
 .kingTable--visible {
   display: block;
 }
+
+.kingTable a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.kingTable a:hover {
+  text-decoration: underline;
+}
+
+.kingTable__back {
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,.2);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+}

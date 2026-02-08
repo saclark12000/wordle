@@ -132,6 +132,7 @@ let mode = 'none'; // none | wordle | generic
 let normalizedWordle = []; // tidy rows
 let wordleDateField = null;
 let chart = null;
+let kingContext = { leaderboard: [], dataset: [] };
 
 // -----------------------------
 // Wordle normalization
@@ -332,6 +333,22 @@ function wordleKingWins(norm, limit) {
   }));
 }
 
+function computePlayerMetrics(norm, player) {
+  const buckets = { '1':0,'2':0,'3':0,'4':0,'5':0,'6':0,'X':0 };
+  let kingWins = 0;
+  for (const r of norm) {
+    if (r.player !== player) continue;
+    if (r.isCrown) kingWins += 1;
+    if (r.solved && r.guesses) {
+      const key = String(r.guesses);
+      if (buckets[key] !== undefined) buckets[key] += 1;
+    } else {
+      buckets['X'] += 1;
+    }
+  }
+  return { kingWins, buckets };
+}
+
 // -----------------------------
 // Generic builder
 // -----------------------------
@@ -498,16 +515,17 @@ function renderChart({ labels, data, points, title, yLabel, type }) {
   });
 }
 
-function renderKingTable(rows) {
+function renderKingTable(rows, dataset) {
   destroyChart();
   const container = $('kingTable');
   if (!container) return;
+  kingContext = { leaderboard: rows, dataset };
   if (!rows.length) {
     container.innerHTML = '<div class="status warn">No king wins detected.</div>';
   } else {
     const head = '<thead><tr><th>Place</th><th>User Name</th><th>Total Win Count</th></tr></thead>';
     const body = rows
-      .map(r => `<tr><td>${r.place}</td><td>${escapeHtml(r.player)}</td><td>${r.count}</td></tr>`)
+      .map(r => `<tr><td>${r.place}</td><td><a href="#" data-king-player="${encodeURIComponent(r.player)}">${escapeHtml(r.player)}</a></td><td>${r.count}</td></tr>`)
       .join('');
     container.innerHTML = `<table>${head}<tbody>${body}</tbody></table>`;
   }
@@ -521,6 +539,32 @@ function hideKingTable() {
   container.classList.remove('kingTable--visible');
   container.innerHTML = '';
   $('chart').style.display = 'block';
+  kingContext = { leaderboard: [], dataset: [] };
+}
+
+function renderKingPlayerDetail(player, metrics) {
+  destroyChart();
+  const container = $('kingTable');
+  if (!container) return;
+  const guessOrder = ['1','2','3','4','5','6','X'];
+  const rows = guessOrder.map((g) => {
+    const label = g === 'X' ? 'X/6 (fail)' : `${g}/6`;
+    return `<tr><td>${label}</td><td>${metrics.buckets[g] || 0}</td></tr>`;
+  }).join('');
+  container.innerHTML = `
+    <button class="kingTable__back" type="button" data-king-back="true">← Back to King Wins</button>
+    <h3>${escapeHtml(player)}</h3>
+    <div class="status">Total king wins: <strong>${metrics.kingWins}</strong></div>
+    <table>
+      <thead><tr><th>Metric</th><th>Count</th></tr></thead>
+      <tbody>
+        <tr><td>King Wins</td><td>${metrics.kingWins}</td></tr>
+        ${rows}
+      </tbody>
+    </table>
+  `;
+  container.classList.add('kingTable--visible');
+  $('chart').style.display = 'none';
 }
 
 function setStatus(el, msg, kind) {
@@ -627,7 +671,7 @@ function render() {
     if (preset === 'wordle_top_players') shaped = wordleTopPlayers(limitedWordle, limit);
     if (preset === 'wordle_king_wins') {
       const rows = wordleKingWins(limitedWordle, limit);
-      renderKingTable(rows);
+      renderKingTable(rows, limitedWordle);
       setStatus(
         $('chartStatus'),
         `Rendered King Wins table (top <strong>${rows.length}</strong> of <strong>${limit}</strong> requested, ${dayLimit} day window).`,
@@ -767,6 +811,24 @@ $('btnLoadSample').addEventListener('click', async () => {
 $('btnRender').addEventListener('click', render);
 $('btnExport').addEventListener('click', exportNormalized);
 $('btnClear').addEventListener('click', clearAll);
+
+$('kingTable').addEventListener('click', (event) => {
+  const link = event.target.closest('[data-king-player]');
+  if (link) {
+    event.preventDefault();
+    const player = decodeURIComponent(link.dataset.kingPlayer || '');
+    if (player && kingContext.dataset.length) {
+      const metrics = computePlayerMetrics(kingContext.dataset, player);
+      renderKingPlayerDetail(player, metrics);
+    }
+    return;
+  }
+  const back = event.target.closest('[data-king-back]');
+  if (back && kingContext.leaderboard.length) {
+    event.preventDefault();
+    renderKingTable(kingContext.leaderboard, kingContext.dataset);
+  }
+});
 
 // initialize
 clearAll();
