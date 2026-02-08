@@ -58,6 +58,53 @@ function looksLikeWordleSummary(columns) {
   return needed.every(c => columns.includes(c));
 }
 
+function detectDateField(columns) {
+  const target = 'date posted';
+  return columns.find((col) => String(col || '').trim().toLowerCase() === target) || null;
+}
+
+function parseDateValue(value) {
+  if (!value && value !== 0) return null;
+  const s = String(value).trim();
+  if (!s) return null;
+  const parsed = Date.parse(s);
+  if (Number.isNaN(parsed)) return null;
+  return new Date(parsed);
+}
+
+function formatDateLabel(date) {
+  return date.toISOString().split('T')[0];
+}
+
+function deriveDayMeta(row, idx, dateField) {
+  const fallbackIndex = idx + 1;
+  if (dateField) {
+    const parsed = parseDateValue(row[dateField]);
+    if (parsed) {
+      const label = formatDateLabel(parsed);
+      return {
+        dayIndex: fallbackIndex,
+        dayTimestamp: parsed.getTime(),
+        dayLabel: label,
+        dayKey: label
+      };
+    }
+  }
+  return {
+    dayIndex: fallbackIndex,
+    dayTimestamp: fallbackIndex,
+    dayLabel: `Day ${fallbackIndex}`,
+    dayKey: String(fallbackIndex)
+  };
+}
+
+function getDayValueFromRow(row) {
+  const ts = Number(row.dayTimestamp);
+  if (Number.isFinite(ts)) return ts;
+  const idx = Number(row.dayIndex);
+  return Number.isFinite(idx) ? idx : 0;
+}
+
 // -----------------------------
 // State
 // -----------------------------
@@ -65,34 +112,35 @@ let rawRows = [];
 let rawColumns = [];
 let mode = 'none'; // none | wordle | generic
 let normalizedWordle = []; // tidy rows
+let wordleDateField = null;
 let chart = null;
 
 // -----------------------------
 // Wordle normalization
 // Produces rows like:
-// { dayIndex, player, guesses, solved, crown, crownRound }
+// { dayIndex, dayLabel, dayTimestamp, dayKey, player, guesses, solved, crown, crownRound }
 // -----------------------------
-function normalizeWordle(rows) {
+function normalizeWordle(rows, dateField) {
   const out = [];
   const guessCols = ['1/6','2/6','3/6','4/6','5/6','6/6','X/6'];
 
   rows.forEach((r, idx) => {
-    const dayIndex = idx + 1; // no explicit date in your CSV; you can replace this if you add a Date column later
+    const dayMeta = deriveDayMeta(r, idx, dateField);
     const crown = normalizeHandle(r['ðŸ‘‘']);
     const crownRound = (r['ðŸ‘‘ Round'] || '').toString().trim() || null;
-
     guessCols.forEach((col) => {
       const handles = splitHandles(r[col]);
       handles.forEach((player) => {
         const guesses = col === 'X/6' ? null : Number(col.split('/')[0]);
         const solved = col !== 'X/6';
         out.push({
-          dayIndex,
+          ...dayMeta,
           player,
           guesses,
           solved,
           isCrown: crown && player === crown,
-          crownRound
+          crownRound,
+          sourceRowIndex: typeof r.__rowIndex === 'number' ? r.__rowIndex : idx
         });
       });
     });
@@ -101,21 +149,45 @@ function normalizeWordle(rows) {
   return out;
 }
 
-function getMaxDayIndex() {
-  return normalizedWordle.reduce((max, row) => Math.max(max, Number(row.dayIndex) || 0), 0);
+function getWordleDayEntries() {
+  const map = new Map();
+  for (const row of normalizedWordle) {
+    const key = row.dayKey || String(row.dayIndex);
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        label: row.dayLabel || `Day ${row.dayIndex}`,
+        value: getDayValueFromRow(row),
+        rowIndex: typeof row.sourceRowIndex === 'number' ? row.sourceRowIndex : null
+      });
+    }
+  }
+  return [...map.values()].sort((a, b) => a.value - b.value);
+}
+
+function getWordleTotalDays() {
+  return getWordleDayEntries().length;
 }
 
 function getWordleLastDaysSubset() {
-  const maxDay = getMaxDayIndex();
-  if (!maxDay) return { data: [], limit: 0, maxDay: 0 };
+  const days = getWordleDayEntries();
+  const totalDays = days.length;
+  if (!totalDays) return { data: [], limit: 0, maxDays: 0, selectedDayKeys: new Set(), selectedRowIndexes: new Set() };
   const input = $('lastDays');
   let requested = Number(input.value);
-  if (!Number.isFinite(requested) || requested <= 0) requested = maxDay;
-  requested = Math.max(1, Math.min(maxDay, Math.floor(requested)));
+  if (!Number.isFinite(requested) || requested <= 0) requested = totalDays;
+  requested = Math.max(1, Math.min(totalDays, Math.floor(requested)));
   input.value = requested;
-  const minDay = Math.max(1, maxDay - requested + 1);
-  const data = normalizedWordle.filter(r => r.dayIndex >= minDay);
-  return { data, limit: requested, maxDay };
+  const selectedEntries = days.slice(totalDays - requested);
+  const selectedDayKeys = new Set(selectedEntries.map((d) => d.key));
+  const selectedRowIndexes = new Set(
+    selectedEntries
+      .map((d) => d.rowIndex)
+      .filter((idx) => idx !== null && idx !== undefined)
+  );
+  const data = normalizedWordle.filter((r) => selectedDayKeys.has(r.dayKey || String(r.dayIndex)));
+  const latestLabel = selectedEntries.length ? selectedEntries[selectedEntries.length - 1].label : '';
+  return { data, limit: requested, maxDays: totalDays, selectedDayKeys, selectedRowIndexes, latestLabel };
 }
 
 function updateLastDaysDefault(maxDay) {
@@ -145,44 +217,65 @@ function wordleRoundDistribution(norm) {
 function wordlePlayersPerDay(norm) {
   const map = new Map();
   for (const r of norm) {
-    map.set(r.dayIndex, (map.get(r.dayIndex) || 0) + 1);
+    const key = r.dayKey || String(r.dayIndex);
+    if (!map.has(key)) {
+      map.set(key, { label: r.dayLabel || `Day ${r.dayIndex}`, order: getDayValueFromRow(r), count: 0 });
+    }
+    map.get(key).count += 1;
   }
-  const labels = [...map.keys()].sort((a,b)=>a-b).map(String);
-  const data = labels.map(l => map.get(Number(l)) || 0);
-  return { labels, data, title: 'Players per day', yLabel: 'Players' };
+  const ordered = [...map.values()].sort((a,b)=>a.order - b.order);
+  return {
+    labels: ordered.map((entry) => entry.label),
+    data: ordered.map((entry) => entry.count),
+    title: 'Players per day',
+    yLabel: 'Players'
+  };
 }
 
 function wordleSolveRatePerDay(norm) {
-  const total = new Map();
-  const solved = new Map();
+  const stats = new Map();
   for (const r of norm) {
-    total.set(r.dayIndex, (total.get(r.dayIndex) || 0) + 1);
-    if (r.solved) solved.set(r.dayIndex, (solved.get(r.dayIndex) || 0) + 1);
+    const key = r.dayKey || String(r.dayIndex);
+    if (!stats.has(key)) {
+      stats.set(key, { label: r.dayLabel || `Day ${r.dayIndex}`, order: getDayValueFromRow(r), total: 0, solved: 0 });
+    }
+    const entry = stats.get(key);
+    entry.total += 1;
+    if (r.solved) entry.solved += 1;
   }
-  const labels = [...total.keys()].sort((a,b)=>a-b).map(String);
-  const data = labels.map(l => {
-    const d = Number(l);
-    const t = total.get(d) || 0;
-    const s = solved.get(d) || 0;
-    return t ? Math.round((s / t) * 1000) / 10 : 0;
-  });
-  return { labels, data, title: 'Solve rate per day', yLabel: 'Solve rate (%)' };
+  const ordered = [...stats.values()].sort((a,b)=>a.order - b.order);
+  return {
+    labels: ordered.map((entry) => entry.label),
+    data: ordered.map((entry) => {
+      const { total, solved } = entry;
+      return total ? Math.round((solved / total) * 1000) / 10 : 0;
+    }),
+    title: 'Solve rate per day',
+    yLabel: 'Solve rate (%)'
+  };
 }
 
 function wordleAvgGuessesPerDay(norm) {
-  const sum = new Map();
-  const cnt = new Map();
+  const stats = new Map();
   for (const r of norm) {
     if (!r.solved) continue;
-    sum.set(r.dayIndex, (sum.get(r.dayIndex) || 0) + r.guesses);
-    cnt.set(r.dayIndex, (cnt.get(r.dayIndex) || 0) + 1);
+    const key = r.dayKey || String(r.dayIndex);
+    if (!stats.has(key)) {
+      stats.set(key, { label: r.dayLabel || `Day ${r.dayIndex}`, order: getDayValueFromRow(r), sum: 0, count: 0 });
+    }
+    const entry = stats.get(key);
+    entry.sum += r.guesses || 0;
+    entry.count += 1;
   }
-  const labels = [...cnt.keys()].sort((a,b)=>a-b).map(String);
-  const data = labels.map(l => {
-    const d = Number(l);
-    return Math.round(((sum.get(d) || 0) / (cnt.get(d) || 1)) * 100) / 100;
-  });
-  return { labels, data, title: 'Average guesses per day (solves only)', yLabel: 'Avg guesses' };
+  const ordered = [...stats.values()].sort((a,b)=>a.order - b.order);
+  return {
+    labels: ordered.map((entry) => entry.label),
+    data: ordered.map((entry) => {
+      return Math.round(((entry.sum || 0) / (entry.count || 1)) * 100) / 100;
+    }),
+    title: 'Average guesses per day (solves only)',
+    yLabel: 'Avg guesses'
+  };
 }
 
 function wordleTopPlayers(norm, limit) {
@@ -374,9 +467,13 @@ function setStatus(el, msg, kind) {
 // Main actions
 // -----------------------------
 function onCsvLoaded(rows, columns, sourceName) {
+  rows.forEach((r, idx) => {
+    Object.defineProperty(r, '__rowIndex', { value: idx, enumerable: false, configurable: true });
+  });
   rawRows = rows;
   rawColumns = columns;
   normalizedWordle = [];
+  wordleDateField = null;
 
   const wordle = looksLikeWordleSummary(columns);
   setMode(wordle ? 'wordle' : 'generic');
@@ -384,8 +481,9 @@ function onCsvLoaded(rows, columns, sourceName) {
   setStatus($('loadStatus'), `Loaded <strong>${rows.length}</strong> rows, <strong>${columns.length}</strong> columns from <strong>${escapeHtml(sourceName)}</strong>.`, 'ok');
 
   if (wordle) {
-    normalizedWordle = normalizeWordle(rows);
-    updateLastDaysDefault(rows.length);
+    wordleDateField = detectDateField(columns);
+    normalizedWordle = normalizeWordle(rows, wordleDateField);
+    updateLastDaysDefault(getWordleTotalDays());
     const players = uniq(normalizedWordle.map(r => r.player)).length;
     setStatus(
       $('chartStatus'),
@@ -393,6 +491,7 @@ function onCsvLoaded(rows, columns, sourceName) {
       'ok'
     );
   } else {
+    wordleDateField = null;
     updateLastDaysDefault(0);
     setStatus($('chartStatus'), `Generic CSV mode. Pick X/Y columns and aggregation, then hit <strong>Render</strong>.`, '');
   }
@@ -441,7 +540,13 @@ function render() {
       return;
     }
 
-    const { data: limitedWordle, limit: dayLimit, maxDay } = getWordleLastDaysSubset();
+    const {
+      data: limitedWordle,
+      limit: dayLimit,
+      maxDays,
+      selectedRowIndexes,
+      latestLabel
+    } = getWordleLastDaysSubset();
     if (!limitedWordle.length) {
       setStatus($('chartStatus'), 'No rows available for the requested day window.', 'warn');
       destroyChart();
@@ -469,11 +574,11 @@ function render() {
 
     setStatus(
       $('chartStatus'),
-      `Rendered preset: <strong>${escapeHtml(preset)}</strong> (last <strong>${dayLimit}</strong> of <strong>${maxDay}</strong> day${maxDay === 1 ? '' : 's'}).`,
+      `Rendered preset: <strong>${escapeHtml(preset)}</strong> (last <strong>${dayLimit}</strong> of <strong>${maxDays}</strong> day${maxDays === 1 ? '' : 's'}${latestLabel ? `, latest: <strong>${escapeHtml(latestLabel)}</strong>` : ''}).`,
       ''
     );
-    const previewSlice = filteredRows.slice(Math.max(0, filteredRows.length - dayLimit));
-    renderPreview(previewSlice, rawColumns);
+    const previewSlice = filteredRows.filter((row) => selectedRowIndexes.has(row.__rowIndex));
+    renderPreview(previewSlice.length ? previewSlice : filteredRows.slice(Math.max(0, filteredRows.length - dayLimit)), rawColumns);
     return;
   }
 
@@ -550,6 +655,7 @@ function clearAll() {
   rawRows = [];
   rawColumns = [];
   normalizedWordle = [];
+  wordleDateField = null;
   setMode('none');
   destroyChart();
   $('previewTable').innerHTML = '';
@@ -572,8 +678,10 @@ $('file').addEventListener('change', (e) => {
 });
 
 $('btnLoadSample').addEventListener('click', async () => {
-  // A tiny sample mimicking your Wordle summary CSV shape.
-  const sample = `day streak,ðŸ‘‘ Round,ðŸ‘‘,1/6,2/6,3/6,4/6,5/6,6/6,X/6\n"**Your group is on a 1 day streak!**","1/6","@theBestLoser","@theBestLoser","--","@NotMajorPerson","@mediocreplant","@AsA @hereisrachel","--","@sinfulprey @eplex"\n"**Your group is on a 2 day streak!**","3/6","@AsA","--","--","@AsA","@hereisrachel","@Cesh","@MajorDanger","@mediocreplant @sinfulprey"`;
+  // A tiny sample mimicking your Wordle summary CSV shape (with date column).
+  const sample = `date posted,day streak,ðŸ‘‘ Round,ðŸ‘‘,1/6,2/6,3/6,4/6,5/6,6/6,X/6\n` +
+    `2025-06-06,"**Your group is on a 1 day streak!**","1/6","@theBestLoser","@theBestLoser","--","@NotMajorPerson","@mediocreplant","@AsA @hereisrachel","--","@sinfulprey @eplex"\n` +
+    `2025-06-07,"**Your group is on a 2 day streak!**","3/6","@AsA","--","--","@AsA","@hereisrachel","@Cesh","@MajorDanger","@mediocreplant @sinfulprey"`;
   parseCsvText(sample, 'built-in sample');
 });
 
