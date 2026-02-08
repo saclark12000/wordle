@@ -159,11 +159,16 @@ button.danger {
 }
 
 .canvasWrap {
-  height: 520px;
   width: 100%;
+  min-height: 520px;
   position: relative;
   display: flex;
   flex-direction: column;
+  gap: 20px;
+}
+
+.canvasWrap canvas {
+  min-height: 520px;
 }
 
 .tableWrap {
@@ -237,8 +242,6 @@ body:not(.developer-mode) .developerPanel {
   margin-top: 20px;
   border: 1px solid var(--border);
   border-radius: 14px;
-  overflow: auto;
-  max-height: 360px;
 }
 
 .kingTable table {

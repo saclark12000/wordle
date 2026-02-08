@@ -106,29 +106,30 @@ function formatDateLabel(date) {
 
 function deriveDayMeta(row, idx, dateField) {
   const fallbackIndex = idx + 1;
+  let dayLabel = `Day ${fallbackIndex}`;
+  let timestamp = fallbackIndex;
   if (dateField) {
     const parsed = parseDateValue(row[dateField]);
     if (parsed) {
-      const label = formatDateLabel(parsed);
-      return {
-        dayIndex: fallbackIndex,
-        dayTimestamp: parsed.getTime(),
-        dayLabel: label,
-        dayKey: label
-      };
+      dayLabel = formatDateLabel(parsed);
+      timestamp = parsed.getTime();
     }
   }
+  const uniqueKey = `row-${fallbackIndex}`;
   return {
     dayIndex: fallbackIndex,
-    dayTimestamp: fallbackIndex,
-    dayLabel: `Day ${fallbackIndex}`,
-    dayKey: String(fallbackIndex)
+    dayTimestamp: timestamp,
+    dayLabel,
+    dayKey: uniqueKey
   };
 }
 
 function getDayValueFromRow(row) {
   const ts = Number(row.dayTimestamp);
-  if (Number.isFinite(ts)) return ts;
+  if (Number.isFinite(ts)) {
+    const idx = Number(row.dayIndex) || 0;
+    return ts + idx / 1000;
+  }
   const idx = Number(row.dayIndex);
   return Number.isFinite(idx) ? idx : 0;
 }
@@ -219,7 +220,15 @@ function getWordleLastDaysSubset() {
   );
   const data = normalizedWordle.filter((r) => selectedDayKeys.has(r.dayKey || String(r.dayIndex)));
   const latestLabel = selectedEntries.length ? selectedEntries[selectedEntries.length - 1].label : '';
-  return { data, limit: requested, maxDays: totalDays, selectedDayKeys, selectedRowIndexes, latestLabel };
+  return {
+    data,
+    limit: requested,
+    maxDays: totalDays,
+    selectedDayKeys,
+    selectedRowIndexes,
+    latestLabel,
+    rowCount: selectedRowIndexes.size
+  };
 }
 
 function updateLastDaysDefault(maxDay) {
@@ -345,7 +354,7 @@ function wordleKingWins(norm, limit) {
 }
 
 function computePlayerMetrics(norm, player) {
-  const buckets = { '1':0,'2':0,'3':0,'4':0,'5':0,'6':0,'X':0,'totalPointValue':0 };
+  const buckets = { '1':0,'2':0,'3':0,'4':0,'5':0,'6':0,'X':0,'totalGamesPlayed':0 };
   let kingWins = 0;
   for (const r of norm) {
     if (r.player !== player) continue;
@@ -353,10 +362,10 @@ function computePlayerMetrics(norm, player) {
     if (r.solved && r.guesses) {
       const key = String(r.guesses);
       if (buckets[key] !== undefined) buckets[key] += 1;
-      buckets['totalPointValue'] += getGuessPoint(key);
+      buckets['totalGamesPlayed'] += 1;
     } else {
       buckets['X'] += 1;
-      buckets['totalPointValue'] += 1;
+      buckets['totalGamesPlayed'] += 1;
     }
   }
   return { kingWins, buckets };
@@ -491,7 +500,7 @@ function escapeHtml(s) {
 function renderPreview(rows, columns) {
   const table = $('previewTable');
   const head = `<thead><tr>${columns.map(c=>`<th>${escapeHtml(c)}</th>`).join('')}</tr></thead>`;
-  const bodyRows = rows.slice(0, 30).map(r => {
+  const bodyRows = rows.map(r => {
     return `<tr>${columns.map(c => `<td>${escapeHtml(r[c] ?? '')}</td>`).join('')}</tr>`;
   }).join('');
   const body = `<tbody>${bodyRows}</tbody>`;
@@ -562,7 +571,7 @@ function renderKingTable(rows, dataset) {
   if (!rows.length) {
     container.innerHTML = '<div class="status warn">No king wins detected.</div>';
   } else {
-    const head = '<thead><tr><th>Place</th><th>User Name</th><th>Total Win Count</th></tr></thead>';
+    const head = '<thead><tr><th>Place</th><th>User Name</th><th>Total 👑 Count</th></tr></thead>';
     const body = rows
       .map(r => `<tr><td>${r.place}</td><td><a href="#" data-king-player="${encodeURIComponent(r.player)}">${escapeHtml(r.player)}</a></td><td>${r.count}</td></tr>`)
       .join('');
@@ -593,7 +602,8 @@ function renderKingPlayerDetail(player, metrics) {
   container.innerHTML = `
     <button class="kingTable__back" type="button" data-king-back="true">← Back to King Wins</button>
     <h3>${escapeHtml(player)}</h3>
-    <div class="status">Total point value : <strong>${metrics.buckets['totalPointValue']}</strong></div>
+    <div class="status">Total games played : <strong>${metrics.buckets['totalGamesPlayed']}</strong></div>
+    <br/>
     <table>
       <thead><tr><th>Metric</th><th>Count</th></tr></thead>
       <tbody>
@@ -730,7 +740,8 @@ function render() {
       limit: dayLimit,
       maxDays,
       selectedRowIndexes,
-      latestLabel
+      latestLabel,
+      rowCount
     } = getWordleLastDaysSubset();
     if (!limitedWordle.length) {
       setStatus($('chartStatus'), 'No rows available for the requested day window.', 'warn');
@@ -750,7 +761,7 @@ function render() {
       renderKingTable(rows, limitedWordle);
       setStatus(
         $('chartStatus'),
-        `Rendered King Wins table (top <strong>${rows.length}</strong> of <strong>${limit}</strong> requested, ${dayLimit} day window).`,
+        `Rendered King Wins table (top <strong>${rows.length}</strong> of <strong>${limit}</strong> requested, ${dayLimit} day window / ${rowCount} CSV rows).`,
         rows.length ? '' : 'warn'
       );
       const previewSlice = filteredRows.filter((row) => selectedRowIndexes.has(row.__rowIndex));
@@ -772,7 +783,7 @@ function render() {
 
     setStatus(
       $('chartStatus'),
-      `Rendered preset: <strong>${escapeHtml(preset)}</strong> (last <strong>${dayLimit}</strong> of <strong>${maxDays}</strong> day${maxDays === 1 ? '' : 's'}${latestLabel ? `, latest: <strong>${escapeHtml(latestLabel)}</strong>` : ''}).`,
+      `Rendered preset: <strong>${escapeHtml(preset)}</strong> (last <strong>${dayLimit}</strong> of <strong>${maxDays}</strong> day${maxDays === 1 ? '' : 's'}${latestLabel ? `, latest: <strong>${escapeHtml(latestLabel)}</strong>` : ''}; ${rowCount} CSV rows).`,
       ''
     );
     updatePageTitle();
