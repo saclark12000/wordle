@@ -334,19 +334,51 @@ function wordleKingWins(norm, limit) {
 }
 
 function computePlayerMetrics(norm, player) {
-  const buckets = { '1':0,'2':0,'3':0,'4':0,'5':0,'6':0,'X':0 };
+  const buckets = { '1':0,'2':0,'3':0,'4':0,'5':0,'6':0,'X':0,'totalPointValue':0 };
   let kingWins = 0;
   for (const r of norm) {
+    console.log('LOGGGGEEEDD computePlayerMetrics for r of norm: ' + JSON.stringify(r));
+    
     if (r.player !== player) continue;
     if (r.isCrown) kingWins += 1;
     if (r.solved && r.guesses) {
       const key = String(r.guesses);
       if (buckets[key] !== undefined) buckets[key] += 1;
+      buckets['totalPointValue'] += getGuessPoint(key);
+      console.log('bucket says : ' + buckets[key]);
+      console.log('bucket says : ' + buckets['totalPointValue']);
     } else {
       buckets['X'] += 1;
+      buckets['totalPointValue'] += 1;
     }
   }
   return { kingWins, buckets };
+}
+
+function getGuessPoint(key) {
+  switch (key) {
+    case 1:
+      return 21;
+      break;
+    case 2:
+      return 20;
+      break;
+    case 3:
+      return 18;
+      break;
+    case 4:
+      return 15;
+      break;
+    case 5:
+      return 11;
+      break;
+    case 6:
+      return 6;
+      break;
+    default:
+      return 1;
+      break;
+  }
 }
 
 // -----------------------------
@@ -555,6 +587,7 @@ function renderKingPlayerDetail(player, metrics) {
     <button class="kingTable__back" type="button" data-king-back="true">← Back to King Wins</button>
     <h3>${escapeHtml(player)}</h3>
     <div class="status">Total king wins: <strong>${metrics.kingWins}</strong></div>
+    <div class="status">Total point value: <strong>${metrics.buckets['totalPointValue']}</strong></div>
     <table>
       <thead><tr><th>Metric</th><th>Count</th></tr></thead>
       <tbody>
@@ -562,6 +595,7 @@ function renderKingPlayerDetail(player, metrics) {
         ${rows}
       </tbody>
     </table>
+    
   `;
   container.classList.add('kingTable--visible');
   $('chart').style.display = 'none';
