@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CSV Chart Builder</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>CSV Chart Builder</h1>
+    <div class="sub">
+      Upload a CSV and generate charts fast. If your CSV matches the <em>Wordle-bot daily summary</em> format (columns like <code>1/6</code> … <code>X/6</code>), you'll get one-click presets (solve rate, round distribution, top players, etc.).
+      Otherwise, use the generic chart builder to pick X/Y columns and chart type.
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="card">
+      <h2>1) Load CSV</h2>
+      <input id="file" type="file" accept=".csv,text/csv" />
+      <div class="btnrow">
+        <button id="btnLoadSample">Load built-in sample</button>
+        <button id="btnClear" class="danger">Clear</button>
+      </div>
+      <div id="loadStatus" class="status">No CSV loaded.</div>
+
+      <div class="divider"></div>
+
+      <h2>2) Mode</h2>
+      <div id="modePills"></div>
+      <div class="hint">
+        <strong>Tip:</strong> The Wordle format is a little weird (emoji headers + usernames packed into cells). This app normalizes it into a clean dataset you can chart.
+      </div>
+
+      <div class="divider"></div>
+
+      <h2>3) Chart Controls</h2>
+
+      <label for="preset">Presets (Wordle format)</label>
+      <select id="preset">
+        <option value="">— choose a preset —</option>
+        <option value="wordle_round_distribution">Round distribution (1–6 vs X)</option>
+        <option value="wordle_players_per_day">Players per day (time series)</option>
+        <option value="wordle_solve_rate">Solve rate per day (time series)</option>
+        <option value="wordle_avg_guesses">Average guesses per day (time series)</option>
+        <option value="wordle_top_players">Top players by solves</option>
+      </select>
+
+      <div class="row">
+        <div>
+          <label for="chartType">Chart type</label>
+          <select id="chartType">
+            <option value="bar">Bar</option>
+            <option value="line">Line</option>
+            <option value="scatter">Scatter</option>
+          </select>
+        </div>
+        <div>
+          <label for="limit">Top N (for leaderboard)</label>
+          <input id="limit" type="number" min="3" max="50" value="15" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="xCol">X column (generic mode)</label>
+          <select id="xCol"></select>
+        </div>
+        <div>
+          <label for="yCol">Y column (generic mode)</label>
+          <select id="yCol"></select>
+        </div>
+      </div>
+
+      <label for="agg">Aggregate (generic mode)</label>
+      <select id="agg">
+        <option value="none">None (plot raw rows)</option>
+        <option value="count">Count by X</option>
+        <option value="sum">Sum Y by X</option>
+        <option value="avg">Average Y by X</option>
+      </select>
+
+      <label for="filter">Filter rows (simple contains)</label>
+      <input id="filter" type="text" placeholder="e.g. @rachel, 3/6, Monday" />
+
+      <label for="lastDays">Last N days (Wordle presets)</label>
+      <input id="lastDays" type="number" min="1" placeholder="e.g. 7" />
+
+      <div class="btnrow">
+        <button id="btnRender" class="primary">Render chart</button>
+        <button id="btnExport">Export normalized (Wordle) CSV</button>
+      </div>
+
+      <div class="hint small">
+        Presets ignore the generic X/Y selectors. Generic mode ignores presets.
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Chart</h2>
+      <div class="canvasWrap">
+        <canvas id="chart"></canvas>
+      </div>
+      <div id="chartStatus" class="status"></div>
+
+      <div class="divider"></div>
+
+      <h2>Data preview</h2>
+      <div class="small">First 30 rows (after filter, before aggregation).</div>
+      <div class="tableWrap">
+        <table id="previewTable"></table>
+      </div>
+    </section>
+  </main>
+
+  <!-- CSV parsing + charts via CDNs -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
