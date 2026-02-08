@@ -2,6 +2,8 @@
 // Utilities
 // -----------------------------
 const $ = (id) => document.getElementById(id);
+const CROWN_COL_NAMES = ['👑','ðŸ‘‘','crown'];
+const CROWN_ROUND_COL_NAMES = ['👑 Round','ðŸ‘‘ Round','crown round'];
 
 function uniq(arr) {
   return [...new Set(arr)];
@@ -56,6 +58,22 @@ function splitHandles(cell) {
 function looksLikeWordleSummary(columns) {
   const needed = ['1/6','2/6','3/6','4/6','5/6','6/6','X/6'];
   return needed.every(c => columns.includes(c));
+}
+
+function getFirstAvailable(obj, candidates) {
+  if (!obj) return undefined;
+  const lowerKeyMap = new Map();
+  Object.keys(obj).forEach((key) => lowerKeyMap.set(String(key).toLowerCase(), key));
+  for (const key of candidates) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      return obj[key];
+    }
+    const lowered = typeof key === 'string' ? key.toLowerCase() : key;
+    if (lowerKeyMap.has(lowered)) {
+      return obj[lowerKeyMap.get(lowered)];
+    }
+  }
+  return undefined;
 }
 
 function detectDateField(columns) {
@@ -126,8 +144,10 @@ function normalizeWordle(rows, dateField) {
 
   rows.forEach((r, idx) => {
     const dayMeta = deriveDayMeta(r, idx, dateField);
-    const crown = normalizeHandle(r['ðŸ‘‘']);
-    const crownRound = (r['ðŸ‘‘ Round'] || '').toString().trim() || null;
+    const crownRaw = getFirstAvailable(r, CROWN_COL_NAMES);
+    const crownHandles = splitHandles(crownRaw);
+    const crownRoundValue = getFirstAvailable(r, CROWN_ROUND_COL_NAMES);
+    const crownRound = (crownRoundValue || '').toString().trim() || null;
     guessCols.forEach((col) => {
       const handles = splitHandles(r[col]);
       handles.forEach((player) => {
@@ -138,7 +158,7 @@ function normalizeWordle(rows, dateField) {
           player,
           guesses,
           solved,
-          isCrown: crown && player === crown,
+          isCrown: crownHandles.includes(player),
           crownRound,
           sourceRowIndex: typeof r.__rowIndex === 'number' ? r.__rowIndex : idx
         });
@@ -293,6 +313,25 @@ function wordleTopPlayers(norm, limit) {
   };
 }
 
+function wordleKingWins(norm, limit) {
+  const wins = new Map();
+  for (const r of norm) {
+    if (!r.isCrown || !r.player) continue;
+    wins.set(r.player, (wins.get(r.player) || 0) + 1);
+  }
+  const sorted = [...wins.entries()]
+    .sort((a, b) => {
+      if (b[1] !== a[1]) return b[1] - a[1];
+      return a[0].localeCompare(b[0]);
+    })
+    .slice(0, limit);
+  return sorted.map(([player, count], idx) => ({
+    place: idx + 1,
+    player,
+    count
+  }));
+}
+
 // -----------------------------
 // Generic builder
 // -----------------------------
@@ -412,6 +451,7 @@ function destroyChart() {
 
 function renderChart({ labels, data, points, title, yLabel, type }) {
   destroyChart();
+  hideKingTable();
   const ctx = $('chart');
 
   const chartType = type || 'bar';
@@ -456,6 +496,31 @@ function renderChart({ labels, data, points, title, yLabel, type }) {
       }
     }
   });
+}
+
+function renderKingTable(rows) {
+  destroyChart();
+  const container = $('kingTable');
+  if (!container) return;
+  if (!rows.length) {
+    container.innerHTML = '<div class="status warn">No king wins detected.</div>';
+  } else {
+    const head = '<thead><tr><th>Place</th><th>User Name</th><th>Total Win Count</th></tr></thead>';
+    const body = rows
+      .map(r => `<tr><td>${r.place}</td><td>${escapeHtml(r.player)}</td><td>${r.count}</td></tr>`)
+      .join('');
+    container.innerHTML = `<table>${head}<tbody>${body}</tbody></table>`;
+  }
+  container.classList.add('kingTable--visible');
+  $('chart').style.display = 'none';
+}
+
+function hideKingTable() {
+  const container = $('kingTable');
+  if (!container) return;
+  container.classList.remove('kingTable--visible');
+  container.innerHTML = '';
+  $('chart').style.display = 'block';
 }
 
 function setStatus(el, msg, kind) {
@@ -560,6 +625,19 @@ function render() {
     if (preset === 'wordle_solve_rate') shaped = wordleSolveRatePerDay(limitedWordle);
     if (preset === 'wordle_avg_guesses') shaped = wordleAvgGuessesPerDay(limitedWordle);
     if (preset === 'wordle_top_players') shaped = wordleTopPlayers(limitedWordle, limit);
+    if (preset === 'wordle_king_wins') {
+      const rows = wordleKingWins(limitedWordle, limit);
+      renderKingTable(rows);
+      setStatus(
+        $('chartStatus'),
+        `Rendered King Wins table (top <strong>${rows.length}</strong> of <strong>${limit}</strong> requested, ${dayLimit} day window).`,
+        rows.length ? '' : 'warn'
+      );
+      const previewSlice = filteredRows.filter((row) => selectedRowIndexes.has(row.__rowIndex));
+      renderPreview(previewSlice.length ? previewSlice : filteredRows.slice(Math.max(0, filteredRows.length - dayLimit)), rawColumns);
+      return;
+    }
+    hideKingTable();
 
     // some presets look better as line charts; let user override
     const suggested = (preset.includes('per_day')) ? 'line' : (preset.includes('distribution') ? 'bar' : type);
@@ -582,6 +660,7 @@ function render() {
     return;
   }
 
+  hideKingTable();
   // generic
   const xKey = $('xCol').value;
   const yKey = $('yCol').value;

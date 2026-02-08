@@ -157,6 +157,9 @@ button.danger {
 .canvasWrap {
   height: 520px;
   width: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .tableWrap {
@@ -219,4 +222,32 @@ th {
   height: 1px;
   background: rgba(255,255,255,.10);
   margin: 10px 0;
+}
+
+.kingTable {
+  display: none;
+  margin-top: 20px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.kingTable table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.kingTable th,
+.kingTable td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255,255,255,.12);
+  text-align: left;
+}
+
+.kingTable tr:last-child td {
+  border-bottom: none;
+}
+
+.kingTable--visible {
+  display: block;
 }
