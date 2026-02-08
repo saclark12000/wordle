@@ -52,6 +52,10 @@ h1 {
   margin: 0 auto;
 }
 
+body:not(.developer-mode) .grid {
+  grid-template-columns: 1fr;
+}
+
 @media (max-width: 980px) {
   .grid {
     grid-template-columns: 1fr;
@@ -222,6 +226,10 @@ th {
   height: 1px;
   background: rgba(255,255,255,.10);
   margin: 10px 0;
+}
+
+body:not(.developer-mode) .developerPanel {
+  display: none;
 }
 
 .kingTable {

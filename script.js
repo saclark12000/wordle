@@ -3,8 +3,17 @@
 // -----------------------------
 const $ = (id) => document.getElementById(id);
 const DEFAULT_CSV_PATH = 'resources/wordleData.csv';
+const DEVELOPER_MODE = new URLSearchParams(window.location.search).get('developer') === 'true';
 const CROWN_COL_NAMES = ['👑','ðŸ‘‘','crown'];
 const CROWN_ROUND_COL_NAMES = ['👑 Round','ðŸ‘‘ Round','crown round'];
+const PRESET_TITLES = {
+  wordle_round_distribution: 'Round Distribution',
+  wordle_players_per_day: 'Players Per Day',
+  wordle_solve_rate: 'Solve Rate Per Day',
+  wordle_avg_guesses: 'Average Guesses Per Day',
+  wordle_top_players: 'Top Players',
+  wordle_king_wins: 'King Wins'
+};
 
 function uniq(arr) {
   return [...new Set(arr)];
@@ -603,6 +612,19 @@ function setStatus(el, msg, kind) {
   el.innerHTML = msg;
 }
 
+function updatePageTitle() {
+  const el = $('pageTitle');
+  if (!el) return;
+  let title = 'CSV Insights';
+  if (mode === 'wordle') {
+    const preset = $('preset').value;
+    title = PRESET_TITLES[preset] || 'Wordle Insights';
+  } else if (mode === 'generic') {
+    title = 'Custom Chart';
+  }
+  el.textContent = title;
+}
+
 // -----------------------------
 // Main actions
 // -----------------------------
@@ -617,6 +639,7 @@ function onCsvLoaded(rows, columns, sourceName) {
 
   const wordle = looksLikeWordleSummary(columns);
   setMode(wordle ? 'wordle' : 'generic');
+  updatePageTitle();
 
   setStatus($('loadStatus'), `Loaded <strong>${rows.length}</strong> rows, <strong>${columns.length}</strong> columns from <strong>${escapeHtml(sourceName)}</strong>.`, 'ok');
 
@@ -634,6 +657,7 @@ function onCsvLoaded(rows, columns, sourceName) {
       $('preset').value = autoRenderConfig.preset;
       $('limit').value = autoRenderConfig.limit;
       autoRenderConfig.done = true;
+      updatePageTitle();
       requestAnimationFrame(() => render());
     }
   } else {
@@ -697,6 +721,7 @@ function render() {
     const preset = $('preset').value;
     if (!preset) {
       setStatus($('chartStatus'), 'Pick a Wordle preset.', 'warn');
+      updatePageTitle();
       return;
     }
 
@@ -750,6 +775,7 @@ function render() {
       `Rendered preset: <strong>${escapeHtml(preset)}</strong> (last <strong>${dayLimit}</strong> of <strong>${maxDays}</strong> day${maxDays === 1 ? '' : 's'}${latestLabel ? `, latest: <strong>${escapeHtml(latestLabel)}</strong>` : ''}).`,
       ''
     );
+    updatePageTitle();
     const previewSlice = filteredRows.filter((row) => selectedRowIndexes.has(row.__rowIndex));
     renderPreview(previewSlice.length ? previewSlice : filteredRows.slice(Math.max(0, filteredRows.length - dayLimit)), rawColumns);
     return;
@@ -760,6 +786,7 @@ function render() {
   const xKey = $('xCol').value;
   const yKey = $('yCol').value;
   const agg = $('agg').value;
+  updatePageTitle();
 
   renderPreview(filteredRows, rawColumns);
 
@@ -839,6 +866,7 @@ function clearAll() {
   $('limit').value = autoRenderConfig.limit;
   setStatus($('loadStatus'), 'No CSV loaded.', '');
   setStatus($('chartStatus'), '', '');
+  updatePageTitle();
 }
 
 // -----------------------------
@@ -863,6 +891,7 @@ $('btnLoadSample').addEventListener('click', async () => {
 $('btnRender').addEventListener('click', render);
 $('btnExport').addEventListener('click', exportNormalized);
 $('btnClear').addEventListener('click', clearAll);
+$('preset').addEventListener('change', updatePageTitle);
 
 $('kingTable').addEventListener('click', (event) => {
   const link = event.target.closest('[data-king-player]');
@@ -884,4 +913,5 @@ $('kingTable').addEventListener('click', (event) => {
 
 // initialize
 clearAll();
+document.body.classList.toggle('developer-mode', DEVELOPER_MODE);
 loadDefaultCsv();

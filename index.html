@@ -8,7 +8,7 @@
 </head>
 <body>
   <header>
-    <h1>CSV Chart Builder</h1>
+    <h1 id="pageTitle"></h1>
     <div class="sub">
       Upload a CSV and generate charts fast. If your CSV matches the <em>Wordle-bot daily summary</em> format (columns like <code>1/6</code> … <code>X/6</code>), you'll get one-click presets (solve rate, round distribution, top players, etc.).
       Otherwise, use the generic chart builder to pick X/Y columns and chart type.
@@ -16,7 +16,7 @@
   </header>
 
   <main class="grid">
-    <section class="card">
+    <section class="card developerPanel">
       <h2>1) Load CSV</h2>
       <input id="file" type="file" accept=".csv,text/csv" />
       <div class="btnrow">
