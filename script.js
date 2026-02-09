@@ -361,20 +361,21 @@ function wordleKingWins(norm, limit) {
 }
 
 function summarizeMetrics(rows) {
-  const buckets = { '1':0,'2':0,'3':0,'4':0,'5':0,'6':0,'X':0 };
+  const keys = ['1','2','3','4','5','6','X'];
+  const buckets = Object.fromEntries(keys.map(k => [k, 0]));
+  const kingBuckets = Object.fromEntries(keys.map(k => [k, 0]));
   let kingWins = 0;
   let totalGames = 0;
   for (const r of rows) {
     totalGames += 1;
-    if (r.isCrown) kingWins += 1;
-    if (r.solved && r.guesses) {
-      const key = String(r.guesses);
-      if (buckets[key] !== undefined) buckets[key] += 1;
-    } else {
-      buckets['X'] += 1;
+    const key = (r.solved && r.guesses) ? String(r.guesses) : 'X';
+    if (buckets[key] !== undefined) buckets[key] += 1;
+    if (r.isCrown) {
+      kingWins += 1;
+      if (kingBuckets[key] !== undefined) kingBuckets[key] += 1;
     }
   }
-  return { kingWins, totalGames, buckets };
+  return { kingWins, totalGames, buckets, kingBuckets };
 }
 
 function computePlayerMetrics(norm, player) {
@@ -615,7 +616,9 @@ function renderKingPlayerDetail(player, metrics) {
   const guessOrder = ['1','2','3','4','5','6','X'];
   const rows = guessOrder.map((g) => {
     const label = g === 'X' ? 'X/6 (fail)' : `${g}/6`;
-    return `<tr><td>${label}</td><td>${metrics.buckets[g] || 0}</td></tr>`;
+    const total = metrics.buckets[g] || 0;
+    const king = metrics.kingBuckets[g] || 0;
+    return `<tr><td>${label}</td><td>${total}</td><td>${king}</td></tr>`;
   }).join('');
   const ratioPct = metrics.totalGames ? ((metrics.kingWins / metrics.totalGames) * 100).toFixed(1) : '0.0';
   container.innerHTML = `
@@ -626,9 +629,8 @@ function renderKingPlayerDetail(player, metrics) {
     <div class="status">👑 %: <strong>${ratioPct}%</strong></div>
     <br/>
     <table>
-      <thead><tr><th>Metric</th><th>Count</th></tr></thead>
+      <thead><tr><th>Round</th><th>Total</th><th>King Wins</th></tr></thead>
       <tbody>
-        <tr><td>King Wins</td><td>${metrics.kingWins}</td></tr>
         ${rows}
       </tbody>
     </table>
@@ -649,7 +651,9 @@ function renderGroupStats() {
   const guessOrder = ['1','2','3','4','5','6','X'];
   const guessRows = guessOrder.map((g) => {
     const label = g === 'X' ? 'X/6 (fail)' : `${g}/6`;
-    return `<tr><td>${label}</td><td>${metrics.buckets[g] || 0}</td></tr>`;
+    const total = metrics.buckets[g] || 0;
+    const king = metrics.kingBuckets[g] || 0;
+    return `<tr><td>${label}</td><td>${total}</td><td>${king}</td></tr>`;
   }).join('');
   const players = new Set(currentWordleSubset.map(r => r.player)).size;
   const ratioPct = metrics.totalGames ? ((metrics.kingWins / metrics.totalGames) * 100).toFixed(1) : '0.0';
@@ -662,9 +666,8 @@ function renderGroupStats() {
     <div class="status">Total king wins: <strong>${metrics.kingWins}</strong> (${ratioPct}%)</div>
     <br/>
     <table>
-      <thead><tr><th>Metric</th><th>Count</th></tr></thead>
+      <thead><tr><th>Round</th><th>Total</th><th>King Wins</th></tr></thead>
       <tbody>
-        <tr><td>King Wins</td><td>${metrics.kingWins}</td></tr>
         ${guessRows}
       </tbody>
     </table>

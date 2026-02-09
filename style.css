@@ -311,3 +311,16 @@ body:not(.developer-mode) .developerPanel {
   gap: 6px;
   margin-bottom: 14px;
 }
+
+.group-link {
+  color: var(--accent-secondary);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(201,180,88,.6);
+  padding-bottom: 2px;
+}
+
+.group-link:hover {
+  color: var(--accent);
+  border-bottom-color: rgba(106,170,100,.8);
+}
