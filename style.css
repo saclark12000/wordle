@@ -1,12 +1,17 @@
 :root {
-  --bg: #0b1020;
-  --card: #121a33;
-  --muted: rgba(255,255,255,.7);
-  --muted2: rgba(255,255,255,.55);
-  --accent: #7aa7ff;
-  --danger: #ff6b6b;
-  --ok: #6bffb6;
+  --bg: #121213;
+  --bg-soft: #1a1a1c;
+  --bg-grid-dark: rgba(255,255,255,.03);
+  --bg-grid-light: rgba(255,255,255,.06);
+  --card: #1d1d1f;
+  --muted: rgba(230,232,235,.75);
+  --muted2: rgba(230,232,235,.55);
+  --accent: #6aaa64;
+  --accent-secondary: #c9b458;
+  --danger: #b8513c;
+  --ok: #6aaa64;
   --border: rgba(255,255,255,.12);
+  --text: #f6f7f8;
 }
 
 * {
@@ -15,12 +20,13 @@
 
 body {
   margin: 0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
   background:
-    radial-gradient(1200px 700px at 10% 10%, rgba(122,167,255,.22), transparent 55%),
-    radial-gradient(1000px 600px at 90% 25%, rgba(107,255,182,.12), transparent 60%),
+    linear-gradient(135deg, rgba(0,0,0,.35), rgba(0,0,0,.2)),
+    repeating-linear-gradient(90deg, var(--bg-grid-dark) 0, var(--bg-grid-dark) 24px, transparent 24px, transparent 48px),
+    repeating-linear-gradient(0deg, var(--bg-grid-light) 0, var(--bg-grid-light) 24px, transparent 24px, transparent 48px),
     var(--bg);
-  color: white;
+  color: var(--text);
 }
 
 header {
@@ -31,8 +37,9 @@ header {
 
 h1 {
   margin: 0;
-  font-size: 22px;
-  letter-spacing: .2px;
+  font-size: 28px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
 .sub {
@@ -63,11 +70,11 @@ body:not(.developer-mode) .grid {
 }
 
 .card {
-  background: rgba(18,26,51,.85);
-  border: 1px solid var(--border);
+  background: var(--card);
+  border: 1px solid rgba(255,255,255,.08);
   border-radius: 18px;
   padding: 14px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.25);
+  box-shadow: 0 14px 40px rgba(0,0,0,.35);
   backdrop-filter: blur(10px);
 }
 
@@ -92,14 +99,25 @@ input[type="number"] {
   width: 100%;
   padding: 10px 10px;
   border-radius: 12px;
-  border: 1px solid var(--border);
-  background: rgba(0,0,0,.18);
-  color: white;
+  border: 1px solid rgba(255,255,255,.08);
+  background: var(--bg-soft);
+  color: var(--text);
   outline: none;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+
+input:focus,
+select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(106,170,100,.25);
 }
 
 select {
   appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 18px) calc(50% - 3px), calc(100% - 12px) calc(50% - 3px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
 }
 
 .row {
@@ -116,28 +134,32 @@ select {
 }
 
 button {
-  border: 1px solid var(--border);
-  background: rgba(0,0,0,.22);
-  color: white;
+  border: 1px solid rgba(255,255,255,.15);
+  background: var(--bg-soft);
+  color: var(--text);
   padding: 10px 12px;
   border-radius: 14px;
   cursor: pointer;
   font-weight: 600;
   letter-spacing: .2px;
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s;
 }
 
 button:hover {
-  border-color: rgba(122,167,255,.55);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0,0,0,.35);
 }
 
 button.primary {
-  background: rgba(122,167,255,.20);
-  border-color: rgba(122,167,255,.55);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0f210d;
 }
 
 button.danger {
-  background: rgba(255,107,107,.14);
-  border-color: rgba(255,107,107,.45);
+  background: rgba(184,81,60,.18);
+  border-color: rgba(184,81,60,.5);
 }
 
 .hint {
@@ -151,8 +173,8 @@ button.danger {
   display: inline-block;
   padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid var(--border);
-  background: rgba(0,0,0,.16);
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.05);
   font-size: 12px;
   color: rgba(255,255,255,.85);
   margin: 8px 6px 0 0;
@@ -176,7 +198,7 @@ button.danger {
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: rgba(0,0,0,.14);
+  background: rgba(0,0,0,.25);
   margin-top: 12px;
 }
 
@@ -196,8 +218,10 @@ td {
 th {
   position: sticky;
   top: 0;
-  background: rgba(18,26,51,.95);
+  background: rgba(0,0,0,.35);
   text-align: left;
+  text-transform: uppercase;
+  letter-spacing: .5px;
 }
 
 .status {
@@ -240,8 +264,9 @@ body:not(.developer-mode) .developerPanel {
 .kingTable {
   display: none;
   margin-top: 20px;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255,255,255,.08);
   border-radius: 14px;
+  background: rgba(0,0,0,.25);
 }
 
 .kingTable table {
@@ -252,7 +277,7 @@ body:not(.developer-mode) .developerPanel {
 .kingTable th,
 .kingTable td {
   padding: 10px 12px;
-  border-bottom: 1px solid rgba(255,255,255,.12);
+  border-bottom: 1px solid rgba(255,255,255,.08);
   text-align: left;
 }
 
@@ -265,19 +290,19 @@ body:not(.developer-mode) .developerPanel {
 }
 
 .kingTable a {
-  color: var(--accent);
+  color: var(--accent-secondary);
   text-decoration: none;
   font-weight: 600;
 }
 
 .kingTable a:hover {
-  text-decoration: underline;
+  color: var(--accent);
 }
 
 .kingTable__back {
-  border: 1px solid var(--border);
-  background: rgba(0,0,0,.2);
-  color: white;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.35);
+  color: var(--text);
   padding: 8px 12px;
   border-radius: 999px;
   cursor: pointer;
