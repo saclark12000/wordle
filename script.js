@@ -602,6 +602,7 @@ function renderKingPlayerDetail(player, metrics) {
   container.innerHTML = `
     <button class="kingTable__back" type="button" data-king-back="true">← Back to King Wins</button>
     <h3>${escapeHtml(player)}</h3>
+    <div class="status">Total sus games played : <strong>${metrics.buckets['1']}</strong></div>
     <div class="status">Total games played : <strong>${metrics.buckets['totalGamesPlayed']}</strong></div>
     <br/>
     <table>
