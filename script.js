@@ -612,7 +612,7 @@ function renderKingPlayerDetail(player, metrics) {
   container.innerHTML = `
     <button class="kingTable__back" type="button" data-king-back="true">← Back to King Wins</button>
     <h3>${escapeHtml(player)}</h3>
-    <div class="status">Total king wins: <strong>${metrics.kingWins}</strong></div>
+    <div class="status">Total sus wins: <strong>${metrics.buckets['1']}</strong></div>
     <div class="status">Total games played: <strong>${metrics.totalGames}</strong></div>
     <div class="status">👑 %: <strong>${ratioPct}%</strong></div>
     <br/>
@@ -643,6 +643,7 @@ function updatePageTitle() {
   } else if (mode === 'generic') {
     title = 'Custom Chart';
   }
+  title='Wordle-Hurdle Stats!'
   el.textContent = title;
 }
 
