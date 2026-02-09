@@ -336,39 +336,45 @@ function wordleTopPlayers(norm, limit) {
 
 function wordleKingWins(norm, limit) {
   const wins = new Map();
+  const games = new Map();
   for (const r of norm) {
-    if (!r.isCrown || !r.player) continue;
-    wins.set(r.player, (wins.get(r.player) || 0) + 1);
+    if (!r.player) continue;
+    games.set(r.player, (games.get(r.player) || 0) + 1);
+    if (r.isCrown) {
+      wins.set(r.player, (wins.get(r.player) || 0) + 1);
+    }
   }
-  const sorted = [...wins.entries()]
+  const sorted = [...games.entries()]
+    .map(([player, totalGames]) => ({
+      player,
+      totalGames,
+      winCount: wins.get(player) || 0,
+      ratio: totalGames ? (wins.get(player) || 0) / totalGames : 0
+    }))
     .sort((a, b) => {
-      if (b[1] !== a[1]) return b[1] - a[1];
-      return a[0].localeCompare(b[0]);
+      if (b.winCount !== a.winCount) return b.winCount - a.winCount;
+      return a.player.localeCompare(b.player);
     })
     .slice(0, limit);
-  return sorted.map(([player, count], idx) => ({
-    place: idx + 1,
-    player,
-    count
-  }));
+  return sorted.map((entry, idx) => ({ place: idx + 1, ...entry }));
 }
 
 function computePlayerMetrics(norm, player) {
-  const buckets = { '1':0,'2':0,'3':0,'4':0,'5':0,'6':0,'X':0,'totalGamesPlayed':0 };
+  const buckets = { '1':0,'2':0,'3':0,'4':0,'5':0,'6':0,'X':0 };
   let kingWins = 0;
+  let totalGames = 0;
   for (const r of norm) {
     if (r.player !== player) continue;
+    totalGames += 1;
     if (r.isCrown) kingWins += 1;
     if (r.solved && r.guesses) {
       const key = String(r.guesses);
       if (buckets[key] !== undefined) buckets[key] += 1;
-      buckets['totalGamesPlayed'] += 1;
     } else {
       buckets['X'] += 1;
-      buckets['totalGamesPlayed'] += 1;
     }
   }
-  return { kingWins, buckets };
+  return { kingWins, totalGames, buckets };
 }
 
 function getGuessPoint(key) {
@@ -571,9 +577,12 @@ function renderKingTable(rows, dataset) {
   if (!rows.length) {
     container.innerHTML = '<div class="status warn">No king wins detected.</div>';
   } else {
-    const head = '<thead><tr><th>Place</th><th>User Name</th><th>Total 👑 Count</th></tr></thead>';
+    const head = '<thead><tr><th>Place</th><th>User Name</th><th>Total 👑 Wins</th><th>👑 %</th></tr></thead>';
     const body = rows
-      .map(r => `<tr><td>${r.place}</td><td><a href="#" data-king-player="${encodeURIComponent(r.player)}">${escapeHtml(r.player)}</a></td><td>${r.count}</td></tr>`)
+      .map(r => {
+        const ratioPct = (r.ratio * 100).toFixed(1);
+        return `<tr><td>${r.place}</td><td><a href="#" data-king-player="${encodeURIComponent(r.player)}">${escapeHtml(r.player)}</a></td><td>${r.winCount}</td><td>${ratioPct}%</td></tr>`;
+      })
       .join('');
     container.innerHTML = `<table>${head}<tbody>${body}</tbody></table>`;
   }
@@ -599,11 +608,13 @@ function renderKingPlayerDetail(player, metrics) {
     const label = g === 'X' ? 'X/6 (fail)' : `${g}/6`;
     return `<tr><td>${label}</td><td>${metrics.buckets[g] || 0}</td></tr>`;
   }).join('');
+  const ratioPct = metrics.totalGames ? ((metrics.kingWins / metrics.totalGames) * 100).toFixed(1) : '0.0';
   container.innerHTML = `
     <button class="kingTable__back" type="button" data-king-back="true">← Back to King Wins</button>
     <h3>${escapeHtml(player)}</h3>
-    <div class="status">Total sus games played : <strong>${metrics.buckets['1']}</strong></div>
-    <div class="status">Total games played : <strong>${metrics.buckets['totalGamesPlayed']}</strong></div>
+    <div class="status">Total king wins: <strong>${metrics.kingWins}</strong></div>
+    <div class="status">Total games played: <strong>${metrics.totalGames}</strong></div>
+    <div class="status">👑 %: <strong>${ratioPct}%</strong></div>
     <br/>
     <table>
       <thead><tr><th>Metric</th><th>Count</th></tr></thead>
@@ -612,7 +623,6 @@ function renderKingPlayerDetail(player, metrics) {
         ${rows}
       </tbody>
     </table>
-    
   `;
   container.classList.add('kingTable--visible');
   $('chart').style.display = 'none';
