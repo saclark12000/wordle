@@ -145,6 +145,7 @@ let wordleDateField = null;
 let chart = null;
 let kingContext = { leaderboard: [], dataset: [] };
 let autoRenderConfig = { preset: 'wordle_king_wins', limit: 25, done: false };
+let currentWordleSubset = [];
 
 // -----------------------------
 // Wordle normalization
@@ -359,12 +360,11 @@ function wordleKingWins(norm, limit) {
   return sorted.map((entry, idx) => ({ place: idx + 1, ...entry }));
 }
 
-function computePlayerMetrics(norm, player) {
+function summarizeMetrics(rows) {
   const buckets = { '1':0,'2':0,'3':0,'4':0,'5':0,'6':0,'X':0 };
   let kingWins = 0;
   let totalGames = 0;
-  for (const r of norm) {
-    if (r.player !== player) continue;
+  for (const r of rows) {
     totalGames += 1;
     if (r.isCrown) kingWins += 1;
     if (r.solved && r.guesses) {
@@ -375,6 +375,15 @@ function computePlayerMetrics(norm, player) {
     }
   }
   return { kingWins, totalGames, buckets };
+}
+
+function computePlayerMetrics(norm, player) {
+  const filtered = norm.filter(r => r.player === player);
+  return summarizeMetrics(filtered);
+}
+
+function computeGroupMetrics(rows) {
+  return summarizeMetrics(rows);
 }
 
 function getGuessPoint(key) {
@@ -628,6 +637,42 @@ function renderKingPlayerDetail(player, metrics) {
   $('chart').style.display = 'none';
 }
 
+function renderGroupStats() {
+  if (!currentWordleSubset.length) {
+    setStatus($('chartStatus'), 'Load a Wordle CSV and render a preset first to view group stats.', 'warn');
+    return;
+  }
+  destroyChart();
+  const container = $('kingTable');
+  if (!container) return;
+  const metrics = computeGroupMetrics(currentWordleSubset);
+  const guessOrder = ['1','2','3','4','5','6','X'];
+  const guessRows = guessOrder.map((g) => {
+    const label = g === 'X' ? 'X/6 (fail)' : `${g}/6`;
+    return `<tr><td>${label}</td><td>${metrics.buckets[g] || 0}</td></tr>`;
+  }).join('');
+  const players = new Set(currentWordleSubset.map(r => r.player)).size;
+  const ratioPct = metrics.totalGames ? ((metrics.kingWins / metrics.totalGames) * 100).toFixed(1) : '0.0';
+
+  container.innerHTML = `
+    <button class="kingTable__back" type="button" data-group-close="true">← Back to chart</button>
+    <h3>Group Stats</h3>
+    <div class="status">Total players: <strong>${players}</strong></div>
+    <div class="status">Total games: <strong>${metrics.totalGames}</strong></div>
+    <div class="status">Total king wins: <strong>${metrics.kingWins}</strong> (${ratioPct}%)</div>
+    <br/>
+    <table>
+      <thead><tr><th>Metric</th><th>Count</th></tr></thead>
+      <tbody>
+        <tr><td>King Wins</td><td>${metrics.kingWins}</td></tr>
+        ${guessRows}
+      </tbody>
+    </table>
+  `;
+  container.classList.add('kingTable--visible');
+  $('chart').style.display = 'none';
+}
+
 function setStatus(el, msg, kind) {
   el.className = 'status ' + (kind || '');
   el.innerHTML = msg;
@@ -738,6 +783,7 @@ function render() {
   const type = $('chartType').value;
   const filterText = $('filter').value;
   const filteredRows = applyFilter(rawRows, filterText);
+  currentWordleSubset = [];
 
   if (mode === 'wordle') {
     const preset = $('preset').value;
@@ -755,6 +801,7 @@ function render() {
       latestLabel,
       rowCount
     } = getWordleLastDaysSubset();
+    currentWordleSubset = limitedWordle;
     if (!limitedWordle.length) {
       setStatus($('chartStatus'), 'No rows available for the requested day window.', 'warn');
       destroyChart();
@@ -915,6 +962,13 @@ $('btnRender').addEventListener('click', render);
 $('btnExport').addEventListener('click', exportNormalized);
 $('btnClear').addEventListener('click', clearAll);
 $('preset').addEventListener('change', updatePageTitle);
+const groupStatsLink = $('groupStatsLink');
+if (groupStatsLink) {
+  groupStatsLink.addEventListener('click', (event) => {
+    event.preventDefault();
+    renderGroupStats();
+  });
+}
 
 $('kingTable').addEventListener('click', (event) => {
   const link = event.target.closest('[data-king-player]');
@@ -931,6 +985,12 @@ $('kingTable').addEventListener('click', (event) => {
   if (back && kingContext.leaderboard.length) {
     event.preventDefault();
     renderKingTable(kingContext.leaderboard, kingContext.dataset);
+    return;
+  }
+  const closeGroup = event.target.closest('[data-group-close]');
+  if (closeGroup) {
+    event.preventDefault();
+    render();
   }
 });
 
