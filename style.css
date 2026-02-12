@@ -302,7 +302,7 @@ body:not(.developer-mode) .developerPanel {
 .kingTable__back {
   border: 1px solid rgba(255,255,255,.12);
   background: rgba(0,0,0,.35);
-  color: var(--text);
+  color: var(--accent-secondary);
   padding: 8px 12px;
   border-radius: 999px;
   cursor: pointer;
@@ -323,4 +323,8 @@ body:not(.developer-mode) .developerPanel {
 .group-link:hover {
   color: var(--accent);
   border-bottom-color: rgba(106,170,100,.8);
+}
+
+.playerCard {
+  margin: 15px;
 }

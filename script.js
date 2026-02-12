@@ -622,18 +622,20 @@ function renderKingPlayerDetail(player, metrics) {
   }).join('');
   const ratioPct = metrics.totalGames ? ((metrics.kingWins / metrics.totalGames) * 100).toFixed(1) : '0.0';
   container.innerHTML = `
-    <button class="kingTable__back" type="button" data-king-back="true">← Back to King Wins</button>
-    <h3>${escapeHtml(player)}</h3>
-    <div class="status">Total sus wins: <strong>${metrics.buckets['1']}</strong></div>
-    <div class="status">Total games played: <strong>${metrics.totalGames}</strong></div>
-    <div class="status">👑 %: <strong>${ratioPct}%</strong></div>
-    <br/>
-    <table>
-      <thead><tr><th>Round</th><th>Total</th><th>King Wins</th></tr></thead>
-      <tbody>
-        ${rows}
-      </tbody>
-    </table>
+    <div class="playerCard">
+      <button class="kingTable__back" type="button" data-king-back="true">← Back to King Wins</button>
+      <h3>${escapeHtml(player)}</h3>
+      <div class="status">Total sus wins: <strong>${metrics.buckets['1']}</strong></div>
+      <div class="status">Total games played: <strong>${metrics.totalGames}</strong></div>
+      <div class="status">👑 %: <strong>${ratioPct}%</strong></div>
+      <br/>
+      <table>
+        <thead><tr><th>Round</th><th>Total</th><th>King Wins</th></tr></thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    </div>
   `;
   container.classList.add('kingTable--visible');
   $('chart').style.display = 'none';
