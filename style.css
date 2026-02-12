@@ -274,6 +274,16 @@ body:not(.developer-mode) .developerPanel {
   border-collapse: collapse;
 }
 
+.kingTable__heading {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 12px;
+  letter-spacing: .3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .kingTable__layout {
   display: flex;
   gap: 18px;
@@ -368,6 +378,29 @@ body:not(.developer-mode) .developerPanel {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.playerCard__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.kingTable__panelBtn {
+  border: 1px solid rgba(255,255,255,.15);
+  background: rgba(255,255,255,.08);
+  color: var(--text);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.kingTable__panelBtn:hover {
+  border-color: var(--accent-secondary);
+  color: var(--accent-secondary);
 }
 
 .playerCard__title {

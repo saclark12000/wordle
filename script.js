@@ -2,7 +2,7 @@
 // Utilities
 // -----------------------------
 const $ = (id) => document.getElementById(id);
-const DEFAULT_CSV_PATH = 'resources/wordleData.csv';
+const DEFAULT_CSV_PATH = 'resources/game_data/wordleData.csv';
 const DEVELOPER_MODE = new URLSearchParams(window.location.search).get('developer') === 'true';
 const CROWN_COL_NAMES = ['👑','ðŸ‘‘','crown'];
 const CROWN_ROUND_COL_NAMES = ['👑 Round','ðŸ‘‘ Round','crown round'];
@@ -583,7 +583,7 @@ function renderKingTable(rows, dataset) {
   destroyChart();
   const container = $('kingTable');
   if (!container) return;
-  kingContext = { leaderboard: rows, dataset, selectedPlayer: rows.length ? rows[0].player : null };
+  kingContext = { leaderboard: rows, dataset, selectedPlayer: null };
   if (!rows.length) {
     container.innerHTML = '<div class="status warn">No king wins detected.</div>';
   } else {
@@ -597,6 +597,7 @@ function renderKingTable(rows, dataset) {
       })
       .join('');
     container.innerHTML = `
+      <div class="kingTable__heading">👑 Wins Leaderboard</div>
       <div class="kingTable__layout">
         <div class="kingTable__leaderboard">
           <table>${head}<tbody>${body}</tbody></table>
@@ -609,9 +610,7 @@ function renderKingTable(rows, dataset) {
   }
   container.classList.add('kingTable--visible');
   $('chart').style.display = 'none';
-  if (kingContext.selectedPlayer) {
-    setActiveKingPlayer(kingContext.selectedPlayer);
-  }
+  setGroupStatsPanel();
 }
 
 function hideKingTable() {
@@ -634,12 +633,41 @@ function buildPlayerStatsMarkup(player, metrics) {
   const ratioPct = metrics.totalGames ? ((metrics.kingWins / metrics.totalGames) * 100).toFixed(1) : '0.0';
   return `
     <div class="playerCard">
-      <div class="playerCard__title">${escapeHtml(player)}</div>
+      <div class="playerCard__header">
+        <div class="playerCard__title">${escapeHtml(player)}</div>
+        <button class="kingTable__panelBtn" type="button" data-king-group-panel="true">✖</button>
+      </div>
       <div class="playerCard__stat">Total sus wins: <strong>${metrics.buckets['1']}</strong></div>
       <div class="playerCard__stat">Total games played: <strong>${metrics.totalGames}</strong></div>
       <div class="playerCard__stat">&#128081; %: <strong>${ratioPct}%</strong></div>
       <table class="playerCard__table">
         <thead><tr><th>Round</th><th>Total</th><th>King Wins</th></tr></thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function buildGroupStatsMarkup(dataset, metrics) {
+  const players = new Set(dataset.map((r) => r.player)).size;
+  const ratioPct = metrics.totalGames ? ((metrics.kingWins / metrics.totalGames) * 100).toFixed(1) : '0.0';
+  const guessOrder = ['1','2','3','4','5','6','X'];
+  const rows = guessOrder.map((g) => {
+    const label = g === 'X' ? 'X/6 (fail)' : `${g}/6`;
+    const total = metrics.buckets[g] || 0;
+    const king = metrics.kingBuckets[g] || 0;
+    return `<tr><td>${label}</td><td>${total}</td><td>${king}</td></tr>`;
+  }).join('');
+  return `
+    <div class="playerCard">
+      <div class="playerCard__title">Group Stats</div>
+      <div class="playerCard__stat">Total players: <strong>${players}</strong></div>
+      <div class="playerCard__stat">Total games: <strong>${metrics.totalGames}</strong></div>
+      <div class="playerCard__stat">Total 👑 wins: <strong>${metrics.kingWins}</strong> (${ratioPct}%)</div>
+      <table class="playerCard__table">
+        <thead><tr><th>Round</th><th>Total</th><th>👑 Wins</th></tr></thead>
         <tbody>
           ${rows}
         </tbody>
@@ -662,41 +690,23 @@ function setActiveKingPlayer(player) {
   });
 }
 
-function renderGroupStats() {
-  if (!currentWordleSubset.length) {
-    setStatus($('chartStatus'), 'Load a Wordle CSV and render a preset first to view group stats.', 'warn');
+function setGroupStatsPanel() {
+  const panel = $('kingTablePanel');
+  const container = $('kingTable');
+  if (!panel) return;
+  const dataset = kingContext.dataset || [];
+  if (!dataset.length) {
+    panel.innerHTML = '<div class="status">Load a Wordle CSV to see group stats.</div>';
     return;
   }
-  destroyChart();
-  const container = $('kingTable');
-  if (!container) return;
-  const metrics = computeGroupMetrics(currentWordleSubset);
-  const guessOrder = ['1','2','3','4','5','6','X'];
-  const guessRows = guessOrder.map((g) => {
-    const label = g === 'X' ? 'X/6 (fail)' : `${g}/6`;
-    const total = metrics.buckets[g] || 0;
-    const king = metrics.kingBuckets[g] || 0;
-    return `<tr><td>${label}</td><td>${total}</td><td>${king}</td></tr>`;
-  }).join('');
-  const players = new Set(currentWordleSubset.map(r => r.player)).size;
-  const ratioPct = metrics.totalGames ? ((metrics.kingWins / metrics.totalGames) * 100).toFixed(1) : '0.0';
-
-  container.innerHTML = `
-    <button class="kingTable__back" type="button" data-group-close="true">← Back to chart</button>
-    <h3>Group Stats</h3>
-    <div class="status">Total players: <strong>${players}</strong></div>
-    <div class="status">Total games: <strong>${metrics.totalGames}</strong></div>
-    <div class="status">Total king wins: <strong>${metrics.kingWins}</strong> (${ratioPct}%)</div>
-    <br/>
-    <table>
-      <thead><tr><th>Round</th><th>Total</th><th>King Wins</th></tr></thead>
-      <tbody>
-        ${guessRows}
-      </tbody>
-    </table>
-  `;
-  container.classList.add('kingTable--visible');
-  $('chart').style.display = 'none';
+  const metrics = computeGroupMetrics(dataset);
+  panel.innerHTML = buildGroupStatsMarkup(dataset, metrics);
+  kingContext.selectedPlayer = null;
+  if (container) {
+    container.querySelectorAll('[data-king-player-row]').forEach((row) => {
+      row.classList.remove('kingTable__row--active');
+    });
+  }
 }
 
 function setStatus(el, msg, kind) {
@@ -1002,6 +1012,12 @@ $('kingTable').addEventListener('click', (event) => {
     event.preventDefault();
     const player = decodeURIComponent(link.dataset.kingPlayer || '');
     setActiveKingPlayer(player);
+    return;
+  }
+  const groupBtn = event.target.closest('[data-king-group-panel]');
+  if (groupBtn) {
+    event.preventDefault();
+    setGroupStatsPanel();
     return;
   }
   const closeGroup = event.target.closest('[data-group-close]');
