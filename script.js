@@ -143,7 +143,7 @@ let mode = 'none'; // none | wordle | generic
 let normalizedWordle = []; // tidy rows
 let wordleDateField = null;
 let chart = null;
-let kingContext = { leaderboard: [], dataset: [] };
+let kingContext = { leaderboard: [], dataset: [], selectedPlayer: null };
 let autoRenderConfig = { preset: 'wordle_king_wins', limit: 25, done: false };
 let currentWordleSubset = [];
 
@@ -583,7 +583,7 @@ function renderKingTable(rows, dataset) {
   destroyChart();
   const container = $('kingTable');
   if (!container) return;
-  kingContext = { leaderboard: rows, dataset };
+  kingContext = { leaderboard: rows, dataset, selectedPlayer: rows.length ? rows[0].player : null };
   if (!rows.length) {
     container.innerHTML = '<div class="status warn">No king wins detected.</div>';
   } else {
@@ -591,13 +591,27 @@ function renderKingTable(rows, dataset) {
     const body = rows
       .map(r => {
         const ratioPct = (r.ratio * 100).toFixed(1);
-        return `<tr><td>${r.place}</td><td><a href="#" data-king-player="${encodeURIComponent(r.player)}">${escapeHtml(r.player)}</a></td><td>${r.winCount}</td><td>${ratioPct}%</td></tr>`;
+        const encoded = encodeURIComponent(r.player);
+        const activeClass = (kingContext.selectedPlayer && r.player === kingContext.selectedPlayer) ? ' kingTable__row--active' : '';
+        return `<tr class="kingTable__row${activeClass}" data-king-player-row="${encoded}"><td>${r.place}</td><td><a href="#" data-king-player="${encoded}">${escapeHtml(r.player)}</a></td><td>${r.winCount}</td><td>${ratioPct}%</td></tr>`;
       })
       .join('');
-    container.innerHTML = `<table>${head}<tbody>${body}</tbody></table>`;
+    container.innerHTML = `
+      <div class="kingTable__layout">
+        <div class="kingTable__leaderboard">
+          <table>${head}<tbody>${body}</tbody></table>
+        </div>
+        <div class="kingTable__panel" id="kingTablePanel">
+          <div class="status">Select a player to view stats.</div>
+        </div>
+      </div>
+    `;
   }
   container.classList.add('kingTable--visible');
   $('chart').style.display = 'none';
+  if (kingContext.selectedPlayer) {
+    setActiveKingPlayer(kingContext.selectedPlayer);
+  }
 }
 
 function hideKingTable() {
@@ -606,13 +620,10 @@ function hideKingTable() {
   container.classList.remove('kingTable--visible');
   container.innerHTML = '';
   $('chart').style.display = 'block';
-  kingContext = { leaderboard: [], dataset: [] };
+  kingContext = { leaderboard: [], dataset: [], selectedPlayer: null };
 }
 
-function renderKingPlayerDetail(player, metrics) {
-  destroyChart();
-  const container = $('kingTable');
-  if (!container) return;
+function buildPlayerStatsMarkup(player, metrics) {
   const guessOrder = ['1','2','3','4','5','6','X'];
   const rows = guessOrder.map((g) => {
     const label = g === 'X' ? 'X/6 (fail)' : `${g}/6`;
@@ -621,15 +632,13 @@ function renderKingPlayerDetail(player, metrics) {
     return `<tr><td>${label}</td><td>${total}</td><td>${king}</td></tr>`;
   }).join('');
   const ratioPct = metrics.totalGames ? ((metrics.kingWins / metrics.totalGames) * 100).toFixed(1) : '0.0';
-  container.innerHTML = `
+  return `
     <div class="playerCard">
-      <button class="kingTable__back" type="button" data-king-back="true">← Back to King Wins</button>
-      <h3>${escapeHtml(player)}</h3>
-      <div class="status">Total sus wins: <strong>${metrics.buckets['1']}</strong></div>
-      <div class="status">Total games played: <strong>${metrics.totalGames}</strong></div>
-      <div class="status">👑 %: <strong>${ratioPct}%</strong></div>
-      <br/>
-      <table>
+      <div class="playerCard__title">${escapeHtml(player)}</div>
+      <div class="playerCard__stat">Total sus wins: <strong>${metrics.buckets['1']}</strong></div>
+      <div class="playerCard__stat">Total games played: <strong>${metrics.totalGames}</strong></div>
+      <div class="playerCard__stat">&#128081; %: <strong>${ratioPct}%</strong></div>
+      <table class="playerCard__table">
         <thead><tr><th>Round</th><th>Total</th><th>King Wins</th></tr></thead>
         <tbody>
           ${rows}
@@ -637,8 +646,20 @@ function renderKingPlayerDetail(player, metrics) {
       </table>
     </div>
   `;
-  container.classList.add('kingTable--visible');
-  $('chart').style.display = 'none';
+}
+
+function setActiveKingPlayer(player) {
+  if (!player || !kingContext.dataset.length) return;
+  const panel = $('kingTablePanel');
+  const container = $('kingTable');
+  if (!panel || !container) return;
+  kingContext.selectedPlayer = player;
+  const metrics = computePlayerMetrics(kingContext.dataset, player);
+  panel.innerHTML = buildPlayerStatsMarkup(player, metrics);
+  const encoded = encodeURIComponent(player);
+  container.querySelectorAll('[data-king-player-row]').forEach((row) => {
+    row.classList.toggle('kingTable__row--active', row.dataset.kingPlayerRow === encoded);
+  });
 }
 
 function renderGroupStats() {
@@ -980,16 +1001,7 @@ $('kingTable').addEventListener('click', (event) => {
   if (link) {
     event.preventDefault();
     const player = decodeURIComponent(link.dataset.kingPlayer || '');
-    if (player && kingContext.dataset.length) {
-      const metrics = computePlayerMetrics(kingContext.dataset, player);
-      renderKingPlayerDetail(player, metrics);
-    }
-    return;
-  }
-  const back = event.target.closest('[data-king-back]');
-  if (back && kingContext.leaderboard.length) {
-    event.preventDefault();
-    renderKingTable(kingContext.leaderboard, kingContext.dataset);
+    setActiveKingPlayer(player);
     return;
   }
   const closeGroup = event.target.closest('[data-group-close]');

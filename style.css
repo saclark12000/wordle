@@ -274,6 +274,36 @@ body:not(.developer-mode) .developerPanel {
   border-collapse: collapse;
 }
 
+.kingTable__layout {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.kingTable__leaderboard {
+  flex: 2 1 420px;
+  min-width: 320px;
+}
+
+.kingTable__panel {
+  flex: 1 1 280px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px;
+  padding: 16px;
+  background: rgba(0,0,0,.35);
+  min-width: 260px;
+}
+
+@media (max-width: 900px) {
+  .kingTable__layout {
+    flex-direction: column;
+  }
+
+  .kingTable__panel {
+    width: 100%;
+  }
+}
+
 .kingTable th,
 .kingTable td {
   padding: 10px 12px;
@@ -283,6 +313,14 @@ body:not(.developer-mode) .developerPanel {
 
 .kingTable tr:last-child td {
   border-bottom: none;
+}
+
+.kingTable__row--active {
+  background: rgba(201,180,88,.18);
+}
+
+.kingTable__row--active td {
+  color: var(--text);
 }
 
 .kingTable--visible {
@@ -326,5 +364,38 @@ body:not(.developer-mode) .developerPanel {
 }
 
 .playerCard {
-  margin: 15px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.playerCard__title {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.playerCard__stat {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.playerCard__stat strong {
+  color: var(--text);
+}
+
+.playerCard__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.playerCard__table th,
+.playerCard__table td {
+  padding: 6px 4px;
+  border-bottom: 1px solid rgba(255,255,255,.12);
+}
+
+.playerCard__table tr:last-child td {
+  border-bottom: none;
 }
