@@ -593,7 +593,7 @@ function renderKingTable(rows, dataset) {
         const ratioPct = (r.ratio * 100).toFixed(1);
         const encoded = encodeURIComponent(r.player);
         const activeClass = (kingContext.selectedPlayer && r.player === kingContext.selectedPlayer) ? ' kingTable__row--active' : '';
-        return `<tr class="kingTable__row${activeClass}" data-king-player-row="${encoded}"><td>${r.place}</td><td><a href="#" data-king-player="${encoded}">${escapeHtml(r.player)}</a></td><td>${r.winCount}</td><td>${ratioPct}%</td></tr>`;
+        return `<tr class="kingTable__row${activeClass}" data-king-player-row="${encoded}"><td>${r.place}</td><td><span class="kingTable__name" data-king-player="${encoded}">${escapeHtml(r.player)}</span></td><td>${r.winCount}</td><td>${ratioPct}%</td></tr>`;
       })
       .join('');
     container.innerHTML = `
@@ -1011,6 +1011,13 @@ $('kingTable').addEventListener('click', (event) => {
   if (link) {
     event.preventDefault();
     const player = decodeURIComponent(link.dataset.kingPlayer || '');
+    setActiveKingPlayer(player);
+    return;
+  }
+  const row = event.target.closest('[data-king-player-row]');
+  if (row) {
+    event.preventDefault();
+    const player = decodeURIComponent(row.dataset.kingPlayerRow || '');
     setActiveKingPlayer(player);
     return;
   }

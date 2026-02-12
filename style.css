@@ -325,6 +325,10 @@ body:not(.developer-mode) .developerPanel {
   border-bottom: none;
 }
 
+.kingTable__row {
+  cursor: pointer;
+}
+
 .kingTable__row--active {
   background: rgba(201,180,88,.18);
 }
@@ -337,13 +341,14 @@ body:not(.developer-mode) .developerPanel {
   display: block;
 }
 
-.kingTable a {
+.kingTable__name {
   color: var(--accent-secondary);
-  text-decoration: none;
   font-weight: 600;
+  text-decoration: none;
 }
 
-.kingTable a:hover {
+.kingTable__row:hover .kingTable__name,
+.kingTable__name:hover {
   color: var(--accent);
 }
 
