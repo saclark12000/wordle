@@ -7,11 +7,6 @@ const DEVELOPER_MODE = new URLSearchParams(window.location.search).get('develope
 const CROWN_COL_NAMES = ['👑','ðŸ‘‘','crown'];
 const CROWN_ROUND_COL_NAMES = ['👑 Round','ðŸ‘‘ Round','crown round'];
 const PRESET_TITLES = {
-  wordle_round_distribution: 'Round Distribution',
-  wordle_players_per_day: 'Players Per Day',
-  wordle_solve_rate: 'Solve Rate Per Day',
-  wordle_avg_guesses: 'Average Guesses Per Day',
-  wordle_top_players: 'Top Players',
   wordle_king_wins: 'King Wins'
 };
 
@@ -240,21 +235,21 @@ const PLAYER_BADGE_RULES = [
     })
   },
   {
-    id: 'king_leaderboard_top_ten',
-    matches: (ctx) => !!ctx.leaderboardEntry && ctx.leaderboardEntry.place < 11,
-    build: (ctx) => ({
-      icon: '🏅',
-      text: `${getOrdinal(ctx.leaderboardEntry.place)} Place`,
-      description: `${ctx.player} currently leads the King wins leaderboard with ${ctx.leaderboardEntry.winCount} wins.`
-    })
-  },
-  {
     id: 'low_games_played',
     matches: (ctx) => !!(ctx.metrics && ctx.metrics.totalGames < 10),
     build: (ctx) => ({
       icon: '😴',
       text: 'ZzzZz',
       description: `${ctx.player} has ${ctx.metrics.totalGames} games played.`
+    })
+  },
+  {
+    id: 'king_leaderboard_top_ten',
+    matches: (ctx) => !!ctx.leaderboardEntry && ctx.leaderboardEntry.place < 11,
+    build: (ctx) => ({
+      icon: '🏅',
+      text: `${getOrdinal(ctx.leaderboardEntry.place)} Place`,
+      description: `${ctx.player} currently leads the King wins leaderboard with ${ctx.leaderboardEntry.winCount} wins.`
     })
   },
   {
@@ -372,99 +367,6 @@ function updateLastDaysDefault(maxDay) {
   } else {
     input.value = '';
   }
-}
-
-// -----------------------------
-// Data shaping for Wordle presets
-// -----------------------------
-function wordleRoundDistribution(norm) {
-  const buckets = new Map();
-  for (const r of norm) {
-    const key = r.solved ? String(r.guesses) : 'X';
-    buckets.set(key, (buckets.get(key) || 0) + 1);
-  }
-  const labels = ['1','2','3','4','5','6','X'];
-  const data = labels.map(l => buckets.get(l) || 0);
-  return { labels, data, title: 'Round distribution (all days)', yLabel: 'Players' };
-}
-
-function wordlePlayersPerDay(norm) {
-  const map = new Map();
-  for (const r of norm) {
-    const key = r.dayKey || String(r.dayIndex);
-    if (!map.has(key)) {
-      map.set(key, { label: r.dayLabel || `Day ${r.dayIndex}`, order: getDayValueFromRow(r), count: 0 });
-    }
-    map.get(key).count += 1;
-  }
-  const ordered = [...map.values()].sort((a,b)=>a.order - b.order);
-  return {
-    labels: ordered.map((entry) => entry.label),
-    data: ordered.map((entry) => entry.count),
-    title: 'Players per day',
-    yLabel: 'Players'
-  };
-}
-
-function wordleSolveRatePerDay(norm) {
-  const stats = new Map();
-  for (const r of norm) {
-    const key = r.dayKey || String(r.dayIndex);
-    if (!stats.has(key)) {
-      stats.set(key, { label: r.dayLabel || `Day ${r.dayIndex}`, order: getDayValueFromRow(r), total: 0, solved: 0 });
-    }
-    const entry = stats.get(key);
-    entry.total += 1;
-    if (r.solved) entry.solved += 1;
-  }
-  const ordered = [...stats.values()].sort((a,b)=>a.order - b.order);
-  return {
-    labels: ordered.map((entry) => entry.label),
-    data: ordered.map((entry) => {
-      const { total, solved } = entry;
-      return total ? Math.round((solved / total) * 1000) / 10 : 0;
-    }),
-    title: 'Solve rate per day',
-    yLabel: 'Solve rate (%)'
-  };
-}
-
-function wordleAvgGuessesPerDay(norm) {
-  const stats = new Map();
-  for (const r of norm) {
-    if (!r.solved) continue;
-    const key = r.dayKey || String(r.dayIndex);
-    if (!stats.has(key)) {
-      stats.set(key, { label: r.dayLabel || `Day ${r.dayIndex}`, order: getDayValueFromRow(r), sum: 0, count: 0 });
-    }
-    const entry = stats.get(key);
-    entry.sum += r.guesses || 0;
-    entry.count += 1;
-  }
-  const ordered = [...stats.values()].sort((a,b)=>a.order - b.order);
-  return {
-    labels: ordered.map((entry) => entry.label),
-    data: ordered.map((entry) => {
-      return Math.round(((entry.sum || 0) / (entry.count || 1)) * 100) / 100;
-    }),
-    title: 'Average guesses per day (solves only)',
-    yLabel: 'Avg guesses'
-  };
-}
-
-function wordleTopPlayers(norm, limit) {
-  const solves = new Map();
-  for (const r of norm) {
-    if (!r.solved) continue;
-    solves.set(r.player, (solves.get(r.player) || 0) + 1);
-  }
-  const sorted = [...solves.entries()].sort((a,b)=>b[1]-a[1]).slice(0, limit);
-  return {
-    labels: sorted.map(([p])=>p),
-    data: sorted.map(([,c])=>c),
-    title: `Top ${limit} players by solves`,
-    yLabel: 'Solves'
-  };
 }
 
 function wordleKingWins(norm, limit) {
@@ -1035,43 +937,18 @@ function render() {
     }
 
     const limit = Math.max(3, Math.min(50, Number($('limit').value || 15)));
-    let shaped;
-    if (preset === 'wordle_round_distribution') shaped = wordleRoundDistribution(limitedWordle);
-    if (preset === 'wordle_players_per_day') shaped = wordlePlayersPerDay(limitedWordle);
-    if (preset === 'wordle_solve_rate') shaped = wordleSolveRatePerDay(limitedWordle);
-    if (preset === 'wordle_avg_guesses') shaped = wordleAvgGuessesPerDay(limitedWordle);
-    if (preset === 'wordle_top_players') shaped = wordleTopPlayers(limitedWordle, limit);
-    if (preset === 'wordle_king_wins') {
-      const rows = wordleKingWins(limitedWordle, limit);
-      renderKingTable(rows, limitedWordle);
-      setStatus(
-        $('chartStatus'),
-        `Rendered King Wins table (top <strong>${rows.length}</strong> of <strong>${limit}</strong> requested, ${dayLimit} day window / ${rowCount} CSV rows).`,
-        rows.length ? '' : 'warn'
-      );
-      const previewSlice = filteredRows.filter((row) => selectedRowIndexes.has(row.__rowIndex));
-      renderPreview(previewSlice.length ? previewSlice : filteredRows.slice(Math.max(0, filteredRows.length - dayLimit)), rawColumns);
+    if (preset !== 'wordle_king_wins') {
+      hideKingTable();
+      setStatus($('chartStatus'), 'Only the King Wins preset is available. Please select it to continue.', 'warn');
       return;
     }
-    hideKingTable();
-
-    // some presets look better as line charts; let user override
-    const suggested = (preset.includes('per_day')) ? 'line' : (preset.includes('distribution') ? 'bar' : type);
-
-    renderChart({
-      labels: shaped.labels,
-      data: shaped.data,
-      title: shaped.title,
-      yLabel: shaped.yLabel,
-      type: type || suggested
-    });
-
+    const rows = wordleKingWins(limitedWordle, limit);
+    renderKingTable(rows, limitedWordle);
     setStatus(
       $('chartStatus'),
-      `Rendered preset: <strong>${escapeHtml(preset)}</strong> (last <strong>${dayLimit}</strong> of <strong>${maxDays}</strong> day${maxDays === 1 ? '' : 's'}${latestLabel ? `, latest: <strong>${escapeHtml(latestLabel)}</strong>` : ''}; ${rowCount} CSV rows).`,
-      ''
+      `Rendered King Wins table (top <strong>${rows.length}</strong> of <strong>${limit}</strong> requested, ${dayLimit} day window / ${rowCount} CSV rows).`,
+      rows.length ? '' : 'warn'
     );
-    updatePageTitle();
     const previewSlice = filteredRows.filter((row) => selectedRowIndexes.has(row.__rowIndex));
     renderPreview(previewSlice.length ? previewSlice : filteredRows.slice(Math.max(0, filteredRows.length - dayLimit)), rawColumns);
     return;
