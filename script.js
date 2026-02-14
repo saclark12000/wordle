@@ -143,9 +143,82 @@ let mode = 'none'; // none | wordle | generic
 let normalizedWordle = []; // tidy rows
 let wordleDateField = null;
 let chart = null;
-let kingContext = { leaderboard: [], dataset: [], selectedPlayer: null };
+
+function createKingContext() {
+  return {
+    leaderboard: [],
+    dataset: [],
+    selectedPlayer: null,
+    playerMetrics: new Map()
+  };
+}
+
+let kingContext = createKingContext();
 let autoRenderConfig = { preset: 'wordle_king_wins', limit: 25, done: false };
 let currentWordleSubset = [];
+
+function createEmptyPlayerMetrics(player, opts) {
+  const keys = ['1','2','3','4','5','6','X'];
+  const trackRows = !opts || opts.trackRows !== false;
+  return {
+    player,
+    totalGames: 0,
+    solvedGames: 0,
+    failGames: 0,
+    kingWins: 0,
+    susWins: 0,
+    buckets: Object.fromEntries(keys.map(k => [k, 0])),
+    kingBuckets: Object.fromEntries(keys.map(k => [k, 0])),
+    rows: trackRows ? [] : null
+  };
+}
+
+function updatePlayerMetricsFromRow(metrics, row) {
+  if (!metrics || !row) return;
+  metrics.totalGames += 1;
+  if (Array.isArray(metrics.rows)) {
+    metrics.rows.push(row);
+  }
+  const solved = !!row.solved;
+  const bucketKey = (solved && row.guesses) ? String(row.guesses) : 'X';
+  if (metrics.buckets[bucketKey] !== undefined) {
+    metrics.buckets[bucketKey] += 1;
+  }
+  if (solved) {
+    metrics.solvedGames += 1;
+  } else {
+    metrics.failGames += 1;
+  }
+  if (row.guesses === 1) {
+    metrics.susWins += 1;
+  }
+  if (row.isCrown) {
+    metrics.kingWins += 1;
+    if (metrics.kingBuckets[bucketKey] !== undefined) {
+      metrics.kingBuckets[bucketKey] += 1;
+    }
+  }
+  metrics.winRatio = Math.round(metrics.kingWins / metrics.totalGames);
+}
+
+function buildPlayerMetricsMap(dataset) {
+  const out = new Map();
+  for (const row of dataset || []) {
+    if (!row.player) continue;
+    if (!out.has(row.player)) {
+      out.set(row.player, createEmptyPlayerMetrics(row.player));
+    }
+    updatePlayerMetricsFromRow(out.get(row.player), row);
+  }
+  return out;
+}
+
+function getPlayerMetrics(player) {
+  if (player && kingContext.playerMetrics && kingContext.playerMetrics.has(player)) {
+    return kingContext.playerMetrics.get(player);
+  }
+  return computePlayerMetrics(kingContext.dataset, player);
+}
 
 const PLAYER_BADGE_RULES = [
   {
@@ -156,8 +229,55 @@ const PLAYER_BADGE_RULES = [
       text: '1st Place',
       description: `${ctx.player} currently leads the King wins leaderboard with ${ctx.leaderboardEntry.winCount} wins.`
     })
+  },
+  {
+    id: 'has_sus_wins',
+    matches: (ctx) => !!(ctx.metrics && ctx.metrics.susWins > 1),
+    build: (ctx) => ({
+      icon: '👀',
+      text: 'Sus Wins',
+      description: `${ctx.player} has ${ctx.metrics.susWins} sus wins (1/6 solves).`
+    })
+  },
+  {
+    id: 'king_leaderboard_top_ten',
+    matches: (ctx) => !!ctx.leaderboardEntry && ctx.leaderboardEntry.place < 11,
+    build: (ctx) => ({
+      icon: '🏅',
+      text: `${getOrdinal(ctx.leaderboardEntry.place)} Place`,
+      description: `${ctx.player} currently leads the King wins leaderboard with ${ctx.leaderboardEntry.winCount} wins.`
+    })
+  },
+  {
+    id: 'low_games_played',
+    matches: (ctx) => !!(ctx.metrics && ctx.metrics.totalGames < 10),
+    build: (ctx) => ({
+      icon: '😴',
+      text: 'ZzzZz',
+      description: `${ctx.player} has ${ctx.metrics.totalGames} games played.`
+    })
+  },
+  {
+    id: 'win_under_20',
+    matches: (ctx) => !!(ctx.metrics && ctx.metrics.kingWins < 20),
+    build: (ctx) => ({
+      icon: '😥',
+      text: 'Cant Wins',
+      description: `${ctx.player} has ${ctx.metrics.kingWins} wins rate.`
+    })
   }
 ];
+
+function getOrdinal(n) {
+  var s = ["th", "st", "nd", "rd"];
+  var v = n % 100;
+  // This logic handles the exceptions (11, 12, 13) where 'th' is always used.
+  // The expression (v - 20) % 10 will return a valid index (0, 1, 2, or 3) 
+  // only for numbers ending in 1, 2, or 3 (excluding teens), 
+  // otherwise it returns a value that results in `undefined` (like a negative number).
+  // The final `|| s[0]` ensures "th" is used as the default for all other cases.
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
 
 // -----------------------------
 // Wordle normalization
@@ -373,26 +493,21 @@ function wordleKingWins(norm, limit) {
 }
 
 function summarizeMetrics(rows) {
-  const keys = ['1','2','3','4','5','6','X'];
-  const buckets = Object.fromEntries(keys.map(k => [k, 0]));
-  const kingBuckets = Object.fromEntries(keys.map(k => [k, 0]));
-  let kingWins = 0;
-  let totalGames = 0;
-  for (const r of rows) {
-    totalGames += 1;
-    const key = (r.solved && r.guesses) ? String(r.guesses) : 'X';
-    if (buckets[key] !== undefined) buckets[key] += 1;
-    if (r.isCrown) {
-      kingWins += 1;
-      if (kingBuckets[key] !== undefined) kingBuckets[key] += 1;
-    }
+  const metrics = createEmptyPlayerMetrics(null, { trackRows: false });
+  for (const r of rows || []) {
+    updatePlayerMetricsFromRow(metrics, r);
   }
-  return { kingWins, totalGames, buckets, kingBuckets };
+  return metrics;
 }
 
 function computePlayerMetrics(norm, player) {
-  const filtered = norm.filter(r => r.player === player);
-  return summarizeMetrics(filtered);
+  if (!player) return createEmptyPlayerMetrics(null);
+  const metrics = createEmptyPlayerMetrics(player);
+  for (const row of norm || []) {
+    if (row.player !== player) continue;
+    updatePlayerMetricsFromRow(metrics, row);
+  }
+  return metrics;
 }
 
 function computeGroupMetrics(rows) {
@@ -595,7 +710,12 @@ function renderKingTable(rows, dataset) {
   destroyChart();
   const container = $('kingTable');
   if (!container) return;
-  kingContext = { leaderboard: rows, dataset, selectedPlayer: null };
+  kingContext = {
+    leaderboard: rows,
+    dataset,
+    selectedPlayer: null,
+    playerMetrics: buildPlayerMetricsMap(dataset)
+  };
   if (!rows.length) {
     container.innerHTML = '<div class="status warn">No king wins detected.</div>';
   } else {
@@ -631,14 +751,24 @@ function hideKingTable() {
   container.classList.remove('kingTable--visible');
   container.innerHTML = '';
   $('chart').style.display = 'block';
-  kingContext = { leaderboard: [], dataset: [], selectedPlayer: null };
+  kingContext = createKingContext();
 }
 
 function resolvePlayerBadge(player) {
   const leaderboard = Array.isArray(kingContext.leaderboard) ? kingContext.leaderboard : [];
   const dataset = Array.isArray(kingContext.dataset) ? kingContext.dataset : [];
   const leaderboardEntry = leaderboard.find((entry) => entry.player === player) || null;
-  const context = { player, leaderboard, dataset, leaderboardEntry };
+  const metrics = getPlayerMetrics(player);
+  const rows = metrics && Array.isArray(metrics.rows) ? metrics.rows : [];
+  const context = {
+    player,
+    leaderboard,
+    dataset,
+    leaderboardEntry,
+    metrics,
+    rows,
+    metricsMap: kingContext.playerMetrics
+  };
   for (const rule of PLAYER_BADGE_RULES) {
     if (!rule || typeof rule.matches !== 'function') continue;
     if (rule.matches(context)) {
@@ -683,7 +813,7 @@ function buildPlayerStatsMarkup(player, metrics) {
     return `<tr><td>${label}</td><td>${total}</td><td>${king}</td></tr>`;
   }).join('');
   const ratioPct = metrics.totalGames ? ((metrics.kingWins / metrics.totalGames) * 100).toFixed(1) : '0.0';
-  const susWins = metrics.buckets['1'];
+  const susWins = typeof metrics.susWins === 'number' ? metrics.susWins : (metrics.buckets['1'] || 0);
   const infoBlock = `
     <div class="playerCard__info">
       <div class="playerCard__title">${escapeHtml(player)}</div>
@@ -742,7 +872,7 @@ function setActiveKingPlayer(player) {
   const container = $('kingTable');
   if (!panel || !container) return;
   kingContext.selectedPlayer = player;
-  const metrics = computePlayerMetrics(kingContext.dataset, player);
+  const metrics = getPlayerMetrics(player);
   panel.innerHTML = buildPlayerStatsMarkup(player, metrics);
   const encoded = encodeURIComponent(player);
   container.querySelectorAll('[data-king-player-row]').forEach((row) => {
