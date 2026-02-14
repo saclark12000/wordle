@@ -147,6 +147,18 @@ let kingContext = { leaderboard: [], dataset: [], selectedPlayer: null };
 let autoRenderConfig = { preset: 'wordle_king_wins', limit: 25, done: false };
 let currentWordleSubset = [];
 
+const PLAYER_BADGE_RULES = [
+  {
+    id: 'king_leaderboard_first_place',
+    matches: (ctx) => !!ctx.leaderboardEntry && ctx.leaderboardEntry.place === 1,
+    build: (ctx) => ({
+      icon: '👑',
+      text: '1st Place',
+      description: `${ctx.player} currently leads the King wins leaderboard with ${ctx.leaderboardEntry.winCount} wins.`
+    })
+  }
+];
+
 // -----------------------------
 // Wordle normalization
 // Produces rows like:
@@ -622,7 +634,47 @@ function hideKingTable() {
   kingContext = { leaderboard: [], dataset: [], selectedPlayer: null };
 }
 
+function resolvePlayerBadge(player) {
+  const leaderboard = Array.isArray(kingContext.leaderboard) ? kingContext.leaderboard : [];
+  const dataset = Array.isArray(kingContext.dataset) ? kingContext.dataset : [];
+  const leaderboardEntry = leaderboard.find((entry) => entry.player === player) || null;
+  const context = { player, leaderboard, dataset, leaderboardEntry };
+  for (const rule of PLAYER_BADGE_RULES) {
+    if (!rule || typeof rule.matches !== 'function') continue;
+    if (rule.matches(context)) {
+      const built = typeof rule.build === 'function' ? rule.build(context) : null;
+      if (built && (built.icon || built.image || built.text)) {
+        return { id: rule.id, ...built };
+      }
+    }
+  }
+  return null;
+}
+
+function buildPlayerBadgeMarkup(badge) {
+  if (!badge) return '';
+  const parts = [];
+  if (badge.icon) {
+    parts.push(`<div class="playerCard__badgeIcon" aria-hidden="true">${badge.icon}</div>`);
+  }
+  if (badge.image) {
+    const alt = badge.alt || badge.text || 'Player badge';
+    parts.push(`<img class="playerCard__badgeImage" src="${escapeHtml(badge.image)}" alt="${escapeHtml(alt)}" />`);
+  }
+  if (badge.text) {
+    parts.push(`<div class="playerCard__badgeText">${escapeHtml(badge.text)}</div>`);
+  }
+  if (!parts.length) return '';
+  const label = badge.ariaLabel || badge.description || badge.text || '';
+  const titleAttr = badge.description ? ` title="${escapeHtml(badge.description)}"` : '';
+  const ariaAttr = label ? ` aria-label="${escapeHtml(label)}"` : '';
+  const dataAttr = badge.id ? ` data-badge-id="${escapeHtml(badge.id)}"` : '';
+  return `<div class="playerCard__badge"${titleAttr}${ariaAttr}${dataAttr}>${parts.join('')}</div>`;
+}
+
 function buildPlayerStatsMarkup(player, metrics) {
+  const badge = resolvePlayerBadge(player);
+  const badgeMarkup = buildPlayerBadgeMarkup(badge);
   const guessOrder = ['1','2','3','4','5','6','X'];
   const rows = guessOrder.map((g) => {
     const label = g === 'X' ? 'X/6 (fail)' : `${g}/6`;
@@ -631,15 +683,23 @@ function buildPlayerStatsMarkup(player, metrics) {
     return `<tr><td>${label}</td><td>${total}</td><td>${king}</td></tr>`;
   }).join('');
   const ratioPct = metrics.totalGames ? ((metrics.kingWins / metrics.totalGames) * 100).toFixed(1) : '0.0';
+  const susWins = metrics.buckets['1'];
+  const infoBlock = `
+    <div class="playerCard__info">
+      <div class="playerCard__title">${escapeHtml(player)}</div>
+      <div class="playerCard__stat">Total sus wins: <strong>${susWins}</strong></div>
+      <div class="playerCard__stat">Total games played: <strong>${metrics.totalGames}</strong></div>
+      <div class="playerCard__stat">&#128081; %: <strong>${ratioPct}%</strong></div>
+    </div>
+  `;
+  const badgeBlock = badgeMarkup ? `<div class="playerCard__badgeWrap">${badgeMarkup}</div>` : '';
   return `
     <div class="playerCard">
       <div class="playerCard__header">
-        <div class="playerCard__title">${escapeHtml(player)}</div>
+        ${infoBlock}
+        ${badgeBlock}
         <button class="kingTable__panelBtn" type="button" data-king-group-panel="true">✖</button>
       </div>
-      <div class="playerCard__stat">Total sus wins: <strong>${metrics.buckets['1']}</strong></div>
-      <div class="playerCard__stat">Total games played: <strong>${metrics.totalGames}</strong></div>
-      <div class="playerCard__stat">&#128081; %: <strong>${ratioPct}%</strong></div>
       <table class="playerCard__table">
         <thead><tr><th>Round</th><th>Total</th><th>King Wins</th></tr></thead>
         <tbody>
