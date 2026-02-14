@@ -138,141 +138,23 @@ let mode = 'none'; // none | wordle | generic
 let normalizedWordle = []; // tidy rows
 let wordleDateField = null;
 let chart = null;
+const {
+  createKingContext,
+  createEmptyPlayerMetrics,
+  updatePlayerMetricsFromRow,
+  buildPlayerMetricsMap,
+  getPlayerMetrics,
+  resolvePlayerBadge,
+  buildPlayerBadgeMarkup
+} = window.BadgeSystem || {};
 
-function createKingContext() {
-  return {
-    leaderboard: [],
-    dataset: [],
-    selectedPlayer: null,
-    playerMetrics: new Map()
-  };
+if (!createKingContext || !resolvePlayerBadge) {
+  throw new Error('BadgeSystem module failed to load.');
 }
 
 let kingContext = createKingContext();
 let autoRenderConfig = { preset: 'wordle_king_wins', limit: 25, done: false };
 let currentWordleSubset = [];
-
-function createEmptyPlayerMetrics(player, opts) {
-  const keys = ['1','2','3','4','5','6','X'];
-  const trackRows = !opts || opts.trackRows !== false;
-  return {
-    player,
-    totalGames: 0,
-    solvedGames: 0,
-    failGames: 0,
-    kingWins: 0,
-    susWins: 0,
-    buckets: Object.fromEntries(keys.map(k => [k, 0])),
-    kingBuckets: Object.fromEntries(keys.map(k => [k, 0])),
-    rows: trackRows ? [] : null
-  };
-}
-
-function updatePlayerMetricsFromRow(metrics, row) {
-  if (!metrics || !row) return;
-  metrics.totalGames += 1;
-  if (Array.isArray(metrics.rows)) {
-    metrics.rows.push(row);
-  }
-  const solved = !!row.solved;
-  const bucketKey = (solved && row.guesses) ? String(row.guesses) : 'X';
-  if (metrics.buckets[bucketKey] !== undefined) {
-    metrics.buckets[bucketKey] += 1;
-  }
-  if (solved) {
-    metrics.solvedGames += 1;
-  } else {
-    metrics.failGames += 1;
-  }
-  if (row.guesses === 1) {
-    metrics.susWins += 1;
-  }
-  if (row.isCrown) {
-    metrics.kingWins += 1;
-    if (metrics.kingBuckets[bucketKey] !== undefined) {
-      metrics.kingBuckets[bucketKey] += 1;
-    }
-  }
-  metrics.winRatio = Math.round(metrics.kingWins / metrics.totalGames);
-}
-
-function buildPlayerMetricsMap(dataset) {
-  const out = new Map();
-  for (const row of dataset || []) {
-    if (!row.player) continue;
-    if (!out.has(row.player)) {
-      out.set(row.player, createEmptyPlayerMetrics(row.player));
-    }
-    updatePlayerMetricsFromRow(out.get(row.player), row);
-  }
-  return out;
-}
-
-function getPlayerMetrics(player) {
-  if (player && kingContext.playerMetrics && kingContext.playerMetrics.has(player)) {
-    return kingContext.playerMetrics.get(player);
-  }
-  return computePlayerMetrics(kingContext.dataset, player);
-}
-
-const PLAYER_BADGE_RULES = [
-  {
-    id: 'king_leaderboard_first_place',
-    matches: (ctx) => !!ctx.leaderboardEntry && ctx.leaderboardEntry.place === 1,
-    build: (ctx) => ({
-      icon: '👑',
-      text: '1st Place',
-      description: `${ctx.player} currently leads the King wins leaderboard with ${ctx.leaderboardEntry.winCount} wins.`
-    })
-  },
-  {
-    id: 'has_sus_wins',
-    matches: (ctx) => !!(ctx.metrics && ctx.metrics.susWins > 1),
-    build: (ctx) => ({
-      icon: '👀',
-      text: 'Sus Wins',
-      description: `${ctx.player} has ${ctx.metrics.susWins} sus wins (1/6 solves).`
-    })
-  },
-  {
-    id: 'low_games_played',
-    matches: (ctx) => !!(ctx.metrics && ctx.metrics.totalGames < 10),
-    build: (ctx) => ({
-      icon: '😴',
-      text: 'ZzzZz',
-      description: `${ctx.player} has ${ctx.metrics.totalGames} games played.`
-    })
-  },
-  {
-    id: 'king_leaderboard_top_ten',
-    matches: (ctx) => !!ctx.leaderboardEntry && ctx.leaderboardEntry.place < 11,
-    build: (ctx) => ({
-      icon: '🏅',
-      text: `${getOrdinal(ctx.leaderboardEntry.place)} Place`,
-      description: `${ctx.player} currently leads the King wins leaderboard with ${ctx.leaderboardEntry.winCount} wins.`
-    })
-  },
-  {
-    id: 'win_under_20',
-    matches: (ctx) => !!(ctx.metrics && ctx.metrics.kingWins < 20),
-    build: (ctx) => ({
-      icon: '😥',
-      text: 'Cant Wins',
-      description: `${ctx.player} has ${ctx.metrics.kingWins} wins rate.`
-    })
-  }
-];
-
-function getOrdinal(n) {
-  var s = ["th", "st", "nd", "rd"];
-  var v = n % 100;
-  // This logic handles the exceptions (11, 12, 13) where 'th' is always used.
-  // The expression (v - 20) % 10 will return a valid index (0, 1, 2, or 3) 
-  // only for numbers ending in 1, 2, or 3 (excluding teens), 
-  // otherwise it returns a value that results in `undefined` (like a negative number).
-  // The final `|| s[0]` ensures "th" is used as the default for all other cases.
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
 
 // -----------------------------
 // Wordle normalization
@@ -398,16 +280,6 @@ function summarizeMetrics(rows) {
   const metrics = createEmptyPlayerMetrics(null, { trackRows: false });
   for (const r of rows || []) {
     updatePlayerMetricsFromRow(metrics, r);
-  }
-  return metrics;
-}
-
-function computePlayerMetrics(norm, player) {
-  if (!player) return createEmptyPlayerMetrics(null);
-  const metrics = createEmptyPlayerMetrics(player);
-  for (const row of norm || []) {
-    if (row.player !== player) continue;
-    updatePlayerMetricsFromRow(metrics, row);
   }
   return metrics;
 }
@@ -656,57 +528,7 @@ function hideKingTable() {
   kingContext = createKingContext();
 }
 
-function resolvePlayerBadge(player) {
-  const leaderboard = Array.isArray(kingContext.leaderboard) ? kingContext.leaderboard : [];
-  const dataset = Array.isArray(kingContext.dataset) ? kingContext.dataset : [];
-  const leaderboardEntry = leaderboard.find((entry) => entry.player === player) || null;
-  const metrics = getPlayerMetrics(player);
-  const rows = metrics && Array.isArray(metrics.rows) ? metrics.rows : [];
-  const context = {
-    player,
-    leaderboard,
-    dataset,
-    leaderboardEntry,
-    metrics,
-    rows,
-    metricsMap: kingContext.playerMetrics
-  };
-  for (const rule of PLAYER_BADGE_RULES) {
-    if (!rule || typeof rule.matches !== 'function') continue;
-    if (rule.matches(context)) {
-      const built = typeof rule.build === 'function' ? rule.build(context) : null;
-      if (built && (built.icon || built.image || built.text)) {
-        return { id: rule.id, ...built };
-      }
-    }
-  }
-  return null;
-}
-
-function buildPlayerBadgeMarkup(badge) {
-  if (!badge) return '';
-  const parts = [];
-  if (badge.icon) {
-    parts.push(`<div class="playerCard__badgeIcon" aria-hidden="true">${badge.icon}</div>`);
-  }
-  if (badge.image) {
-    const alt = badge.alt || badge.text || 'Player badge';
-    parts.push(`<img class="playerCard__badgeImage" src="${escapeHtml(badge.image)}" alt="${escapeHtml(alt)}" />`);
-  }
-  if (badge.text) {
-    parts.push(`<div class="playerCard__badgeText">${escapeHtml(badge.text)}</div>`);
-  }
-  if (!parts.length) return '';
-  const label = badge.ariaLabel || badge.description || badge.text || '';
-  const titleAttr = badge.description ? ` title="${escapeHtml(badge.description)}"` : '';
-  const ariaAttr = label ? ` aria-label="${escapeHtml(label)}"` : '';
-  const dataAttr = badge.id ? ` data-badge-id="${escapeHtml(badge.id)}"` : '';
-  return `<div class="playerCard__badge"${titleAttr}${ariaAttr}${dataAttr}>${parts.join('')}</div>`;
-}
-
-function buildPlayerStatsMarkup(player, metrics) {
-  const badge = resolvePlayerBadge(player);
-  const badgeMarkup = buildPlayerBadgeMarkup(badge);
+function buildPlayerStatsMarkup(player, metrics, badgeMarkup) {
   const guessOrder = ['1','2','3','4','5','6','X'];
   const rows = guessOrder.map((g) => {
     const label = g === 'X' ? 'X/6 (fail)' : `${g}/6`;
@@ -774,8 +596,10 @@ function setActiveKingPlayer(player) {
   const container = $('kingTable');
   if (!panel || !container) return;
   kingContext.selectedPlayer = player;
-  const metrics = getPlayerMetrics(player);
-  panel.innerHTML = buildPlayerStatsMarkup(player, metrics);
+  const metrics = getPlayerMetrics(kingContext, player);
+  const badge = resolvePlayerBadge(kingContext, player);
+  const badgeMarkup = buildPlayerBadgeMarkup(badge);
+  panel.innerHTML = buildPlayerStatsMarkup(player, metrics, badgeMarkup);
   const encoded = encodeURIComponent(player);
   container.querySelectorAll('[data-king-player-row]').forEach((row) => {
     row.classList.toggle('kingTable__row--active', row.dataset.kingPlayerRow === encoded);
