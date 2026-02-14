@@ -107,7 +107,10 @@
     },
     {
       id: 'low_games_played',
-      matches: (ctx) => !!(ctx.metrics && ctx.metrics.totalGames < 10),
+      matches: (ctx) => {
+        console.log('dataset length' + ctx.dataset.length);
+        return !!(ctx.metrics && ctx.metrics.totalGames < Math.round(.05* ctx.dataset.length))
+      },
       build: (ctx) => ({
         icon: '😴',
         text: 'ZzzZz',
