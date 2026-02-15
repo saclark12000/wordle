@@ -46,6 +46,9 @@ Only PapaParse is loaded at runtime. Chart.js has been removed entirely.
 3. Drop your latest Wordle/Hurdle export, tweak **Top N** and **Last N days**, then click player rows to inspect badges and per-guess stats.
 4. Hit **Export normalized CSV** if you need the tidy format for spreadsheets or other tooling.
 
+## Support Resources
+- Refer to `resources/support/PLAYER_BADGE_MANIFEST.md` for a step-by-step checklist on adding or updating badge definitions inside `PLAYER_BADGE_MANIFEST`. It explains the manifest fields, available predicate context, and the test workflow so support engineers can safely extend the badge catalog.
+
 ## Smoke Checklist
 - Load the built-in sample -> leaderboard populates, selecting rows updates the detail pane.
 - Change **Last N days** -> leaderboard, preview table, and status copy reflect the new window.

@@ -126,6 +126,13 @@
       predicate: (ctx) => !!(ctx.metrics && ctx.metrics.susWins > 1)
     },
     {
+      id: 'crown_guardian',
+      icon: '😄',
+      title: 'Crown Guardian',
+      description: (ctx) => `${ctx.player} kept crowns coming for ${ctx.metrics.crownWins} days.`,
+      predicate: (ctx) => ctx.metrics.crownWins > 7
+    },
+    {
       id: 'win_under_20',
       icon: '😣',
       title: 'Finding Footing',
