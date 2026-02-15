@@ -1,4 +1,13 @@
 (function (global) {
+  function escapeHtml(value) {
+    return String(value === undefined || value === null ? '' : value)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
   function createKingContext() {
     return {
       leaderboard: [],
@@ -108,13 +117,12 @@
     {
       id: 'low_games_played',
       matches: (ctx) => {
-        console.log('dataset length' + ctx.dataset.length);
         return !!(ctx.metrics && ctx.metrics.totalGames < Math.round(.05* ctx.dataset.length))
       },
       build: (ctx) => ({
         icon: '😴',
         text: 'ZzzZz',
-        description: `${ctx.player} has ${ctx.metrics.totalGames} games played.`
+        description: `${ctx.player} has only played ${ctx.metrics.totalGames} games.`
       })
     },
     {
@@ -183,7 +191,14 @@
     const titleAttr = badge.description ? ` title="${escapeHtml(badge.description)}"` : '';
     const ariaAttr = label ? ` aria-label="${escapeHtml(label)}"` : '';
     const dataAttr = badge.id ? ` data-badge-id="${escapeHtml(badge.id)}"` : '';
-    return `<div class="playerCard__badge"${titleAttr}${ariaAttr}${dataAttr}>${parts.join('')}</div>`;
+    const description = badge.description ? `<div class="playerCard__badgeDescription">${escapeHtml(badge.description)}</div>` : '';
+    const expandableClass = description ? ' playerCard__badge--expandable' : '';
+    return `
+      <div class="playerCard__badge${expandableClass}" role="button" tabindex="0" data-player-badge="true" aria-expanded="false"${titleAttr}${ariaAttr}${dataAttr}>
+        <div class="playerCard__badgeContent">${parts.join('')}</div>
+        ${description}
+      </div>
+    `;
   }
 
   global.BadgeSystem = {

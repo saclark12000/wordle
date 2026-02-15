@@ -625,6 +625,12 @@ function setGroupStatsPanel() {
   }
 }
 
+function toggleBadgeExpansion(badge) {
+  if (!badge || !badge.classList.contains('playerCard__badge--expandable')) return;
+  const expanded = badge.classList.toggle('playerCard__badge--expanded');
+  badge.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+}
+
 function setStatus(el, msg, kind) {
   el.className = 'status ' + (kind || '');
   el.innerHTML = msg;
@@ -918,11 +924,25 @@ $('kingTable').addEventListener('click', (event) => {
     setGroupStatsPanel();
     return;
   }
+  const badge = event.target.closest('[data-player-badge]');
+  if (badge) {
+    event.preventDefault();
+    toggleBadgeExpansion(badge);
+    return;
+  }
   const closeGroup = event.target.closest('[data-group-close]');
   if (closeGroup) {
     event.preventDefault();
     render();
   }
+});
+
+$('kingTable').addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const badge = event.target.closest('[data-player-badge]');
+  if (!badge) return;
+  event.preventDefault();
+  toggleBadgeExpansion(badge);
 });
 
 // initialize
