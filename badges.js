@@ -8,7 +8,7 @@
       .replaceAll("'", '&#039;');
   }
 
-  function createKingContext() {
+  function createCrownContext() {
     return {
       leaderboard: [],
       dataset: [],
@@ -25,11 +25,11 @@
       totalGames: 0,
       solvedGames: 0,
       failGames: 0,
-      kingWins: 0,
+      crownWins: 0,
       susWins: 0,
       winRatio: 0,
       buckets: Object.fromEntries(keys.map(k => [k, 0])),
-      kingBuckets: Object.fromEntries(keys.map(k => [k, 0])),
+      crownBuckets: Object.fromEntries(keys.map(k => [k, 0])),
       rows: trackRows ? [] : null
     };
   }
@@ -54,12 +54,12 @@
       metrics.susWins += 1;
     }
     if (row.isCrown) {
-      metrics.kingWins += 1;
-      if (metrics.kingBuckets[bucketKey] !== undefined) {
-        metrics.kingBuckets[bucketKey] += 1;
+      metrics.crownWins += 1;
+      if (metrics.crownBuckets[bucketKey] !== undefined) {
+        metrics.crownBuckets[bucketKey] += 1;
       }
     }
-    metrics.winRatio = metrics.totalGames ? Math.round(metrics.kingWins / metrics.totalGames) : 0;
+    metrics.winRatio = metrics.totalGames ? Math.round(metrics.crownWins / metrics.totalGames) : 0;
   }
 
   function buildPlayerMetricsMap(dataset) {
@@ -97,12 +97,12 @@
 
   const PLAYER_BADGE_RULES = [
     {
-      id: 'king_leaderboard_first_place',
+      id: 'crown_leaderboard_first_place',
       matches: (ctx) => !!ctx.leaderboardEntry && ctx.leaderboardEntry.place === 1,
       build: (ctx) => ({
         icon: '👑',
         text: '1st Place',
-        description: `${ctx.player} currently leads the King wins leaderboard with ${ctx.leaderboardEntry.winCount} wins.`
+        description: `${ctx.player} currently leads the Crown wins leaderboard with ${ctx.leaderboardEntry.winCount} wins.`
       })
     },
     {
@@ -126,21 +126,21 @@
       })
     },
     {
-      id: 'king_leaderboard_top_ten',
+      id: 'crown_leaderboard_top_ten',
       matches: (ctx) => !!ctx.leaderboardEntry && ctx.leaderboardEntry.place < 11,
       build: (ctx) => ({
         icon: '🏅',
         text: `${getOrdinal(ctx.leaderboardEntry.place)} Place`,
-        description: `${ctx.player} currently leads the King wins leaderboard with ${ctx.leaderboardEntry.winCount} wins.`
+        description: `${ctx.player} currently leads the Crown wins leaderboard with ${ctx.leaderboardEntry.winCount} wins.`
       })
     },
     {
       id: 'win_under_20',
-      matches: (ctx) => !!(ctx.metrics && ctx.metrics.kingWins < 20),
+      matches: (ctx) => !!(ctx.metrics && ctx.metrics.crownWins < 20),
       build: (ctx) => ({
         icon: '😥',
         text: 'Cant Wins',
-        description: `${ctx.player} has ${ctx.metrics.kingWins} wins rate.`
+        description: `${ctx.player} has ${ctx.metrics.crownWins} wins rate.`
       })
     }
   ];
@@ -203,7 +203,7 @@
 
   global.BadgeSystem = {
     PLAYER_BADGE_RULES,
-    createKingContext,
+    createCrownContext,
     createEmptyPlayerMetrics,
     updatePlayerMetricsFromRow,
     buildPlayerMetricsMap,
@@ -215,3 +215,8 @@
     module.exports = global.BadgeSystem;
   }
 })(typeof window !== 'undefined' ? window : globalThis);
+
+
+
+
+

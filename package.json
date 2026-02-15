@@ -1,8 +1,9 @@
 {
-  "name": "wordle-king-wins",
+  "name": "wordle-crown-wins",
   "version": "1.0.0",
   "private": true,
   "scripts": {
     "test": "node --test"
   }
 }
+

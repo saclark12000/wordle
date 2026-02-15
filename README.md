@@ -1,12 +1,12 @@
-﻿# King Wins Leaderboard
+﻿# Crown Wins Leaderboard
 
-Single-page web app focused on a single job: ingest the standardized Wordle/Hurdle group CSV export and render the "King Wins" leaderboard with player stats and badge callouts. All former generic charting paths have been removed; every control now maps directly to the leaderboard workflow.
+Single-page web app focused on a single job: ingest the standardized Wordle/Hurdle group CSV export and render the "Crown Wins" leaderboard with player stats and badge callouts. All former generic charting paths have been removed; every control now maps directly to the leaderboard workflow.
 
 ## Current Capabilities
 - **Strict Wordle detection** – the loader validates that the CSV contains the `1/6` through `X/6` columns plus the crown metadata before any UI is enabled.
 - **UTF-8 safe parsing** – file picker reads files as UTF-8, the built-in sample ships with proper crown text, and exports include a BOM so spreadsheets stop showing mojibake.
-- **Normalization pipeline** – `kingWinsCore.js` exposes pure helpers (`normalizeWordle`, `wordleKingWins`, etc.) that convert emoji columns into tidy player/day rows and can now be unit tested in isolation.
-- **Leaderboard view** – `renderKingTable()` replaces the old Chart.js canvas with the dedicated king-table layout, including player detail panes and badge toggles.
+- **Normalization pipeline** – `crownWinsCore.js` exposes pure helpers (`normalizeWordle`, `wordleCrownWins`, etc.) that convert emoji columns into tidy player/day rows and can now be unit tested in isolation.
+- **Leaderboard view** – `renderCrownTable()` replaces the old Chart.js canvas with the dedicated crown-table layout, including player detail panes and badge toggles.
 - **Preview + export** – the data preview only shows the rows backing the current "Last N days" window, and you can download the normalized rows with **Export normalized CSV**.
 - **Badge system** – `badges.js` still powers the rule engine, but it now exports cleanly so badge selection is covered by automated tests.
 
@@ -24,15 +24,15 @@ If any required column is missing the app leaves the controls disabled and surfa
 ## Data & Rendering Flow
 1. **Load** – `parseCsvText()` (script.js) runs PapaParse with `header: true` and stamps each raw row with a hidden `__rowIndex`.
 2. **Detect** – `onCsvLoaded()` validates the schema, normalizes rows via `normalizeWordle()`, and populates the "Last N days" input with the total day count.
-3. **Render** – `render()` builds the day subset, feeds it to `wordleKingWins()`, renders the leaderboard, and syncs the preview table to the same subset.
-4. **Interact** – clicking rows in the king-table updates player metrics and badges; clicking "Close" on the detail pane returns to the group stats view.
+3. **Render** – `render()` builds the day subset, feeds it to `wordleCrownWins()`, renders the leaderboard, and syncs the preview table to the same subset.
+4. **Interact** – clicking rows in the crown-table updates player metrics and badges; clicking "Close" on the detail pane returns to the group stats view.
 
 ## Project Layout
 ```
 index.html    # lean control panel + leaderboard card
-style.css     # dark theme, developer tools, king-table, badges
+style.css     # dark theme, developer tools, crown-table, badges
 script.js     # DOM orchestration + subset logic
-kingWinsCore.js # reusable normalization helpers (UMD-style)
+crownWinsCore.js # reusable normalization helpers (UMD-style)
 badges.js     # badge rules + metrics helpers (UMD-style)
 resources/    # sample CSV data
 tests/        # node --test suites for core + badges
@@ -55,16 +55,19 @@ Only PapaParse is loaded at runtime. Chart.js has been removed entirely.
 ## Tests
 Run `npm test` to execute the Node test runner. The suite currently covers:
 - `normalizeWordle` edge cases (crowns, failed rows, date parsing).
-- `wordleKingWins` ordering logic.
+- `wordleCrownWins` ordering logic.
 - Badge selection heuristics (first place vs. sus wins).
 
 ## Known Limitations
-- **Global mutable state** – the browser implementation still keeps `rawRows`, `normalizedWordle`, and `kingContext` in module scope, so further modularization would help.
+- **Global mutable state** – the browser implementation still keeps `rawRows`, `normalizedWordle`, and `crownContext` in module scope, so further modularization would help.
 - **Performance** – normalization is synchronous and recomputes on every render; workers or memoization would help on 5k+ row CSVs.
-- **Accessibility polish** – the king-table rows are focusable, but announcing context (row place, instructions) still needs ARIA work.
+- **Accessibility polish** – the crown-table rows are focusable, but announcing context (row place, instructions) still needs ARIA work.
 - **No persistence** – user preferences (Top N, Last N days, developer toggle) reset on refresh.
 
 ## Contributing
-- Keep data/normalization helpers in `kingWinsCore.js` so they remain testable from Node.
+- Keep data/normalization helpers in `crownWinsCore.js` so they remain testable from Node.
 - Update this README plus `TODO.md` when you alter workflows or add roadmap items.
 - Run `npm test` before shipping changes; add new coverage when you touch the normalization or badge rules.
+
+
+

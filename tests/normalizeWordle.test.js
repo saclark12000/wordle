@@ -5,7 +5,7 @@ const {
   normalizeWordle,
   detectDateField,
   looksLikeWordleSummary
-} = require('../kingWinsCore');
+} = require('../crownWinsCore');
 
 test('normalizeWordle flattens Wordle CSV rows', () => {
   const columns = ['date posted', 'crown', 'crown round', '1/6', '2/6', '3/6', '4/6', '5/6', '6/6', 'X/6'];
@@ -36,3 +36,4 @@ test('normalizeWordle flattens Wordle CSV rows', () => {
   assert.equal(zero.solved, false);
   assert.equal(zero.guesses, null);
 });
+

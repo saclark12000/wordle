@@ -1,20 +1,20 @@
-﻿// -----------------------------
+// -----------------------------
 // Utilities
 // -----------------------------
 const $ = (id) => document.getElementById(id);
 const DEFAULT_CSV_PATH = 'resources/game_data/wordleData.csv';
 const DEVELOPER_MODE = new URLSearchParams(window.location.search).get('developer') === 'true';
-const KingWinsCore = window.KingWinsCore || {};
+const CrownWinsCore = window.CrownWinsCore || {};
 const {
   looksLikeWordleSummary,
   normalizeWordle,
   detectDateField,
-  wordleKingWins,
+  wordleCrownWins,
   getDayValueFromRow
-} = KingWinsCore;
+} = CrownWinsCore;
 
-if (!looksLikeWordleSummary || !normalizeWordle || !wordleKingWins || !getDayValueFromRow) {
-  throw new Error('KingWinsCore module failed to load.');
+if (!looksLikeWordleSummary || !normalizeWordle || !wordleCrownWins || !getDayValueFromRow) {
+  throw new Error('CrownWinsCore module failed to load.');
 }
 
 const UTF8_DECODER = typeof TextDecoder !== 'undefined' ? new TextDecoder('utf-8') : null;
@@ -43,9 +43,9 @@ let rawRows = [];
 let rawColumns = [];
 let normalizedWordle = []; // tidy rows
 let wordleDateField = null;
-let kingModeReady = false;
+let crownModeReady = false;
 const {
-  createKingContext,
+  createCrownContext,
   createEmptyPlayerMetrics,
   updatePlayerMetricsFromRow,
   buildPlayerMetricsMap,
@@ -54,11 +54,11 @@ const {
   buildPlayerBadgeMarkup
 } = window.BadgeSystem || {};
 
-if (!createKingContext || !resolvePlayerBadge) {
+if (!createCrownContext || !resolvePlayerBadge) {
   throw new Error('BadgeSystem module failed to load.');
 }
 
-let kingContext = createKingContext();
+let crownContext = createCrownContext();
 let autoRenderConfig = { limit: 25, done: false };
 
 function getWordleDayEntries() {
@@ -118,31 +118,6 @@ function updateLastDaysDefault(maxDay) {
   } else {
     input.value = '';
   }
-}
-
-function wordleKingWinsFunc(norm, limit) {
-  const wins = new Map();
-  const games = new Map();
-  for (const r of norm) {
-    if (!r.player) continue;
-    games.set(r.player, (games.get(r.player) || 0) + 1);
-    if (r.isCrown) {
-      wins.set(r.player, (wins.get(r.player) || 0) + 1);
-    }
-  }
-  const sorted = [...games.entries()]
-    .map(([player, totalGames]) => ({
-      player,
-      totalGames,
-      winCount: wins.get(player) || 0,
-      ratio: totalGames ? (wins.get(player) || 0) / totalGames : 0
-    }))
-    .sort((a, b) => {
-      if (b.winCount !== a.winCount) return b.winCount - a.winCount;
-      return a.player.localeCompare(b.player);
-    })
-    .slice(0, limit);
-  return sorted.map((entry, idx) => ({ place: idx + 1, ...entry }));
 }
 
 function summarizeMetrics(rows) {
@@ -208,40 +183,40 @@ function renderPreview(rows, columns) {
   table.innerHTML = head + body;
 }
 
-function renderKingTable(rows, dataset) {
-  const container = $('kingTable');
+function renderCrownTable(rows, dataset) {
+  const container = $('crownTable');
   if (!container) return;
-  kingContext = {
+  crownContext = {
     leaderboard: rows,
     dataset,
     selectedPlayer: null,
     playerMetrics: buildPlayerMetricsMap(dataset)
   };
   if (!rows.length) {
-    container.innerHTML = '<div class="status warn">No king wins detected.</div>';
+    container.innerHTML = '<div class="status warn">No Crown Wins detected.</div>';
   } else {
-    const head = '<thead><tr><th>Place</th><th>User Name</th><th>Total ðŸ‘‘ Wins</th><th>ðŸ‘‘ %</th></tr></thead>';
+    const head = '<thead><tr><th>Place</th><th>User Name</th><th>Total 👑 Wins</th><th>👑 %</th></tr></thead>';
     const body = rows
       .map(r => {
         const ratioPct = (r.ratio * 100).toFixed(1);
         const encoded = encodeURIComponent(r.player);
-        const activeClass = (kingContext.selectedPlayer && r.player === kingContext.selectedPlayer) ? ' kingTable__row--active' : '';
-        return `<tr class="kingTable__row${activeClass}" data-king-player-row="${encoded}"><td>${r.place}</td><td><span class="kingTable__name" data-king-player="${encoded}">${escapeHtml(r.player)}</span></td><td>${r.winCount}</td><td>${ratioPct}%</td></tr>`;
+        const activeClass = (crownContext.selectedPlayer && r.player === crownContext.selectedPlayer) ? ' crownTable__row--active' : '';
+        return `<tr class="crownTable__row${activeClass}" data-crown-player-row="${encoded}"><td>${r.place}</td><td><span class="crownTable__name" data-crown-player="${encoded}">${escapeHtml(r.player)}</span></td><td>${r.winCount}</td><td>${ratioPct}%</td></tr>`;
       })
       .join('');
     container.innerHTML = `
-      <div class="kingTable__heading">ðŸ‘‘ Wins Leaderboard</div>
-      <div class="kingTable__layout">
-        <div class="kingTable__leaderboard">
+      <div class="crownTable__heading">👑 Wins Leaderboard</div>
+      <div class="crownTable__layout">
+        <div class="crownTable__leaderboard">
           <table>${head}<tbody>${body}</tbody></table>
         </div>
-        <div class="kingTable__panel" id="kingTablePanel">
+        <div class="crownTable__panel" id="crownTablePanel">
           <div class="status">Select a player to view stats.</div>
         </div>
       </div>
     `;
   }
-  container.classList.add('kingTable--visible');
+  container.classList.add('crownTable--visible');
   setGroupStatsPanel();
 }
 
@@ -250,10 +225,10 @@ function buildPlayerStatsMarkup(player, metrics, badgeMarkup) {
   const rows = guessOrder.map((g) => {
     const label = g === 'X' ? 'X/6 (fail)' : `${g}/6`;
     const total = metrics.buckets[g] || 0;
-    const king = metrics.kingBuckets[g] || 0;
-    return `<tr><td>${label}</td><td>${total}</td><td>${king}</td></tr>`;
+    const crown = metrics.crownBuckets[g] || 0;
+    return `<tr><td>${label}</td><td>${total}</td><td>${crown}</td></tr>`;
   }).join('');
-  const ratioPct = metrics.totalGames ? ((metrics.kingWins / metrics.totalGames) * 100).toFixed(1) : '0.0';
+  const ratioPct = metrics.totalGames ? ((metrics.crownWins / metrics.totalGames) * 100).toFixed(1) : '0.0';
   const susWins = typeof metrics.susWins === 'number' ? metrics.susWins : (metrics.buckets['1'] || 0);
   const infoBlock = `
     <div class="playerCard__info">
@@ -269,10 +244,10 @@ function buildPlayerStatsMarkup(player, metrics, badgeMarkup) {
       <div class="playerCard__header">
         ${infoBlock}
         ${badgeBlock}
-        <button class="kingTable__panelBtn" type="button" data-king-group-panel="true">Close</button>
+        <button class="crownTable__panelBtn" type="button" data-crown-group-panel="true">Close</button>
       </div>
       <table class="playerCard__table">
-        <thead><tr><th>Round</th><th>Total</th><th>King Wins</th></tr></thead>
+        <thead><tr><th>Round</th><th>Total</th><th>Crown Wins</th></tr></thead>
         <tbody>
           ${rows}
         </tbody>
@@ -283,22 +258,22 @@ function buildPlayerStatsMarkup(player, metrics, badgeMarkup) {
 
 function buildGroupStatsMarkup(dataset, metrics) {
   const players = new Set(dataset.map((r) => r.player)).size;
-  const ratioPct = metrics.totalGames ? ((metrics.kingWins / metrics.totalGames) * 100).toFixed(1) : '0.0';
+  const ratioPct = metrics.totalGames ? ((metrics.crownWins / metrics.totalGames) * 100).toFixed(1) : '0.0';
   const guessOrder = ['1','2','3','4','5','6','X'];
   const rows = guessOrder.map((g) => {
     const label = g === 'X' ? 'X/6 (fail)' : `${g}/6`;
     const total = metrics.buckets[g] || 0;
-    const king = metrics.kingBuckets[g] || 0;
-    return `<tr><td>${label}</td><td>${total}</td><td>${king}</td></tr>`;
+    const crown = metrics.crownBuckets[g] || 0;
+    return `<tr><td>${label}</td><td>${total}</td><td>${crown}</td></tr>`;
   }).join('');
   return `
     <div class="playerCard">
       <div class="playerCard__title">Group Stats</div>
       <div class="playerCard__stat">Total players: <strong>${players}</strong></div>
       <div class="playerCard__stat">Total games: <strong>${metrics.totalGames}</strong></div>
-      <div class="playerCard__stat">Total ðŸ‘‘ wins: <strong>${metrics.kingWins}</strong> (${ratioPct}%)</div>
+      <div class="playerCard__stat">Total 👑 wins: <strong>${metrics.crownWins}</strong> (${ratioPct}%)</div>
       <table class="playerCard__table">
-        <thead><tr><th>Round</th><th>Total</th><th>ðŸ‘‘ Wins</th></tr></thead>
+        <thead><tr><th>Round</th><th>Total</th><th>👑 Wins</th></tr></thead>
         <tbody>
           ${rows}
         </tbody>
@@ -307,37 +282,37 @@ function buildGroupStatsMarkup(dataset, metrics) {
   `;
 }
 
-function setActiveKingPlayer(player) {
-  if (!player || !kingContext.dataset.length) return;
-  const panel = $('kingTablePanel');
-  const container = $('kingTable');
+function setActiveCrownPlayer(player) {
+  if (!player || !crownContext.dataset.length) return;
+  const panel = $('crownTablePanel');
+  const container = $('crownTable');
   if (!panel || !container) return;
-  kingContext.selectedPlayer = player;
-  const metrics = getPlayerMetrics(kingContext, player);
-  const badge = resolvePlayerBadge(kingContext, player);
+  crownContext.selectedPlayer = player;
+  const metrics = getPlayerMetrics(crownContext, player);
+  const badge = resolvePlayerBadge(crownContext, player);
   const badgeMarkup = buildPlayerBadgeMarkup(badge);
   panel.innerHTML = buildPlayerStatsMarkup(player, metrics, badgeMarkup);
   const encoded = encodeURIComponent(player);
-  container.querySelectorAll('[data-king-player-row]').forEach((row) => {
-    row.classList.toggle('kingTable__row--active', row.dataset.kingPlayerRow === encoded);
+  container.querySelectorAll('[data-crown-player-row]').forEach((row) => {
+    row.classList.toggle('crownTable__row--active', row.dataset.crownPlayerRow === encoded);
   });
 }
 
 function setGroupStatsPanel() {
-  const panel = $('kingTablePanel');
-  const container = $('kingTable');
+  const panel = $('crownTablePanel');
+  const container = $('crownTable');
   if (!panel) return;
-  const dataset = kingContext.dataset || [];
+  const dataset = crownContext.dataset || [];
   if (!dataset.length) {
     panel.innerHTML = '<div class="status">Load a Wordle CSV to see group stats.</div>';
     return;
   }
   const metrics = computeGroupMetrics(dataset);
   panel.innerHTML = buildGroupStatsMarkup(dataset, metrics);
-  kingContext.selectedPlayer = null;
+  crownContext.selectedPlayer = null;
   if (container) {
-    container.querySelectorAll('[data-king-player-row]').forEach((row) => {
-      row.classList.remove('kingTable__row--active');
+    container.querySelectorAll('[data-crown-player-row]').forEach((row) => {
+      row.classList.remove('crownTable__row--active');
     });
   }
 }
@@ -356,7 +331,7 @@ function setStatus(el, msg, kind) {
 function updatePageTitle() {
   const el = $('pageTitle');
   if (!el) return;
-  el.textContent = 'King Wins Leaderboard';
+  el.textContent = 'Crown Wins Leaderboard';
 }
 
 // -----------------------------
@@ -370,7 +345,7 @@ function onCsvLoaded(rows, columns, sourceName) {
   rawColumns = columns;
   normalizedWordle = [];
   wordleDateField = null;
-  kingModeReady = false;
+  crownModeReady = false;
   updatePageTitle();
 
   const wordle = looksLikeWordleSummary(columns);
@@ -385,7 +360,7 @@ function onCsvLoaded(rows, columns, sourceName) {
 
   if (!wordle) {
     updateLastDaysDefault(0);
-    renderKingTable([], []);
+    renderCrownTable([], []);
     renderPreview(rows, columns);
     setStatus(
       $('leaderboardStatus'),
@@ -397,7 +372,7 @@ function onCsvLoaded(rows, columns, sourceName) {
 
   wordleDateField = detectDateField(columns);
   normalizedWordle = normalizeWordle(rows, wordleDateField);
-  kingModeReady = true;
+  crownModeReady = true;
   updateLastDaysDefault(getWordleTotalDays());
   const players = uniq(normalizedWordle.map(r => r.player)).length;
   setStatus(
@@ -426,11 +401,11 @@ function parseCsvText(text, sourceName) {
       const columns = res.meta && res.meta.fields ? res.meta.fields : (rows[0] ? Object.keys(rows[0]) : []);
       if (!rows.length) {
         setStatus($('loadStatus'), 'CSV parsed but found zero data rows.', 'warn');
-        kingModeReady = false;
+        crownModeReady = false;
         normalizedWordle = [];
         $('btnExport').disabled = true;
         setStatus($('leaderboardStatus'), '', '');
-        renderKingTable([], []);
+        renderCrownTable([], []);
         $('previewTable').innerHTML = '';
         return;
       }
@@ -456,7 +431,7 @@ async function loadDefaultCsv() {
 }
 
 function render() {
-  if (!kingModeReady || !normalizedWordle.length) {
+  if (!crownModeReady || !normalizedWordle.length) {
     setStatus($('leaderboardStatus'), 'Load a Wordle CSV first.', 'warn');
     return;
   }
@@ -471,7 +446,7 @@ function render() {
 
   if (!limitedWordle.length) {
     setStatus($('leaderboardStatus'), 'No rows available for the requested day window.', 'warn');
-    renderKingTable([], []);
+    renderCrownTable([], []);
     renderPreview([], rawColumns);
     return;
   }
@@ -484,8 +459,8 @@ function render() {
   limitValue = Math.max(3, Math.min(50, Math.floor(limitValue)));
   limitInputEl.value = limitValue;
 
-  const rows = wordleKingWinsFunc(limitedWordle, limitValue);
-  renderKingTable(rows, limitedWordle);
+  const rows = wordleCrownWins(limitedWordle, limitValue);
+  renderCrownTable(rows, limitedWordle);
 
   const previewRows = selectedRowIndexes.size
     ? rawRows.filter((row) => selectedRowIndexes.has(row.__rowIndex))
@@ -493,12 +468,12 @@ function render() {
   renderPreview(previewRows, rawColumns);
 
   const latestCopy = latestLabel ? ` Latest day: <strong>${escapeHtml(latestLabel)}</strong>.` : '';
-  const baseMsg = `Rendered King Wins leaderboard for the last <strong>${dayLimit}</strong> day(s) covering <strong>${rowCount || limitedWordle.length}</strong> CSV rows.`;
+  const baseMsg = `Rendered Crown Wins leaderboard for the last <strong>${dayLimit}</strong> day(s) covering <strong>${rowCount || limitedWordle.length}</strong> CSV rows.`;
   setStatus($('leaderboardStatus'), baseMsg + latestCopy, rows.length ? 'ok' : 'warn');
 }
 
 function exportNormalized() {
-  if (!kingModeReady || !normalizedWordle.length) {
+  if (!crownModeReady || !normalizedWordle.length) {
     setStatus($('leaderboardStatus'), 'Nothing to export (Wordle format not detected).', 'warn');
     return;
   }
@@ -522,12 +497,12 @@ function clearAll() {
   rawColumns = [];
   normalizedWordle = [];
   wordleDateField = null;
-  kingModeReady = false;
+  crownModeReady = false;
   $('previewTable').innerHTML = '';
-  const table = $('kingTable');
+  const table = $('crownTable');
   if (table) {
     table.innerHTML = '';
-    table.classList.remove('kingTable--visible');
+    table.classList.remove('crownTable--visible');
   }
   $('file').value = '';
   $('limit').value = autoRenderConfig.limit;
@@ -564,22 +539,22 @@ $('btnRender').addEventListener('click', render);
 $('btnExport').addEventListener('click', exportNormalized);
 $('btnClear').addEventListener('click', clearAll);
 
-$('kingTable').addEventListener('click', (event) => {
-  const link = event.target.closest('[data-king-player]');
+$('crownTable').addEventListener('click', (event) => {
+  const link = event.target.closest('[data-crown-player]');
   if (link) {
     event.preventDefault();
-    const player = decodeURIComponent(link.dataset.kingPlayer || '');
-    setActiveKingPlayer(player);
+    const player = decodeURIComponent(link.dataset.crownPlayer || '');
+    setActiveCrownPlayer(player);
     return;
   }
-  const row = event.target.closest('[data-king-player-row]');
+  const row = event.target.closest('[data-crown-player-row]');
   if (row) {
     event.preventDefault();
-    const player = decodeURIComponent(row.dataset.kingPlayerRow || '');
-    setActiveKingPlayer(player);
+    const player = decodeURIComponent(row.dataset.crownPlayerRow || '');
+    setActiveCrownPlayer(player);
     return;
   }
-  const groupBtn = event.target.closest('[data-king-group-panel]');
+  const groupBtn = event.target.closest('[data-crown-group-panel]');
   if (groupBtn) {
     event.preventDefault();
     setGroupStatsPanel();
@@ -598,7 +573,7 @@ $('kingTable').addEventListener('click', (event) => {
   }
 });
 
-$('kingTable').addEventListener('keydown', (event) => {
+$('crownTable').addEventListener('keydown', (event) => {
   if (event.key !== 'Enter' && event.key !== ' ') return;
   const badge = event.target.closest('[data-player-badge]');
   if (!badge) return;
@@ -610,3 +585,19 @@ $('kingTable').addEventListener('keydown', (event) => {
 clearAll();
 document.body.classList.toggle('developer-mode', DEVELOPER_MODE);
 loadDefaultCsv();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

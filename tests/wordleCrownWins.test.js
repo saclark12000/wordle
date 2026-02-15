@@ -1,9 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { wordleKingWins } = require('../kingWinsCore');
+const { wordleCrownWins } = require('../crownWinsCore');
 
-test('wordleKingWins sorts by crown wins then name', () => {
+test('wordleCrownWins sorts by crown wins then name', () => {
   const dataset = [
     { player: '@ace', isCrown: true },
     { player: '@ace', isCrown: false },
@@ -11,7 +11,7 @@ test('wordleKingWins sorts by crown wins then name', () => {
     { player: '@buck', isCrown: true },
     { player: '@cara', isCrown: false }
   ];
-  const leaderboard = wordleKingWins(dataset, 5);
+  const leaderboard = wordleCrownWins(dataset, 5);
   assert.equal(leaderboard.length, 3);
   assert.deepEqual(leaderboard[0], {
     place: 1,
@@ -24,3 +24,4 @@ test('wordleKingWins sorts by crown wins then name', () => {
   assert.equal(leaderboard[1].winCount, 1);
   assert.equal(leaderboard[2].ratio, 0);
 });
+

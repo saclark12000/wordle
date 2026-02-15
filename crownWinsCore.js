@@ -116,7 +116,7 @@
     return out;
   }
 
-  function wordleKingWins(norm, limit) {
+  function wordleCrownWins(norm, limit) {
     const wins = new Map();
     const games = new Map();
     for (const r of norm) {
@@ -145,7 +145,7 @@
     looksLikeWordleSummary,
     detectDateField,
     normalizeWordle,
-    wordleKingWins,
+    wordleCrownWins,
     splitHandles,
     deriveDayMeta,
     getDayValueFromRow
@@ -155,5 +155,6 @@
     module.exports = api;
   }
 
-  global.KingWinsCore = api;
+  global.CrownWinsCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);
+
