@@ -509,3 +509,59 @@ body:not(.developer-mode) .developerPanel {
   border-bottom: none;
 }
 
+.playerCard__insights {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.playerCard__insight {
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(0,0,0,.35);
+  font-size: 12px;
+  color: var(--muted2);
+}
+
+.playerCard__insight strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.groupCallouts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.groupCallouts__item {
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(0,0,0,.4);
+}
+
+.groupCallouts__title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .18em;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.groupCallouts__detail {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.groupCallouts__meta {
+  font-size: 11px;
+  color: var(--muted2);
+  margin-top: 4px;
+}
+

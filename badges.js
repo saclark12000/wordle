@@ -95,55 +95,83 @@
     return n + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0]);
   }
 
-  const PLAYER_BADGE_RULES = [
+  const BADGE_HELPERS = {
+    ordinal: getOrdinal,
+    ratioPercent: (wins, total) => {
+      if (!total) return '0%';
+      return `${((wins / total) * 100).toFixed(0)}%`;
+    }
+  };
+
+  const PLAYER_BADGE_MANIFEST = [
     {
       id: 'crown_leaderboard_first_place',
-      matches: (ctx) => !!ctx.leaderboardEntry && ctx.leaderboardEntry.place === 1,
-      build: (ctx) => ({
-        icon: '👑',
-        text: '1st Place',
-        description: `${ctx.player} currently leads the Crown wins leaderboard with ${ctx.leaderboardEntry.winCount} wins.`
-      })
-    },
-    {
-      id: 'has_sus_wins',
-      matches: (ctx) => !!(ctx.metrics && ctx.metrics.susWins > 1),
-      build: (ctx) => ({
-        icon: '👀',
-        text: 'Sus Wins',
-        description: `${ctx.player} has ${ctx.metrics.susWins} sus wins (1/6 solves).`
-      })
-    },
-    {
-      id: 'low_games_played',
-      matches: (ctx) => {
-        return !!(ctx.metrics && ctx.metrics.totalGames < Math.round(.05* ctx.dataset.length))
-      },
-      build: (ctx) => ({
-        icon: '😴',
-        text: 'ZzzZz',
-        description: `${ctx.player} has only played ${ctx.metrics.totalGames} games.`
-      })
+      icon: '👑',
+      title: '1st Place',
+      description: (ctx) => `${ctx.player} leads with ${ctx.leaderboardEntry.winCount} crowns.`,
+      predicate: (ctx) => !!ctx.leaderboardEntry && ctx.leaderboardEntry.place === 1
     },
     {
       id: 'crown_leaderboard_top_ten',
-      matches: (ctx) => !!ctx.leaderboardEntry && ctx.leaderboardEntry.place < 11,
-      build: (ctx) => ({
-        icon: '🏅',
-        text: `${getOrdinal(ctx.leaderboardEntry.place)} Place`,
-        description: `${ctx.player} currently leads the Crown wins leaderboard with ${ctx.leaderboardEntry.winCount} wins.`
-      })
+      icon: '🏅',
+      title: (ctx) => `${getOrdinal(ctx.leaderboardEntry.place)} Place`,
+      description: (ctx) => `${ctx.player} is top 10 with ${ctx.leaderboardEntry.winCount} wins.`,
+      predicate: (ctx) => !!ctx.leaderboardEntry && ctx.leaderboardEntry.place > 1 && ctx.leaderboardEntry.place <= 10
+    },
+    {
+      id: 'has_sus_wins',
+      icon: '👀',
+      title: 'Sus Wins',
+      description: (ctx) => `${ctx.player} logged ${ctx.metrics.susWins} one-guess solves.`,
+      predicate: (ctx) => !!(ctx.metrics && ctx.metrics.susWins > 1)
     },
     {
       id: 'win_under_20',
-      matches: (ctx) => !!(ctx.metrics && ctx.metrics.crownWins < 20),
-      build: (ctx) => ({
-        icon: '😥',
-        text: 'Cant Wins',
-        description: `${ctx.player} has ${ctx.metrics.crownWins} wins rate.`
-      })
+      icon: '😣',
+      title: 'Finding Footing',
+      description: (ctx) => `${ctx.player} is still chasing crowns (${ctx.metrics.crownWins} so far).`,
+      predicate: (ctx) => !!(ctx.metrics && ctx.metrics.crownWins < 20)
+    },
+    {
+      id: 'low_games_played',
+      icon: '😴',
+      title: 'Power Nap',
+      description: (ctx) => `${ctx.player} has only played ${ctx.metrics.totalGames} games in this window.`,
+      predicate: (ctx) => !!(ctx.metrics && ctx.dataset && ctx.metrics.totalGames < Math.max(3, Math.round(ctx.dataset.length * 0.05)))
     }
   ];
+
+  const PLAYER_BADGE_RULES = PLAYER_BADGE_MANIFEST;
+
+  function buildBadgePayload(entry, ctx) {
+    const title = typeof entry.title === 'function' ? entry.title(ctx, BADGE_HELPERS) : entry.title;
+    const description = typeof entry.description === 'function' ? entry.description(ctx, BADGE_HELPERS) : entry.description;
+    const icon = typeof entry.icon === 'function' ? entry.icon(ctx, BADGE_HELPERS) : entry.icon;
+    const image = typeof entry.image === 'function' ? entry.image(ctx, BADGE_HELPERS) : entry.image;
+    if (!title && !icon && !image) return null;
+    return {
+      id: entry.id,
+      icon,
+      image,
+      text: title,
+      description
+    };
+  }
+
+  function evaluateBadge(manifest, ctx) {
+    for (const entry of manifest) {
+      if (!entry || typeof entry.predicate !== 'function') continue;
+      try {
+        if (entry.predicate(ctx, BADGE_HELPERS)) {
+          return buildBadgePayload(entry, ctx);
+        }
+      } catch (err) {
+        console.warn('Badge predicate failed', entry.id, err);
+      }
+    }
+    return null;
+  }
+
 
   function resolvePlayerBadge(context, player) {
     if (!context || !player) return null;
@@ -159,18 +187,10 @@
       leaderboardEntry,
       metrics,
       rows,
-      metricsMap: context.playerMetrics
+      metricsMap: context.playerMetrics,
+      helpers: BADGE_HELPERS
     };
-    for (const rule of PLAYER_BADGE_RULES) {
-      if (!rule || typeof rule.matches !== 'function') continue;
-      if (rule.matches(badgeContext)) {
-        const built = typeof rule.build === 'function' ? rule.build(badgeContext) : null;
-        if (built && (built.icon || built.image || built.text)) {
-          return { id: rule.id, ...built };
-        }
-      }
-    }
-    return null;
+    return evaluateBadge(PLAYER_BADGE_MANIFEST, badgeContext);
   }
 
   function buildPlayerBadgeMarkup(badge) {
@@ -202,6 +222,7 @@
   }
 
   global.BadgeSystem = {
+    PLAYER_BADGE_MANIFEST,
     PLAYER_BADGE_RULES,
     createCrownContext,
     createEmptyPlayerMetrics,

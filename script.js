@@ -17,10 +17,21 @@ if (!looksLikeWordleSummary || !normalizeWordle || !wordleCrownWins || !getDayVa
   throw new Error('CrownWinsCore module failed to load.');
 }
 
+const { createStateStore } = window.CrownState || {};
+if (typeof createStateStore !== 'function') {
+  throw new Error('State manager module failed to load.');
+}
+
+const stateStore = createStateStore();
 const UTF8_DECODER = typeof TextDecoder !== 'undefined' ? new TextDecoder('utf-8') : null;
 
 function uniq(arr) {
   return [...new Set(arr)];
+}
+
+function formatPercent(value, digits = 1) {
+  if (!Number.isFinite(value)) return '0%';
+  return `${(value * 100).toFixed(digits)}%`;
 }
 
 function downloadText(filename, text) {
@@ -39,9 +50,6 @@ function downloadText(filename, text) {
 // -----------------------------
 // State
 // -----------------------------
-let rawRows = [];
-let rawColumns = [];
-let normalizedWordle = []; // tidy rows
 let wordleDateField = null;
 let crownModeReady = false;
 const {
@@ -59,56 +67,8 @@ if (!createCrownContext || !resolvePlayerBadge) {
 }
 
 let crownContext = createCrownContext();
-let autoRenderConfig = { limit: 25, done: false };
-
-function getWordleDayEntries() {
-  const map = new Map();
-  for (const row of normalizedWordle) {
-    const key = row.dayKey || String(row.dayIndex);
-    if (!map.has(key)) {
-      map.set(key, {
-        key,
-        label: row.dayLabel || `Day ${row.dayIndex}`,
-        value: getDayValueFromRow(row),
-        rowIndex: typeof row.sourceRowIndex === 'number' ? row.sourceRowIndex : null
-      });
-    }
-  }
-  return [...map.values()].sort((a, b) => a.value - b.value);
-}
-
-function getWordleTotalDays() {
-  return getWordleDayEntries().length;
-}
-
-function getWordleLastDaysSubset() {
-  const days = getWordleDayEntries();
-  const totalDays = days.length;
-  if (!totalDays) return { data: [], limit: 0, maxDays: 0, selectedDayKeys: new Set(), selectedRowIndexes: new Set() };
-  const input = $('lastDays');
-  let requested = Number(input.value);
-  if (!Number.isFinite(requested) || requested <= 0) requested = totalDays;
-  requested = Math.max(1, Math.min(totalDays, Math.floor(requested)));
-  input.value = requested;
-  const selectedEntries = days.slice(totalDays - requested);
-  const selectedDayKeys = new Set(selectedEntries.map((d) => d.key));
-  const selectedRowIndexes = new Set(
-    selectedEntries
-      .map((d) => d.rowIndex)
-      .filter((idx) => idx !== null && idx !== undefined)
-  );
-  const data = normalizedWordle.filter((r) => selectedDayKeys.has(r.dayKey || String(r.dayIndex)));
-  const latestLabel = selectedEntries.length ? selectedEntries[selectedEntries.length - 1].label : '';
-  return {
-    data,
-    limit: requested,
-    maxDays: totalDays,
-    selectedDayKeys,
-    selectedRowIndexes,
-    latestLabel,
-    rowCount: selectedRowIndexes.size
-  };
-}
+const autoRenderConfig = { limit: 25, done: false };
+stateStore.setLeaderboardLimit(autoRenderConfig.limit);
 
 function updateLastDaysDefault(maxDay) {
   const input = $('lastDays');
@@ -132,6 +92,100 @@ function computeGroupMetrics(rows) {
   return summarizeMetrics(rows);
 }
 
+function computePlayerInsights(metrics, opts = {}) {
+  const windowDays = Number(opts.windowDays) || 0;
+  const rows =
+    (Array.isArray(opts.rows) && opts.rows.length ? opts.rows : null) ||
+    (metrics && Array.isArray(metrics.rows) ? metrics.rows : []) ||
+    [];
+  const byDay = new Map();
+  rows.forEach((row) => {
+    if (!row) return;
+    const key = row.dayKey || `day-${row.dayIndex}`;
+    const timestamp = Number(row.dayTimestamp) || Number(row.dayIndex) || 0;
+    const existing = byDay.get(key);
+    if (existing) {
+      existing.isCrown = existing.isCrown || !!row.isCrown;
+      existing.timestamp = Math.min(existing.timestamp, timestamp);
+    } else {
+      byDay.set(key, { isCrown: !!row.isCrown, timestamp });
+    }
+  });
+  const timeline = [...byDay.values()].sort((a, b) => a.timestamp - b.timestamp);
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  let activeStreak = 0;
+  let bestStreak = 0;
+  let prevTs = null;
+  timeline.forEach((day) => {
+    if (!day.isCrown) {
+      activeStreak = 0;
+      prevTs = day.timestamp;
+      return;
+    }
+    const isSequential = prevTs !== null && Math.abs(day.timestamp - prevTs) <= DAY_MS * 1.5;
+    activeStreak = isSequential ? activeStreak + 1 : 1;
+    bestStreak = Math.max(bestStreak, activeStreak);
+    prevTs = day.timestamp;
+  });
+  const crownRows = rows.filter((row) => row && row.isCrown && Number.isFinite(row.guesses));
+  const avgGuess = crownRows.length
+    ? crownRows.reduce((sum, row) => sum + Number(row.guesses || 0), 0) / crownRows.length
+    : null;
+  const participationRate = windowDays > 0 && metrics && metrics.totalGames
+    ? Math.min(1, metrics.totalGames / windowDays)
+    : 0;
+  return {
+    activeCrownStreak: activeStreak,
+    bestCrownStreak: bestStreak,
+    avgGuessWhenCrowned: avgGuess,
+    participationRate
+  };
+}
+
+function deriveGroupCallouts(dataset, metrics) {
+  if (!Array.isArray(dataset) || !dataset.length) return [];
+  const callouts = [];
+  const perPlayer = buildPlayerMetricsMap(dataset);
+  const totalPlayers = perPlayer.size || 0;
+  const totalCrowns = dataset.filter((row) => row && row.isCrown).length;
+  const newcomerPlayers = [];
+  perPlayer.forEach((playerMetrics, player) => {
+    if (!playerMetrics) return;
+    if (playerMetrics.totalGames <= 3 && playerMetrics.crownWins > 0) {
+      newcomerPlayers.push(player);
+    }
+  });
+  if (newcomerPlayers.length >= Math.max(2, Math.ceil(totalPlayers * 0.2))) {
+    callouts.push({
+      title: 'Newcomer surge',
+      detail: `${newcomerPlayers.length} newer players earned crowns this window.`,
+      meta: newcomerPlayers.slice(0, 3).join(', ')
+    });
+  }
+  if (totalCrowns > 0 && totalPlayers > 0) {
+    const leaderboard = wordleCrownWins(dataset, totalPlayers);
+    if (leaderboard.length) {
+      const leader = leaderboard[0];
+      const share = leader.winCount ? leader.winCount / totalCrowns : 0;
+      if (share >= 0.35) {
+        callouts.push({
+          title: 'Crown concentration',
+          detail: `${leader.player} owns ${formatPercent(share, 0)} of crowns (${leader.winCount}/${totalCrowns}).`
+        });
+      }
+    }
+  }
+  const ratioPct =
+    metrics && metrics.totalGames ? (metrics.crownWins / metrics.totalGames) : 0;
+  if (ratioPct >= 0.6) {
+    callouts.push({
+      title: 'Consistent crowd',
+      detail: `Group crown conversion is ${formatPercent(ratioPct, 0)} this window.`
+    });
+  }
+  return callouts;
+}
+
 // Rendering
 // -----------------------------
 function escapeHtml(s) {
@@ -153,14 +207,16 @@ function renderPreview(rows, columns) {
   table.innerHTML = head + body;
 }
 
-function renderCrownTable(rows, dataset) {
+function renderCrownTable(rows, dataset, windowMeta = null) {
   const container = $('crownTable');
   if (!container) return;
   crownContext = {
     leaderboard: rows,
     dataset,
     selectedPlayer: null,
-    playerMetrics: buildPlayerMetricsMap(dataset)
+    playerMetrics: buildPlayerMetricsMap(dataset),
+    windowMeta,
+    windowDays: windowMeta && windowMeta.limit ? windowMeta.limit : 0
   };
   if (!rows.length) {
     container.innerHTML = '<div class="status warn">No Crown Wins detected.</div>';
@@ -190,7 +246,7 @@ function renderCrownTable(rows, dataset) {
   setGroupStatsPanel();
 }
 
-function buildPlayerStatsMarkup(player, metrics, badgeMarkup) {
+function buildPlayerStatsMarkup(player, metrics, badgeMarkup, insights) {
   const guessOrder = ['1','2','3','4','5','6','X'];
   const rows = guessOrder.map((g) => {
     const label = g === 'X' ? 'X/6 (fail)' : `${g}/6`;
@@ -209,6 +265,28 @@ function buildPlayerStatsMarkup(player, metrics, badgeMarkup) {
     </div>
   `;
   const badgeBlock = badgeMarkup ? `<div class="playerCard__badgeWrap">${badgeMarkup}</div>` : '';
+  const insightsBlock = insights
+    ? `
+    <div class="playerCard__insights">
+      <div class="playerCard__insight">
+        <span>Active crown streak</span>
+        <strong>${insights.activeCrownStreak || 0}</strong>
+      </div>
+      <div class="playerCard__insight">
+        <span>Best streak</span>
+        <strong>${insights.bestCrownStreak || 0}</strong>
+      </div>
+      <div class="playerCard__insight">
+        <span>Avg guesses when crowned</span>
+        <strong>${Number.isFinite(insights.avgGuessWhenCrowned) ? insights.avgGuessWhenCrowned.toFixed(1) : '--'}</strong>
+      </div>
+      <div class="playerCard__insight">
+        <span>Participation rate</span>
+        <strong>${formatPercent(insights.participationRate || 0)}</strong>
+      </div>
+    </div>
+  `
+    : '';
   return `
     <div class="playerCard">
       <div class="playerCard__header">
@@ -216,6 +294,7 @@ function buildPlayerStatsMarkup(player, metrics, badgeMarkup) {
         ${badgeBlock}
         <button class="crownTable__panelBtn" type="button" data-crown-group-panel="true">Close</button>
       </div>
+      ${insightsBlock}
       <table class="playerCard__table">
         <thead><tr><th>Round</th><th>Total</th><th>Crown Wins</th></tr></thead>
         <tbody>
@@ -226,7 +305,7 @@ function buildPlayerStatsMarkup(player, metrics, badgeMarkup) {
   `;
 }
 
-function buildGroupStatsMarkup(dataset, metrics) {
+function buildGroupStatsMarkup(dataset, metrics, callouts) {
   const players = new Set(dataset.map((r) => r.player)).size;
   const ratioPct = metrics.totalGames ? ((metrics.crownWins / metrics.totalGames) * 100).toFixed(1) : '0.0';
   const guessOrder = ['1','2','3','4','5','6','X'];
@@ -236,14 +315,33 @@ function buildGroupStatsMarkup(dataset, metrics) {
     const crown = metrics.crownBuckets[g] || 0;
     return `<tr><td>${label}</td><td>${total}</td><td>${crown}</td></tr>`;
   }).join('');
+  const calloutsMarkup =
+    Array.isArray(callouts) && callouts.length
+      ? `
+      <div class="groupCallouts">
+        ${callouts
+          .map(
+            (entry) => `
+            <div class="groupCallouts__item">
+              <div class="groupCallouts__title">${escapeHtml(entry.title)}</div>
+              <div class="groupCallouts__detail">${escapeHtml(entry.detail)}</div>
+              ${entry.meta ? `<div class="groupCallouts__meta">${escapeHtml(entry.meta)}</div>` : ''}
+            </div>
+          `
+          )
+          .join('')}
+      </div>
+    `
+      : '';
   return `
     <div class="playerCard">
       <div class="playerCard__title">Group Stats</div>
       <div class="playerCard__stat">Total players: <strong>${players}</strong></div>
       <div class="playerCard__stat">Total games: <strong>${metrics.totalGames}</strong></div>
-      <div class="playerCard__stat">Total 👑 wins: <strong>${metrics.crownWins}</strong> (${ratioPct}%)</div>
+      <div class="playerCard__stat">Total ???? wins: <strong>${metrics.crownWins}</strong> (${ratioPct}%)</div>
+      ${calloutsMarkup}
       <table class="playerCard__table">
-        <thead><tr><th>Round</th><th>Total</th><th>👑 Wins</th></tr></thead>
+        <thead><tr><th>Round</th><th>Total</th><th>???? Wins</th></tr></thead>
         <tbody>
           ${rows}
         </tbody>
@@ -251,7 +349,6 @@ function buildGroupStatsMarkup(dataset, metrics) {
     </div>
   `;
 }
-
 function setActiveCrownPlayer(player) {
   if (!player || !crownContext.dataset.length) return;
   const panel = $('crownTablePanel');
@@ -261,7 +358,12 @@ function setActiveCrownPlayer(player) {
   const metrics = getPlayerMetrics(crownContext, player);
   const badge = resolvePlayerBadge(crownContext, player);
   const badgeMarkup = buildPlayerBadgeMarkup(badge);
-  panel.innerHTML = buildPlayerStatsMarkup(player, metrics, badgeMarkup);
+  const playerRows = stateStore.getPlayerRows(player);
+  const insights = computePlayerInsights(metrics, {
+    windowDays: crownContext.windowDays,
+    rows: playerRows.length ? playerRows : metrics.rows
+  });
+  panel.innerHTML = buildPlayerStatsMarkup(player, metrics, badgeMarkup, insights);
   const encoded = encodeURIComponent(player);
   container.querySelectorAll('[data-crown-player-row]').forEach((row) => {
     row.classList.toggle('crownTable__row--active', row.dataset.crownPlayerRow === encoded);
@@ -278,7 +380,8 @@ function setGroupStatsPanel() {
     return;
   }
   const metrics = computeGroupMetrics(dataset);
-  panel.innerHTML = buildGroupStatsMarkup(dataset, metrics);
+  const callouts = deriveGroupCallouts(dataset, metrics);
+  panel.innerHTML = buildGroupStatsMarkup(dataset, metrics, callouts);
   crownContext.selectedPlayer = null;
   if (container) {
     container.querySelectorAll('[data-crown-player-row]').forEach((row) => {
@@ -311,9 +414,9 @@ function onCsvLoaded(rows, columns, sourceName) {
   rows.forEach((r, idx) => {
     Object.defineProperty(r, '__rowIndex', { value: idx, enumerable: false, configurable: true });
   });
-  rawRows = rows;
-  rawColumns = columns;
-  normalizedWordle = [];
+  stateStore.setRawData(rows, columns);
+  stateStore.setNormalizedWordle([]);
+  stateStore.setLastDays(0);
   wordleDateField = null;
   crownModeReady = false;
   updatePageTitle();
@@ -330,7 +433,7 @@ function onCsvLoaded(rows, columns, sourceName) {
 
   if (!wordle) {
     updateLastDaysDefault(0);
-    renderCrownTable([], []);
+    renderCrownTable([], [], stateStore.getLastDaysSubset());
     renderPreview(rows, columns);
     setStatus(
       $('leaderboardStatus'),
@@ -341,9 +444,11 @@ function onCsvLoaded(rows, columns, sourceName) {
   }
 
   wordleDateField = detectDateField(columns);
-  normalizedWordle = normalizeWordle(rows, wordleDateField);
+  const normalizedWordle = normalizeWordle(rows, wordleDateField);
+  stateStore.setNormalizedWordle(normalizedWordle);
   crownModeReady = true;
-  updateLastDaysDefault(getWordleTotalDays());
+  const defaultWindow = stateStore.setLastDays(stateStore.getTotalDays());
+  updateLastDaysDefault(defaultWindow);
   const players = uniq(normalizedWordle.map(r => r.player)).length;
   setStatus(
     $('leaderboardStatus'),
@@ -372,10 +477,12 @@ function parseCsvText(text, sourceName) {
       if (!rows.length) {
         setStatus($('loadStatus'), 'CSV parsed but found zero data rows.', 'warn');
         crownModeReady = false;
-        normalizedWordle = [];
+        stateStore.setRawData([], []);
+        stateStore.setNormalizedWordle([]);
+        stateStore.setLastDays(0);
         $('btnExport').disabled = true;
         setStatus($('leaderboardStatus'), '', '');
-        renderCrownTable([], []);
+        renderCrownTable([], [], stateStore.getLastDaysSubset());
         $('previewTable').innerHTML = '';
         return;
       }
@@ -401,37 +508,45 @@ async function loadDefaultCsv() {
 }
 
 function render() {
-  if (!crownModeReady || !normalizedWordle.length) {
+  if (!crownModeReady || !stateStore.hasData()) {
     setStatus($('leaderboardStatus'), 'Load a Wordle CSV first.', 'warn');
     return;
   }
 
+  const lastDaysInput = $('lastDays');
+  const requestedDays = lastDaysInput ? Number(lastDaysInput.value) : NaN;
+  const appliedDays = stateStore.setLastDays(requestedDays);
+  if (lastDaysInput) {
+    lastDaysInput.value = appliedDays || '';
+  }
+
+  const subset = stateStore.getLastDaysSubset();
   const {
     data: limitedWordle,
     limit: dayLimit,
     selectedRowIndexes,
     latestLabel,
     rowCount
-  } = getWordleLastDaysSubset();
+  } = subset;
 
   if (!limitedWordle.length) {
     setStatus($('leaderboardStatus'), 'No rows available for the requested day window.', 'warn');
-    renderCrownTable([], []);
-    renderPreview([], rawColumns);
+    renderCrownTable([], [], subset);
+    renderPreview([], stateStore.getRawColumns());
     return;
   }
 
   const limitInputEl = $('limit');
-  let limitValue = Number(limitInputEl.value);
-  if (!Number.isFinite(limitValue)) {
-    limitValue = autoRenderConfig.limit;
+  const limitValue = stateStore.setLeaderboardLimit(limitInputEl ? Number(limitInputEl.value) : NaN);
+  if (limitInputEl) {
+    limitInputEl.value = limitValue;
   }
-  limitValue = Math.max(3, Math.min(50, Math.floor(limitValue)));
-  limitInputEl.value = limitValue;
 
   const rows = wordleCrownWins(limitedWordle, limitValue);
-  renderCrownTable(rows, limitedWordle);
+  renderCrownTable(rows, limitedWordle, subset);
 
+  const rawRows = stateStore.getRawRows();
+  const rawColumns = stateStore.getRawColumns();
   const previewRows = selectedRowIndexes.size
     ? rawRows.filter((row) => selectedRowIndexes.has(row.__rowIndex))
     : rawRows.slice(Math.max(0, rawRows.length - dayLimit));
@@ -443,6 +558,7 @@ function render() {
 }
 
 function exportNormalized() {
+  const normalizedWordle = stateStore.getNormalizedWordle();
   if (!crownModeReady || !normalizedWordle.length) {
     setStatus($('leaderboardStatus'), 'Nothing to export (Wordle format not detected).', 'warn');
     return;
@@ -463,9 +579,8 @@ function exportNormalized() {
 }
 
 function clearAll() {
-  rawRows = [];
-  rawColumns = [];
-  normalizedWordle = [];
+  stateStore.reset();
+  stateStore.setLeaderboardLimit(autoRenderConfig.limit);
   wordleDateField = null;
   crownModeReady = false;
   $('previewTable').innerHTML = '';
