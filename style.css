@@ -42,14 +42,6 @@ h1 {
   text-transform: uppercase;
 }
 
-.sub {
-  margin-top: 6px;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.45;
-  max-width: 860px;
-}
-
 .grid {
   display: grid;
   grid-template-columns: 360px 1fr;
@@ -120,12 +112,6 @@ select {
   background-repeat: no-repeat;
 }
 
-.row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
 .btnrow {
   display: flex;
   gap: 10px;
@@ -169,17 +155,6 @@ button.danger {
   line-height: 1.45;
 }
 
-.pill {
-  display: inline-block;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.1);
-  background: rgba(255,255,255,.05);
-  font-size: 12px;
-  color: rgba(255,255,255,.85);
-  margin: 8px 6px 0 0;
-}
-
 .canvasWrap {
   width: 100%;
   min-height: 520px;
@@ -187,10 +162,6 @@ button.danger {
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-.canvasWrap canvas {
-  min-height: 520px;
 }
 
 .tableWrap {
@@ -350,32 +321,6 @@ body:not(.developer-mode) .developerPanel {
 .crownTable__row:hover .crownTable__name,
 .crownTable__name:hover {
   color: var(--accent);
-}
-
-.crownTable__back {
-  border: 1px solid rgba(255,255,255,.12);
-  background: rgba(0,0,0,.35);
-  color: var(--accent-secondary);
-  padding: 8px 12px;
-  border-radius: 999px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 14px;
-}
-
-.group-link {
-  color: var(--accent-secondary);
-  font-weight: 600;
-  text-decoration: none;
-  border-bottom: 1px dashed rgba(201,180,88,.6);
-  padding-bottom: 2px;
-}
-
-.group-link:hover {
-  color: var(--accent);
-  border-bottom-color: rgba(106,170,100,.8);
 }
 
 .playerCard {

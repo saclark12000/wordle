@@ -132,36 +132,6 @@ function computeGroupMetrics(rows) {
   return summarizeMetrics(rows);
 }
 
-function getGuessPoint(key) {
-  switch (key) {
-    case 1:
-      return 21;
-      break;
-    case 2:
-      return 20;
-      break;
-    case 3:
-      return 18;
-      break;
-    case 4:
-      return 15;
-      break;
-    case 5:
-      return 11;
-      break;
-    case 6:
-      return 6;
-      break;
-    default:
-      return 1;
-      break;
-  }
-}
-
-// -----------------------------
-// Generic builder
-// -----------------------------
-// -----------------------------
 // Rendering
 // -----------------------------
 function escapeHtml(s) {
@@ -565,11 +535,6 @@ $('crownTable').addEventListener('click', (event) => {
     event.preventDefault();
     toggleBadgeExpansion(badge);
     return;
-  }
-  const closeGroup = event.target.closest('[data-group-close]');
-  if (closeGroup) {
-    event.preventDefault();
-    render();
   }
 });
 
