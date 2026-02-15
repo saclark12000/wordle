@@ -1,26 +1,27 @@
-# TODO / Future Work (King Wins Scope)
+﻿# TODO / Future Work (King Wins Scope)
 
-## Immediate Cleanup
-- Delete generic charting code paths (setMode, populateGenericSelectors, enderChart, ggregate, Chart.js include) and collapse the UI to only the controls the King Wins table needs.
-- Split ender() (script.js:735) into intent-specific functions (load subset, compute leaderboard, render table, render preview) so future logic changes touch smaller surfaces.
-- Normalize the bundled sample CSV to UTF-8 so the crown columns render correctly and the README screenshots stay trustworthy.
-
-## Data & Performance
-- Cap normalization work with worker threads or incremental rendering for very large CSVs (>5k rows) to prevent UI locks when recomputing badges.
-- Cache wordleKingWins() results per day window so adjusting the **Last N days** slider does not recompute metrics from scratch.
-- Store the parsed dataset in a structured object (e.g., {days:[], players:Map}) rather than parallel arrays to simplify reasoning about subsets.
+## Architecture & Performance
+- Extract a lightweight state manager (days, players, filters) so render steps can consume memoized slices instead of recalculating from globals.
+- Cache `wordleKingWins()` results per day window and per leaderboard limit to make "Last N days" tweaks instant on multi-thousand-row datasets.
+- Explore moving normalization + badge metric work to a Web Worker so the UI thread stays responsive on large CSVs.
 
 ## UX & Accessibility
-- Remove unused generic controls from the DOM and redesign the layout around a single-column experience focused on the king-table.
-- Make the leaderboard keyboard navigable (arrow keys, Enter to open player panel, Esc to close) and expose ARIA labels for badge descriptions.
-- Replace status divs with a toast or inline alert component that clearly indicates loading, success, or schema errors.
+- Make king-table rows fully keyboard navigable (arrow keys for focus, Enter/Space to open, Esc to close) and announce context via ARIA live regions.
+- Replace the plain status rows with an inline alert/toast component that differentiates success vs. warnings vs. schema errors.
+- Add persisted preferences (Top N, Last N days, developer toggle) stored in `localStorage` so analysts do not have to reset controls every visit.
+- Ship a compact layout for narrow screens so the leaderboard and preview can stack without overflowing the viewport.
 
 ## Badges & Insights
-- Refactor PLAYER_BADGE_RULES (adges.js:98) into a declarative list with shared helpers so adding or rewording badges does not require duplicating strings.
-- Add derived stats that matter for crown chasing (streaks, average guesses when crowned, participation rate) and surface them in the player panel.
-- Allow group-level badges or callouts (e.g., "Newcomer surge" when new players get crowns) for richer storytelling.
+- Move `PLAYER_BADGE_RULES` into a declarative manifest (title, description, predicate) with shared helpers to simplify adding or rewording badges.
+- Surface richer player insights (streaks, average guesses when crowned, participation rate) inside the detail pane.
+- Experiment with group-level callouts (e.g., "Newcomer surge" when new players earn crowns) to add narrative context.
 
-## Tooling & Tests
-- Introduce unit tests around normalization, crown counting, and badge selection (Vitest/Jest) and run them via CI before deploying.
-- Add linting/formatting (ESLint + Prettier) plus type coverage via JSDoc or TypeScript to catch regressions in the now-focused scope.
-- Provide a CLI or script that converts raw Wordle exports into the normalized JSON for automated validation jobs.
+## Data Handling
+- Harden schema validation with clearer error copy when required columns are missing or mislabeled, and offer quick tips for fixing exports.
+- Support chunked/streaming parsing so extremely large CSVs do not block the UI while PapaParse finishes.
+- Investigate exporting normalized JSON in addition to CSV for downstream automation.
+
+## Tooling & Quality
+- Add ESLint/Prettier plus a git hook or CI job so formatting and lint checks run automatically.
+- Extend the Node test suite to cover `getWordleLastDaysSubset()`, date parsing edge cases, and projected badge combinations.
+- Wire the test script into CI (e.g., GitHub Actions) and publish run badges in the README.

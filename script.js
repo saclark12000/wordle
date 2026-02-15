@@ -1,40 +1,31 @@
-// -----------------------------
+﻿// -----------------------------
 // Utilities
 // -----------------------------
 const $ = (id) => document.getElementById(id);
 const DEFAULT_CSV_PATH = 'resources/game_data/wordleData.csv';
 const DEVELOPER_MODE = new URLSearchParams(window.location.search).get('developer') === 'true';
-const CROWN_COL_NAMES = ['👑','ðŸ‘‘','crown'];
-const CROWN_ROUND_COL_NAMES = ['👑 Round','ðŸ‘‘ Round','crown round'];
-const PRESET_TITLES = {
-  wordle_king_wins: 'King Wins'
-};
+const KingWinsCore = window.KingWinsCore || {};
+const {
+  looksLikeWordleSummary,
+  normalizeWordle,
+  detectDateField,
+  wordleKingWins,
+  getDayValueFromRow
+} = KingWinsCore;
+
+if (!looksLikeWordleSummary || !normalizeWordle || !wordleKingWins || !getDayValueFromRow) {
+  throw new Error('KingWinsCore module failed to load.');
+}
+
+const UTF8_DECODER = typeof TextDecoder !== 'undefined' ? new TextDecoder('utf-8') : null;
 
 function uniq(arr) {
   return [...new Set(arr)];
 }
 
-function toNumberMaybe(v) {
-  if (v === null || v === undefined) return NaN;
-  if (typeof v === 'number') return v;
-  const s = String(v).trim();
-  if (s === '') return NaN;
-  // tolerate commas and percent signs
-  const cleaned = s.replace(/,/g, '').replace(/%/g, '');
-  const n = Number(cleaned);
-  return Number.isFinite(n) ? n : NaN;
-}
-
-function stableStringify(obj) {
-  try {
-    return JSON.stringify(obj);
-  } catch {
-    return String(obj);
-  }
-}
-
 function downloadText(filename, text) {
-  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const serialized = `\ufeff${text}`;
+  const blob = new Blob([serialized], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -45,99 +36,14 @@ function downloadText(filename, text) {
   URL.revokeObjectURL(url);
 }
 
-function normalizeHandle(handle) {
-  if (!handle) return null;
-  const h = String(handle).trim();
-  if (h === '' || h === '--') return null;
-  return h;
-}
-
-function splitHandles(cell) {
-  if (!cell) return [];
-  const s = String(cell).trim();
-  if (s === '' || s === '--') return [];
-  // Wordle bot cells often contain "@a @b @c" or "@a @b" with extra whitespace
-  return s.split(/\s+/g).map(normalizeHandle).filter(Boolean);
-}
-
-function looksLikeWordleSummary(columns) {
-  const needed = ['1/6','2/6','3/6','4/6','5/6','6/6','X/6'];
-  return needed.every(c => columns.includes(c));
-}
-
-function getFirstAvailable(obj, candidates) {
-  if (!obj) return undefined;
-  const lowerKeyMap = new Map();
-  Object.keys(obj).forEach((key) => lowerKeyMap.set(String(key).toLowerCase(), key));
-  for (const key of candidates) {
-    if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      return obj[key];
-    }
-    const lowered = typeof key === 'string' ? key.toLowerCase() : key;
-    if (lowerKeyMap.has(lowered)) {
-      return obj[lowerKeyMap.get(lowered)];
-    }
-  }
-  return undefined;
-}
-
-function detectDateField(columns) {
-  const target = 'date posted';
-  return columns.find((col) => String(col || '').trim().toLowerCase() === target) || null;
-}
-
-function parseDateValue(value) {
-  if (!value && value !== 0) return null;
-  const s = String(value).trim();
-  if (!s) return null;
-  const parsed = Date.parse(s);
-  if (Number.isNaN(parsed)) return null;
-  return new Date(parsed);
-}
-
-function formatDateLabel(date) {
-  return date.toISOString().split('T')[0];
-}
-
-function deriveDayMeta(row, idx, dateField) {
-  const fallbackIndex = idx + 1;
-  let dayLabel = `Day ${fallbackIndex}`;
-  let timestamp = fallbackIndex;
-  if (dateField) {
-    const parsed = parseDateValue(row[dateField]);
-    if (parsed) {
-      dayLabel = formatDateLabel(parsed);
-      timestamp = parsed.getTime();
-    }
-  }
-  const uniqueKey = `row-${fallbackIndex}`;
-  return {
-    dayIndex: fallbackIndex,
-    dayTimestamp: timestamp,
-    dayLabel,
-    dayKey: uniqueKey
-  };
-}
-
-function getDayValueFromRow(row) {
-  const ts = Number(row.dayTimestamp);
-  if (Number.isFinite(ts)) {
-    const idx = Number(row.dayIndex) || 0;
-    return ts + idx / 1000;
-  }
-  const idx = Number(row.dayIndex);
-  return Number.isFinite(idx) ? idx : 0;
-}
-
 // -----------------------------
 // State
 // -----------------------------
 let rawRows = [];
 let rawColumns = [];
-let mode = 'none'; // none | wordle | generic
 let normalizedWordle = []; // tidy rows
 let wordleDateField = null;
-let chart = null;
+let kingModeReady = false;
 const {
   createKingContext,
   createEmptyPlayerMetrics,
@@ -153,44 +59,7 @@ if (!createKingContext || !resolvePlayerBadge) {
 }
 
 let kingContext = createKingContext();
-let autoRenderConfig = { preset: 'wordle_king_wins', limit: 25, done: false };
-let currentWordleSubset = [];
-
-// -----------------------------
-// Wordle normalization
-// Produces rows like:
-// { dayIndex, dayLabel, dayTimestamp, dayKey, player, guesses, solved, crown, crownRound }
-// -----------------------------
-function normalizeWordle(rows, dateField) {
-  const out = [];
-  const guessCols = ['1/6','2/6','3/6','4/6','5/6','6/6','X/6'];
-
-  rows.forEach((r, idx) => {
-    const dayMeta = deriveDayMeta(r, idx, dateField);
-    const crownRaw = getFirstAvailable(r, CROWN_COL_NAMES);
-    const crownHandles = splitHandles(crownRaw);
-    const crownRoundValue = getFirstAvailable(r, CROWN_ROUND_COL_NAMES);
-    const crownRound = (crownRoundValue || '').toString().trim() || null;
-    guessCols.forEach((col) => {
-      const handles = splitHandles(r[col]);
-      handles.forEach((player) => {
-        const guesses = col === 'X/6' ? null : Number(col.split('/')[0]);
-        const solved = col !== 'X/6';
-        out.push({
-          ...dayMeta,
-          player,
-          guesses,
-          solved,
-          isCrown: crownHandles.includes(player),
-          crownRound,
-          sourceRowIndex: typeof r.__rowIndex === 'number' ? r.__rowIndex : idx
-        });
-      });
-    });
-  });
-
-  return out;
-}
+let autoRenderConfig = { limit: 25, done: false };
 
 function getWordleDayEntries() {
   const map = new Map();
@@ -251,7 +120,7 @@ function updateLastDaysDefault(maxDay) {
   }
 }
 
-function wordleKingWins(norm, limit) {
+function wordleKingWinsFunc(norm, limit) {
   const wins = new Map();
   const games = new Map();
   for (const r of norm) {
@@ -317,94 +186,9 @@ function getGuessPoint(key) {
 // -----------------------------
 // Generic builder
 // -----------------------------
-function applyFilter(rows, filterText) {
-  const ft = (filterText || '').trim();
-  if (!ft) return rows;
-  const needle = ft.toLowerCase();
-  return rows.filter(r => stableStringify(r).toLowerCase().includes(needle));
-}
-
-function aggregate(rows, xKey, yKey, agg) {
-  if (agg === 'none') {
-    // return point arrays
-    const labels = rows.map((_, i) => String(i+1));
-    const points = rows.map(r => ({ x: r[xKey], y: r[yKey] }));
-    return { labels, points };
-  }
-
-  const bucket = new Map();
-  const bucketCount = new Map();
-
-  for (const r of rows) {
-    const x = r[xKey];
-    const key = (x === null || x === undefined || String(x).trim()==='') ? '(blank)' : String(x);
-    if (agg === 'count') {
-      bucket.set(key, (bucket.get(key) || 0) + 1);
-    } else {
-      const y = toNumberMaybe(r[yKey]);
-      if (!Number.isFinite(y)) continue;
-      bucket.set(key, (bucket.get(key) || 0) + y);
-      bucketCount.set(key, (bucketCount.get(key) || 0) + 1);
-    }
-  }
-
-  const labels = [...bucket.keys()];
-  const data = labels.map(k => {
-    if (agg === 'count') return bucket.get(k);
-    if (agg === 'sum') return bucket.get(k);
-    if (agg === 'avg') {
-      const s = bucket.get(k) || 0;
-      const c = bucketCount.get(k) || 1;
-      return Math.round((s / c) * 100) / 100;
-    }
-    return bucket.get(k);
-  });
-
-  return { labels, data };
-}
-
 // -----------------------------
 // Rendering
 // -----------------------------
-function setMode(newMode) {
-  mode = newMode;
-  const pills = [];
-  if (mode === 'none') pills.push('<span class="pill">No data loaded</span>');
-  if (mode === 'wordle') pills.push('<span class="pill">Detected: Wordle summary CSV</span>');
-  if (mode === 'generic') pills.push('<span class="pill">Detected: Generic CSV</span>');
-  $('modePills').innerHTML = pills.join('');
-
-  // Presets only make sense in wordle mode
-  $('preset').disabled = (mode !== 'wordle');
-  $('btnExport').disabled = (mode !== 'wordle');
-
-  // Generic selectors only make sense in generic mode
-  const genericDisabled = (mode !== 'generic');
-  $('xCol').disabled = genericDisabled;
-  $('yCol').disabled = genericDisabled;
-  $('agg').disabled = genericDisabled;
-
-  const lastDaysDisabled = (mode !== 'wordle');
-  $('lastDays').disabled = lastDaysDisabled;
-  if (lastDaysDisabled) {
-    $('lastDays').value = '';
-  }
-
-  // Chart type always allowed
-}
-
-function populateGenericSelectors(columns) {
-  const makeOptions = (cols) => cols.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
-  $('xCol').innerHTML = makeOptions(columns);
-  $('yCol').innerHTML = makeOptions(columns);
-
-  // reasonable default picks
-  if (columns.length) {
-    $('xCol').value = columns[0];
-    $('yCol').value = columns[Math.min(1, columns.length-1)];
-  }
-}
-
 function escapeHtml(s) {
   return String(s)
     .replaceAll('&', '&amp;')
@@ -424,64 +208,7 @@ function renderPreview(rows, columns) {
   table.innerHTML = head + body;
 }
 
-function destroyChart() {
-  if (chart) {
-    chart.destroy();
-    chart = null;
-  }
-}
-
-function renderChart({ labels, data, points, title, yLabel, type }) {
-  destroyChart();
-  hideKingTable();
-  const ctx = $('chart');
-
-  const chartType = type || 'bar';
-
-  const dataset = {
-    label: yLabel || 'Value',
-    data: points ? points : data,
-    // Do NOT specify colors; let Chart.js pick defaults.
-    borderWidth: 2,
-    pointRadius: 3
-  };
-
-  const isScatter = chartType === 'scatter';
-
-  chart = new Chart(ctx, {
-    type: isScatter ? 'scatter' : chartType,
-    data: {
-      labels: isScatter ? undefined : labels,
-      datasets: [dataset]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        title: {
-          display: !!title,
-          text: title
-        },
-        legend: {
-          display: true
-        }
-      },
-      scales: {
-        x: {
-          title: { display: true, text: isScatter ? 'X' : 'Category' },
-          ticks: { maxRotation: 70, minRotation: 0 }
-        },
-        y: {
-          title: { display: true, text: yLabel || 'Value' },
-          beginAtZero: true
-        }
-      }
-    }
-  });
-}
-
 function renderKingTable(rows, dataset) {
-  destroyChart();
   const container = $('kingTable');
   if (!container) return;
   kingContext = {
@@ -493,7 +220,7 @@ function renderKingTable(rows, dataset) {
   if (!rows.length) {
     container.innerHTML = '<div class="status warn">No king wins detected.</div>';
   } else {
-    const head = '<thead><tr><th>Place</th><th>User Name</th><th>Total 👑 Wins</th><th>👑 %</th></tr></thead>';
+    const head = '<thead><tr><th>Place</th><th>User Name</th><th>Total ðŸ‘‘ Wins</th><th>ðŸ‘‘ %</th></tr></thead>';
     const body = rows
       .map(r => {
         const ratioPct = (r.ratio * 100).toFixed(1);
@@ -503,7 +230,7 @@ function renderKingTable(rows, dataset) {
       })
       .join('');
     container.innerHTML = `
-      <div class="kingTable__heading">👑 Wins Leaderboard</div>
+      <div class="kingTable__heading">ðŸ‘‘ Wins Leaderboard</div>
       <div class="kingTable__layout">
         <div class="kingTable__leaderboard">
           <table>${head}<tbody>${body}</tbody></table>
@@ -515,17 +242,7 @@ function renderKingTable(rows, dataset) {
     `;
   }
   container.classList.add('kingTable--visible');
-  $('chart').style.display = 'none';
   setGroupStatsPanel();
-}
-
-function hideKingTable() {
-  const container = $('kingTable');
-  if (!container) return;
-  container.classList.remove('kingTable--visible');
-  container.innerHTML = '';
-  $('chart').style.display = 'block';
-  kingContext = createKingContext();
 }
 
 function buildPlayerStatsMarkup(player, metrics, badgeMarkup) {
@@ -552,7 +269,7 @@ function buildPlayerStatsMarkup(player, metrics, badgeMarkup) {
       <div class="playerCard__header">
         ${infoBlock}
         ${badgeBlock}
-        <button class="kingTable__panelBtn" type="button" data-king-group-panel="true">✖</button>
+        <button class="kingTable__panelBtn" type="button" data-king-group-panel="true">Close</button>
       </div>
       <table class="playerCard__table">
         <thead><tr><th>Round</th><th>Total</th><th>King Wins</th></tr></thead>
@@ -579,9 +296,9 @@ function buildGroupStatsMarkup(dataset, metrics) {
       <div class="playerCard__title">Group Stats</div>
       <div class="playerCard__stat">Total players: <strong>${players}</strong></div>
       <div class="playerCard__stat">Total games: <strong>${metrics.totalGames}</strong></div>
-      <div class="playerCard__stat">Total 👑 wins: <strong>${metrics.kingWins}</strong> (${ratioPct}%)</div>
+      <div class="playerCard__stat">Total ðŸ‘‘ wins: <strong>${metrics.kingWins}</strong> (${ratioPct}%)</div>
       <table class="playerCard__table">
-        <thead><tr><th>Round</th><th>Total</th><th>👑 Wins</th></tr></thead>
+        <thead><tr><th>Round</th><th>Total</th><th>ðŸ‘‘ Wins</th></tr></thead>
         <tbody>
           ${rows}
         </tbody>
@@ -639,15 +356,7 @@ function setStatus(el, msg, kind) {
 function updatePageTitle() {
   const el = $('pageTitle');
   if (!el) return;
-  let title = 'CSV Insights';
-  if (mode === 'wordle') {
-    const preset = $('preset').value;
-    title = PRESET_TITLES[preset] || 'Wordle Insights';
-  } else if (mode === 'generic') {
-    title = 'Custom Chart';
-  }
-  title='Wordle-Hurdle Stats!'
-  el.textContent = title;
+  el.textContent = 'King Wins Leaderboard';
 }
 
 // -----------------------------
@@ -661,38 +370,47 @@ function onCsvLoaded(rows, columns, sourceName) {
   rawColumns = columns;
   normalizedWordle = [];
   wordleDateField = null;
-
-  const wordle = looksLikeWordleSummary(columns);
-  setMode(wordle ? 'wordle' : 'generic');
+  kingModeReady = false;
   updatePageTitle();
 
-  setStatus($('loadStatus'), `Loaded <strong>${rows.length}</strong> rows, <strong>${columns.length}</strong> columns from <strong>${escapeHtml(sourceName)}</strong>.`, 'ok');
+  const wordle = looksLikeWordleSummary(columns);
+  $('btnExport').disabled = !wordle;
+  $('lastDays').disabled = !wordle;
 
-  if (wordle) {
-    wordleDateField = detectDateField(columns);
-    normalizedWordle = normalizeWordle(rows, wordleDateField);
-    updateLastDaysDefault(getWordleTotalDays());
-    const players = uniq(normalizedWordle.map(r => r.player)).length;
-    setStatus(
-      $('chartStatus'),
-      `Detected Wordle summary format. Normalized to <strong>${normalizedWordle.length}</strong> player-day rows across <strong>${players}</strong> unique players. Pick a preset and hit <strong>Render</strong>.`,
-      'ok'
-    );
-    if (!autoRenderConfig.done) {
-      $('preset').value = autoRenderConfig.preset;
-      $('limit').value = autoRenderConfig.limit;
-      autoRenderConfig.done = true;
-      updatePageTitle();
-      requestAnimationFrame(() => render());
-    }
-  } else {
-    wordleDateField = null;
+  setStatus(
+    $('loadStatus'),
+    `Loaded <strong>${rows.length}</strong> rows, <strong>${columns.length}</strong> columns from <strong>${escapeHtml(sourceName)}</strong>.`,
+    'ok'
+  );
+
+  if (!wordle) {
     updateLastDaysDefault(0);
-    setStatus($('chartStatus'), `Generic CSV mode. Pick X/Y columns and aggregation, then hit <strong>Render</strong>.`, '');
+    renderKingTable([], []);
+    renderPreview(rows, columns);
+    setStatus(
+      $('leaderboardStatus'),
+      'CSV loaded, but the expected Wordle columns (1/6 through X/6 plus crown data) were not found.',
+      'warn'
+    );
+    return;
   }
 
-  populateGenericSelectors(columns);
-  renderPreview(rows, columns);
+  wordleDateField = detectDateField(columns);
+  normalizedWordle = normalizeWordle(rows, wordleDateField);
+  kingModeReady = true;
+  updateLastDaysDefault(getWordleTotalDays());
+  const players = uniq(normalizedWordle.map(r => r.player)).length;
+  setStatus(
+    $('leaderboardStatus'),
+    `Detected Wordle summary format. Normalized to <strong>${normalizedWordle.length}</strong> player-day rows across <strong>${players}</strong> unique players.`,
+    'ok'
+  );
+
+  if (!autoRenderConfig.done) {
+    $('limit').value = autoRenderConfig.limit;
+    autoRenderConfig.done = true;
+  }
+  requestAnimationFrame(() => render());
 }
 
 function parseCsvText(text, sourceName) {
@@ -708,8 +426,11 @@ function parseCsvText(text, sourceName) {
       const columns = res.meta && res.meta.fields ? res.meta.fields : (rows[0] ? Object.keys(rows[0]) : []);
       if (!rows.length) {
         setStatus($('loadStatus'), 'CSV parsed but found zero data rows.', 'warn');
-        setMode('none');
-        destroyChart();
+        kingModeReady = false;
+        normalizedWordle = [];
+        $('btnExport').disabled = true;
+        setStatus($('leaderboardStatus'), '', '');
+        renderKingTable([], []);
         $('previewTable').innerHTML = '';
         return;
       }
@@ -724,7 +445,9 @@ async function loadDefaultCsv() {
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }
-    const text = await res.text();
+    const buffer = await res.arrayBuffer();
+    const decoder = UTF8_DECODER || new TextDecoder('utf-8');
+    const text = decoder.decode(buffer);
     parseCsvText(text, DEFAULT_CSV_PATH);
   } catch (err) {
     console.error('Failed to load default CSV', err);
@@ -733,111 +456,50 @@ async function loadDefaultCsv() {
 }
 
 function render() {
-  if (!rawRows.length) {
-    setStatus($('chartStatus'), 'Load a CSV first.', 'warn');
+  if (!kingModeReady || !normalizedWordle.length) {
+    setStatus($('leaderboardStatus'), 'Load a Wordle CSV first.', 'warn');
     return;
   }
 
-  const type = $('chartType').value;
-  const filterText = $('filter').value;
-  const filteredRows = applyFilter(rawRows, filterText);
-  currentWordleSubset = [];
+  const {
+    data: limitedWordle,
+    limit: dayLimit,
+    selectedRowIndexes,
+    latestLabel,
+    rowCount
+  } = getWordleLastDaysSubset();
 
-  if (mode === 'wordle') {
-    const preset = $('preset').value;
-    if (!preset) {
-      setStatus($('chartStatus'), 'Pick a Wordle preset.', 'warn');
-      updatePageTitle();
-      return;
-    }
-
-    const {
-      data: limitedWordle,
-      limit: dayLimit,
-      maxDays,
-      selectedRowIndexes,
-      latestLabel,
-      rowCount
-    } = getWordleLastDaysSubset();
-    currentWordleSubset = limitedWordle;
-    if (!limitedWordle.length) {
-      setStatus($('chartStatus'), 'No rows available for the requested day window.', 'warn');
-      destroyChart();
-      return;
-    }
-
-    const limit = Math.max(3, Math.min(50, Number($('limit').value || 15)));
-    if (preset !== 'wordle_king_wins') {
-      hideKingTable();
-      setStatus($('chartStatus'), 'Only the King Wins preset is available. Please select it to continue.', 'warn');
-      return;
-    }
-    const rows = wordleKingWins(limitedWordle, limit);
-    renderKingTable(rows, limitedWordle);
-    setStatus(
-      $('chartStatus'),
-      `Rendered King Wins table (top <strong>${rows.length}</strong> of <strong>${limit}</strong> requested, ${dayLimit} day window / ${rowCount} CSV rows).`,
-      rows.length ? '' : 'warn'
-    );
-    const previewSlice = filteredRows.filter((row) => selectedRowIndexes.has(row.__rowIndex));
-    renderPreview(previewSlice.length ? previewSlice : filteredRows.slice(Math.max(0, filteredRows.length - dayLimit)), rawColumns);
+  if (!limitedWordle.length) {
+    setStatus($('leaderboardStatus'), 'No rows available for the requested day window.', 'warn');
+    renderKingTable([], []);
+    renderPreview([], rawColumns);
     return;
   }
 
-  hideKingTable();
-  // generic
-  const xKey = $('xCol').value;
-  const yKey = $('yCol').value;
-  const agg = $('agg').value;
-  updatePageTitle();
-
-  renderPreview(filteredRows, rawColumns);
-
-  const shaped = aggregate(filteredRows, xKey, yKey, agg);
-
-  if (type === 'scatter' || agg === 'none') {
-    const points = filteredRows
-      .map(r => ({ x: toNumberMaybe(r[xKey]), y: toNumberMaybe(r[yKey]) }))
-      .filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
-
-    if (!points.length) {
-      setStatus($('chartStatus'), 'No numeric points to plot. For scatter/raw plots, X and Y should be numeric.', 'warn');
-      destroyChart();
-      return;
-    }
-
-    renderChart({
-      points,
-      title: `${yKey} vs ${xKey}`,
-      yLabel: yKey,
-      type: 'scatter'
-    });
-
-    setStatus($('chartStatus'), `Rendered scatter from <strong>${points.length}</strong> points (after filter).`, '');
-    return;
+  const limitInputEl = $('limit');
+  let limitValue = Number(limitInputEl.value);
+  if (!Number.isFinite(limitValue)) {
+    limitValue = autoRenderConfig.limit;
   }
+  limitValue = Math.max(3, Math.min(50, Math.floor(limitValue)));
+  limitInputEl.value = limitValue;
 
-  // aggregated
-  if (!shaped.labels.length) {
-    setStatus($('chartStatus'), 'Aggregation produced no data. Try different columns or remove filter.', 'warn');
-    destroyChart();
-    return;
-  }
+  const rows = wordleKingWinsFunc(limitedWordle, limitValue);
+  renderKingTable(rows, limitedWordle);
 
-  renderChart({
-    labels: shaped.labels,
-    data: shaped.data,
-    title: `${agg.toUpperCase()} of ${agg === 'count' ? '' : yKey} by ${xKey}`.replace(/\s+/g,' ').trim(),
-    yLabel: agg === 'count' ? 'Count' : (agg === 'sum' ? `Sum(${yKey})` : `Avg(${yKey})`),
-    type
-  });
+  const previewRows = selectedRowIndexes.size
+    ? rawRows.filter((row) => selectedRowIndexes.has(row.__rowIndex))
+    : rawRows.slice(Math.max(0, rawRows.length - dayLimit));
+  renderPreview(previewRows, rawColumns);
 
-  setStatus($('chartStatus'), `Rendered ${escapeHtml(type)} chart with <strong>${shaped.labels.length}</strong> categories (after filter).`, '');
+  const latestCopy = latestLabel ? ` Latest day: <strong>${escapeHtml(latestLabel)}</strong>.` : '';
+  const baseMsg = `Rendered King Wins leaderboard for the last <strong>${dayLimit}</strong> day(s) covering <strong>${rowCount || limitedWordle.length}</strong> CSV rows.`;
+  setStatus($('leaderboardStatus'), baseMsg + latestCopy, rows.length ? 'ok' : 'warn');
 }
 
 function exportNormalized() {
-  if (mode !== 'wordle' || !normalizedWordle.length) {
-    setStatus($('chartStatus'), 'Nothing to export (Wordle format not detected).', 'warn');
+  if (!kingModeReady || !normalizedWordle.length) {
+    setStatus($('leaderboardStatus'), 'Nothing to export (Wordle format not detected).', 'warn');
     return;
   }
   const header = ['dayIndex','player','guesses','solved','isCrown','crownRound'];
@@ -852,7 +514,7 @@ function exportNormalized() {
     lines.push(row);
   }
   downloadText('normalized_wordle.csv', lines.join('\n'));
-  setStatus($('chartStatus'), 'Exported normalized_wordle.csv', 'ok');
+  setStatus($('leaderboardStatus'), 'Exported normalized_wordle.csv', 'ok');
 }
 
 function clearAll() {
@@ -860,15 +522,20 @@ function clearAll() {
   rawColumns = [];
   normalizedWordle = [];
   wordleDateField = null;
-  setMode('none');
-  destroyChart();
+  kingModeReady = false;
   $('previewTable').innerHTML = '';
+  const table = $('kingTable');
+  if (table) {
+    table.innerHTML = '';
+    table.classList.remove('kingTable--visible');
+  }
   $('file').value = '';
-  $('filter').value = '';
-  $('preset').value = '';
   $('limit').value = autoRenderConfig.limit;
+  $('lastDays').value = '';
+  $('lastDays').disabled = true;
+  $('btnExport').disabled = true;
   setStatus($('loadStatus'), 'No CSV loaded.', '');
-  setStatus($('chartStatus'), '', '');
+  setStatus($('leaderboardStatus'), '', '');
   updatePageTitle();
 }
 
@@ -880,28 +547,22 @@ $('file').addEventListener('change', (e) => {
   if (!f) return;
   const reader = new FileReader();
   reader.onload = () => parseCsvText(String(reader.result || ''), f.name);
-  reader.readAsText(f);
+  reader.readAsText(f, 'UTF-8');
 });
 
 $('btnLoadSample').addEventListener('click', async () => {
   // A tiny sample mimicking your Wordle summary CSV shape (with date column).
-  const sample = `date posted,day streak,ðŸ‘‘ Round,ðŸ‘‘,1/6,2/6,3/6,4/6,5/6,6/6,X/6\n` +
-    `2025-06-06,"**Your group is on a 1 day streak!**","1/6","@theBestLoser","@theBestLoser","--","@NotMajorPerson","@mediocreplant","@AsA @hereisrachel","--","@sinfulprey @eplex"\n` +
-    `2025-06-07,"**Your group is on a 2 day streak!**","3/6","@AsA","--","--","@AsA","@hereisrachel","@Cesh","@MajorDanger","@mediocreplant @sinfulprey"`;
+  const sample = [
+    'date posted,day streak,crown round,crown,1/6,2/6,3/6,4/6,5/6,6/6,X/6',
+    '2025-06-06,"**Your group is on a 1 day streak!**","1/6","@theBestLoser","@theBestLoser","--","@NotMajorPerson","@mediocreplant","@AsA @hereisrachel","--","@sinfulprey @eplex"',
+    '2025-06-07,"**Your group is on a 2 day streak!**","3/6","@AsA","--","--","@AsA","@hereisrachel","@Cesh","@MajorDanger","@mediocreplant @sinfulprey"'
+  ].join('\n');
   parseCsvText(sample, 'built-in sample');
 });
 
 $('btnRender').addEventListener('click', render);
 $('btnExport').addEventListener('click', exportNormalized);
 $('btnClear').addEventListener('click', clearAll);
-$('preset').addEventListener('change', updatePageTitle);
-const groupStatsLink = $('groupStatsLink');
-if (groupStatsLink) {
-  groupStatsLink.addEventListener('click', (event) => {
-    event.preventDefault();
-    renderGroupStats();
-  });
-}
 
 $('kingTable').addEventListener('click', (event) => {
   const link = event.target.closest('[data-king-player]');

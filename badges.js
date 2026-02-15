@@ -211,4 +211,7 @@
     resolvePlayerBadge,
     buildPlayerBadgeMarkup
   };
-})(window);
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = global.BadgeSystem;
+  }
+})(typeof window !== 'undefined' ? window : globalThis);
