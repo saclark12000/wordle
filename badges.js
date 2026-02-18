@@ -218,23 +218,32 @@
     };
   }
 
-  function evaluateBadge(manifest, ctx) {
+  function evaluateBadges(manifest, ctx, limit = 1) {
+    const maxBadges = Number.isFinite(limit) ? Math.max(1, Math.floor(limit)) : 1;
+    const matches = [];
     for (const entry of manifest) {
       if (!entry || typeof entry.predicate !== 'function') continue;
       try {
         if (entry.predicate(ctx, BADGE_HELPERS)) {
-          return buildBadgePayload(entry, ctx);
+          const payload = buildBadgePayload(entry, ctx);
+          if (!payload) continue;
+          matches.push(payload);
+          if (matches.length >= maxBadges) break;
         }
       } catch (err) {
         console.warn('Badge predicate failed', entry.id, err);
       }
     }
-    return null;
+    return matches;
   }
 
 
-  function resolvePlayerBadge(context, player) {
-    if (!context || !player) return null;
+  function resolvePlayerBadges(context, player, opts = {}) {
+    if (!context || !player) return [];
+    const requestedLimit = Number(opts.maxBadges);
+    const maxBadges = Number.isFinite(requestedLimit)
+      ? Math.max(1, Math.floor(requestedLimit))
+      : 4;
     const leaderboard = Array.isArray(context.leaderboard) ? context.leaderboard : [];
     const dataset = Array.isArray(context.dataset) ? context.dataset : [];
     const metricsMap = context && context.playerMetrics instanceof Map
@@ -261,12 +270,26 @@
       metricsMap,
       helpers: BADGE_HELPERS
     };
-    return evaluateBadge(PLAYER_BADGE_MANIFEST, badgeContext);
+    return evaluateBadges(PLAYER_BADGE_MANIFEST, badgeContext, maxBadges);
   }
 
-  function buildPlayerBadgeMarkup(badge) {
+  function resolvePlayerBadge(context, player) {
+    const badges = resolvePlayerBadges(context, player, { maxBadges: 1 });
+    return badges.length ? badges[0] : null;
+  }
+
+  function normalizeBadgeDomId(value) {
+    return String(value || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'badge';
+  }
+
+  function buildSinglePlayerBadgeMarkup(badge, index) {
     if (!badge) return '';
     const parts = [];
+    const hasIcon = !!badge.icon;
+    const hasImage = !!badge.image;
     if (badge.icon) {
       parts.push(`<div class="playerCard__badgeIcon" aria-hidden="true">${badge.icon}</div>`);
     }
@@ -274,22 +297,58 @@
       const alt = badge.alt || badge.text || 'Player badge';
       parts.push(`<img class="playerCard__badgeImage" src="${escapeHtml(badge.image)}" alt="${escapeHtml(alt)}" />`);
     }
-    if (badge.text) {
-      parts.push(`<div class="playerCard__badgeText">${escapeHtml(badge.text)}</div>`);
+    if (!hasIcon && !hasImage && badge.text) {
+      parts.push(`<div class="playerCard__badgeText playerCard__badgeText--fallback">${escapeHtml(badge.text)}</div>`);
     }
     if (!parts.length) return '';
-    const label = badge.ariaLabel || badge.description || badge.text || '';
-    const titleAttr = badge.description ? ` title="${escapeHtml(badge.description)}"` : '';
+    const hasTitle = !!badge.text;
+    const hasDescription = !!badge.description;
+    const hasDetails = hasTitle || hasDescription;
+    const label = badge.ariaLabel || [badge.text, badge.description].filter(Boolean).join('. ');
+    const tooltip = hasDescription
+      ? (hasTitle ? `${badge.text}: ${badge.description}` : badge.description)
+      : (badge.text || '');
+    const titleAttr = tooltip ? ` title="${escapeHtml(tooltip)}"` : '';
     const ariaAttr = label ? ` aria-label="${escapeHtml(label)}"` : '';
     const dataAttr = badge.id ? ` data-badge-id="${escapeHtml(badge.id)}"` : '';
-    const description = badge.description ? `<div class="playerCard__badgeDescription">${escapeHtml(badge.description)}</div>` : '';
-    const expandableClass = description ? ' playerCard__badge--expandable' : '';
+    const expandableClass = hasDetails ? ' playerCard__badge--expandable' : '';
+    const controlsId = hasDetails
+      ? `playerBadgeDesc-${normalizeBadgeDomId(badge.id || `item-${index}`)}-${index}`
+      : '';
+    const interactionAttrs = hasDetails
+      ? ` role="button" tabindex="0" data-player-badge="true" aria-expanded="false" aria-controls="${controlsId}"`
+      : '';
+    const detailsMarkup = hasDetails
+      ? `
+        <div class="playerCard__badgeDetails" id="${controlsId}">
+          ${hasTitle ? `<div class="playerCard__badgeTitle">${escapeHtml(badge.text)}</div>` : ''}
+          ${hasDescription ? `<div class="playerCard__badgeDescription">${escapeHtml(badge.description)}</div>` : ''}
+        </div>
+      `
+      : '';
     return `
-      <div class="playerCard__badge${expandableClass}" role="button" tabindex="0" data-player-badge="true" aria-expanded="false"${titleAttr}${ariaAttr}${dataAttr}>
+      <div class="playerCard__badge${expandableClass}"${interactionAttrs}${titleAttr}${ariaAttr}${dataAttr}>
         <div class="playerCard__badgeContent">${parts.join('')}</div>
-        ${description}
+        ${detailsMarkup}
       </div>
     `;
+  }
+
+  function buildPlayerBadgesMarkup(badges, opts = {}) {
+    if (!Array.isArray(badges) || !badges.length) return '';
+    const requestedLimit = Number(opts.maxBadges);
+    const maxBadges = Number.isFinite(requestedLimit)
+      ? Math.max(1, Math.floor(requestedLimit))
+      : 4;
+    return badges
+      .filter(Boolean)
+      .slice(0, maxBadges)
+      .map((badge, index) => buildSinglePlayerBadgeMarkup(badge, index))
+      .join('');
+  }
+
+  function buildPlayerBadgeMarkup(badge) {
+    return buildPlayerBadgesMarkup(badge ? [badge] : [], { maxBadges: 1 });
   }
 
   global.BadgeSystem = {
@@ -301,7 +360,9 @@
     buildPlayerMetricsMap,
     buildLeaderboardRankings,
     getPlayerMetrics,
+    resolvePlayerBadges,
     resolvePlayerBadge,
+    buildPlayerBadgesMarkup,
     buildPlayerBadgeMarkup
   };
   if (typeof module !== 'undefined' && module.exports) {

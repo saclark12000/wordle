@@ -1,12 +1,12 @@
 # PLAYER_BADGE_MANIFEST Support Guide
 
-Use this guide whenever you need to add or update player badges in `badges.js`. The `PLAYER_BADGE_MANIFEST` array is the single source of truth for badge metadata and predicates that decide which badge a player earns.
+Use this guide whenever you need to add or update player badges in `badges.js`. The `PLAYER_BADGE_MANIFEST` array is the single source of truth for badge metadata and predicates that decide which badges a player earns (up to 4 are rendered).
 
 ## Required Fields per Entry
 - `id` - Stable string identifier. Follow the `snake_case` pattern so tests can assert on it (for example `crown_leaderboard_first_place`).
 - `icon` / `image` - Visual shown in the player card. Use emoji strings for `icon` or provide a path/URL for `image` (with a matching `alt`).
-- `title` - Either a string or `(ctx, helpers) => string`. Keep it short; it becomes the badge chip text.
-- `description` - Optional string or function used for tooltips/expanded copy. Explain why the badge was awarded.
+- `title` - Either a string or `(ctx, helpers) => string`. Keep it short; it is shown in expanded badge details.
+- `description` - Optional string or function used for tooltip/expanded copy. Explain why the badge was awarded.
 - `predicate` - **Required** function `(ctx, helpers) => boolean` that gates whether the badge is applied to the inspected player.
 
 Optional keys: `ariaLabel`, `alt`, and any other presentation attributes that `buildPlayerBadgeMarkup()` understands.
@@ -38,7 +38,7 @@ predicate: ({ metrics }) => metrics.crownWins >= 50
 const isOneGuessLeader = !!ctx.leaderboard.rankings?.playerGuessLeaders?.[ctx.player]?.['1/6'];
 ```
 
-These rankings are rebuilt each time `resolvePlayerBadge()` runs, so predicates can safely rely on them without recomputing leaderboards.
+These rankings are rebuilt each time `resolvePlayerBadges()` (or `resolvePlayerBadge()`) runs, so predicates can safely rely on them without recomputing leaderboards.
 
 ## Example Entry
 ```js
@@ -56,9 +56,9 @@ These rankings are rebuilt each time `resolvePlayerBadge()` runs, so predicates 
 
 ## Workflow for Adding a Badge
 1. **Plan the trigger.** Decide which metric or leaderboard scenario should award the badge and confirm the data exists in `ctx`.
-2. **Add the manifest entry.** Update `PLAYER_BADGE_MANIFEST` in `badges.js`, keeping the array order meaningful (earlier entries win conflicts).
-3. **Cover it with tests.** Extend `tests/badges.test.js` with a focused scenario that asserts the new badge `id` fires only when expected. Use `createCrownContext()` plus synthetic datasets to keep tests fast.
-4. **Manual smoke test.** Run `npm test`, then load the built-in sample via the UI and confirm the badge renders/expands correctly for a representative player.
+2. **Add the manifest entry.** Update `PLAYER_BADGE_MANIFEST` in `badges.js`, keeping the array order meaningful (matches render in order, and only the first 4 matches display).
+3. **Cover it with tests.** Extend `tests/badges.test.js` with a focused scenario that asserts the new badge `id` fires only when expected. Prefer checking `resolvePlayerBadges()` output and ordering; use `createCrownContext()` plus synthetic datasets to keep tests fast.
+4. **Manual smoke test.** Run `npm test`, then load the built-in sample via the UI and confirm badges render as icon chips and expand to show title + description for a representative player.
 5. **Document user-facing copy.** If the badge introduces terminology users might not recognize, add a brief note to `README.md` under the badges section.
 
 Keep manifest updates atomic: each change should introduce the new badge definition, matching tests, and any README adjustments in the same commit so future contributors understand the intent.

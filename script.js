@@ -59,7 +59,9 @@ const {
   buildPlayerMetricsMap,
   buildLeaderboardRankings,
   getPlayerMetrics,
+  resolvePlayerBadges,
   resolvePlayerBadge,
+  buildPlayerBadgesMarkup,
   buildPlayerBadgeMarkup
 } = window.BadgeSystem || {};
 
@@ -355,6 +357,17 @@ function buildGroupStatsMarkup(dataset, metrics, callouts) {
     </div>
   `;
 }
+function getPlayerBadgesMarkup(context, player) {
+  const badges = typeof resolvePlayerBadges === 'function'
+    ? resolvePlayerBadges(context, player, { maxBadges: 4 })
+    : [resolvePlayerBadge(context, player)].filter(Boolean);
+  if (!badges.length) return '';
+  if (typeof buildPlayerBadgesMarkup === 'function') {
+    return buildPlayerBadgesMarkup(badges, { maxBadges: 4 });
+  }
+  return badges.map((badge) => buildPlayerBadgeMarkup(badge)).join('');
+}
+
 function setActiveCrownPlayer(player) {
   if (!player || !crownContext.dataset.length) return;
   const panel = $('crownTablePanel');
@@ -362,8 +375,7 @@ function setActiveCrownPlayer(player) {
   if (!panel || !container) return;
   crownContext.selectedPlayer = player;
   const metrics = getPlayerMetrics(crownContext, player);
-  const badge = resolvePlayerBadge(crownContext, player);
-  const badgeMarkup = buildPlayerBadgeMarkup(badge);
+  const badgeMarkup = getPlayerBadgesMarkup(crownContext, player);
   const playerRows = stateStore.getPlayerRows(player);
   const insights = computePlayerInsights(metrics, {
     windowDays: crownContext.windowDays,
@@ -398,6 +410,15 @@ function setGroupStatsPanel() {
 
 function toggleBadgeExpansion(badge) {
   if (!badge || !badge.classList.contains('playerCard__badge--expandable')) return;
+  const willExpand = !badge.classList.contains('playerCard__badge--expanded');
+  const wrap = badge.closest('.playerCard__badgeWrap');
+  if (willExpand && wrap) {
+    wrap.querySelectorAll('.playerCard__badge--expanded').forEach((item) => {
+      if (item === badge) return;
+      item.classList.remove('playerCard__badge--expanded');
+      item.setAttribute('aria-expanded', 'false');
+    });
+  }
   const expanded = badge.classList.toggle('playerCard__badge--expanded');
   badge.setAttribute('aria-expanded', expanded ? 'true' : 'false');
 }
