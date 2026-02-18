@@ -1,4 +1,4 @@
-// -----------------------------
+﻿// -----------------------------
 // Utilities
 // -----------------------------
 const $ = (id) => document.getElementById(id);
@@ -57,6 +57,7 @@ const {
   createEmptyPlayerMetrics,
   updatePlayerMetricsFromRow,
   buildPlayerMetricsMap,
+  buildLeaderboardRankings,
   getPlayerMetrics,
   resolvePlayerBadge,
   buildPlayerBadgeMarkup
@@ -210,19 +211,24 @@ function renderPreview(rows, columns) {
 function renderCrownTable(rows, dataset, windowMeta = null) {
   const container = $('crownTable');
   if (!container) return;
+  const leaderboardRows = Array.isArray(rows) ? rows : [];
+  const playerMetricsMap = buildPlayerMetricsMap(dataset);
+  if (leaderboardRows && typeof buildLeaderboardRankings === 'function') {
+    leaderboardRows.rankings = buildLeaderboardRankings(playerMetricsMap);
+  }
   crownContext = {
-    leaderboard: rows,
+    leaderboard: leaderboardRows,
     dataset,
     selectedPlayer: null,
-    playerMetrics: buildPlayerMetricsMap(dataset),
+    playerMetrics: playerMetricsMap,
     windowMeta,
     windowDays: windowMeta && windowMeta.limit ? windowMeta.limit : 0
   };
-  if (!rows.length) {
+  if (!leaderboardRows.length) {
     container.innerHTML = '<div class="status warn">No Crown Wins detected.</div>';
   } else {
     const head = '<thead><tr><th>Place</th><th>User Name</th><th>Total 👑 Wins</th><th>👑 %</th></tr></thead>';
-    const body = rows
+    const body = leaderboardRows
       .map(r => {
         const ratioPct = (r.ratio * 100).toFixed(1);
         const encoded = encodeURIComponent(r.player);

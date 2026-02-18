@@ -8,9 +8,62 @@
       .replaceAll("'", '&#039;');
   }
 
+  const CROWN_GUESS_BUCKETS = ['1', '2', '3', '4', '5', '6'];
+
+  function formatGuessBucketLabel(bucketKey) {
+    return `${bucketKey}/6`;
+  }
+
+  function buildLeaderboardRankings(metricsMap) {
+    const rankings = {
+      crownGuessLeaders: {},
+      playerGuessLeaders: {}
+    };
+    CROWN_GUESS_BUCKETS.forEach((bucketKey) => {
+      const label = formatGuessBucketLabel(bucketKey);
+      rankings.crownGuessLeaders[label] = { leaders: [], winCount: 0 };
+    });
+    if (!(metricsMap instanceof Map) || metricsMap.size === 0) {
+      return rankings;
+    }
+    CROWN_GUESS_BUCKETS.forEach((bucketKey) => {
+      const label = formatGuessBucketLabel(bucketKey);
+      let best = 0;
+      let leaders = [];
+      metricsMap.forEach((metrics, player) => {
+        const bucketCount = Number(metrics && metrics.crownBuckets ? metrics.crownBuckets[bucketKey] : 0) || 0;
+        if (bucketCount <= 0) return;
+        if (bucketCount > best) {
+          best = bucketCount;
+          leaders = [player];
+        } else if (bucketCount === best) {
+          leaders.push(player);
+        }
+      });
+      leaders.sort((a, b) => a.localeCompare(b));
+      rankings.crownGuessLeaders[label].leaders = leaders;
+      rankings.crownGuessLeaders[label].winCount = best;
+      leaders.forEach((player) => {
+        if (!rankings.playerGuessLeaders[player]) {
+          rankings.playerGuessLeaders[player] = {};
+        }
+        rankings.playerGuessLeaders[player][label] = true;
+      });
+    });
+    return rankings;
+  }
+
+  function attachLeaderboardRankings(leaderboard, metricsMap) {
+    const target = Array.isArray(leaderboard) ? leaderboard : [];
+    target.rankings = buildLeaderboardRankings(metricsMap);
+    return target;
+  }
+
   function createCrownContext() {
+    const leaderboard = [];
+    attachLeaderboardRankings(leaderboard, null);
     return {
-      leaderboard: [],
+      leaderboard,
       dataset: [],
       selectedPlayer: null,
       playerMetrics: new Map()
@@ -112,13 +165,6 @@
       predicate: (ctx) => !!ctx.leaderboardEntry && ctx.leaderboardEntry.place === 1
     },
     {
-      id: 'crown_leaderboard_top_ten',
-      icon: '🏅',
-      title: (ctx) => `${getOrdinal(ctx.leaderboardEntry.place)} Place`,
-      description: (ctx) => `${ctx.player} is top 10 with ${ctx.leaderboardEntry.winCount} wins.`,
-      predicate: (ctx) => !!ctx.leaderboardEntry && ctx.leaderboardEntry.place > 1 && ctx.leaderboardEntry.place <= 10
-    },
-    {
       id: 'has_sus_wins',
       icon: '👀',
       title: 'Sus Wins',
@@ -126,8 +172,15 @@
       predicate: (ctx) => !!(ctx.metrics && ctx.metrics.susWins > 1)
     },
     {
+      id: 'crown_leaderboard_top_ten',
+      icon: '🏅',
+      title: (ctx) => `${getOrdinal(ctx.leaderboardEntry.place)} Place`,
+      description: (ctx) => `${ctx.player} is top 10 with ${ctx.leaderboardEntry.winCount} wins.`,
+      predicate: (ctx) => !!ctx.leaderboardEntry && ctx.leaderboardEntry.place > 1 && ctx.leaderboardEntry.place <= 10
+    },
+    {
       id: 'crown_guardian',
-      icon: '😄',
+      icon: '🛡',
       title: 'Crown Guardian',
       description: (ctx) => `${ctx.player} kept crowns coming for ${ctx.metrics.crownWins} days.`,
       predicate: (ctx) => ctx.metrics.crownWins > 7
@@ -184,6 +237,17 @@
     if (!context || !player) return null;
     const leaderboard = Array.isArray(context.leaderboard) ? context.leaderboard : [];
     const dataset = Array.isArray(context.dataset) ? context.dataset : [];
+    const metricsMap = context && context.playerMetrics instanceof Map
+      ? context.playerMetrics
+      : buildPlayerMetricsMap(dataset);
+    if (metricsMap && context && !(context.playerMetrics instanceof Map)) {
+      try {
+        context.playerMetrics = metricsMap;
+      } catch (err) {
+        // non-fatal if the caller provided an immutable context
+      }
+    }
+    attachLeaderboardRankings(leaderboard, metricsMap);
     const leaderboardEntry = leaderboard.find((entry) => entry.player === player) || null;
     const metrics = getPlayerMetrics(context, player);
     const rows = metrics && Array.isArray(metrics.rows) ? metrics.rows : [];
@@ -194,7 +258,7 @@
       leaderboardEntry,
       metrics,
       rows,
-      metricsMap: context.playerMetrics,
+      metricsMap,
       helpers: BADGE_HELPERS
     };
     return evaluateBadge(PLAYER_BADGE_MANIFEST, badgeContext);
@@ -235,6 +299,7 @@
     createEmptyPlayerMetrics,
     updatePlayerMetricsFromRow,
     buildPlayerMetricsMap,
+    buildLeaderboardRankings,
     getPlayerMetrics,
     resolvePlayerBadge,
     buildPlayerBadgeMarkup

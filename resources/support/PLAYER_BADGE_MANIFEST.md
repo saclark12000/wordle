@@ -14,7 +14,7 @@ Optional keys: `ariaLabel`, `alt`, and any other presentation attributes that `b
 ## Context & Helpers Available to Predicates
 Every predicate receives a `ctx` object that includes:
 - `player` - Handle/name currently being resolved.
-- `leaderboard` - Array of `{ player, place, winCount, totalGames, ratio }` entries for the filtered window.
+- `leaderboard` - Array of `{ player, place, winCount, totalGames, ratio }` entries for the filtered window. The array also exposes a `.rankings` helper with comparison insights (see below).
 - `leaderboardEntry` - The entry for `player`, if present.
 - `dataset` - Normalized rows backing the active window.
 - `metrics` - Aggregated stats from `buildPlayerMetricsMap()` (`totalGames`, `crownWins`, `susWins`, `buckets`, etc.).
@@ -27,6 +27,18 @@ You can destructure what you need inside the predicate for readability:
 ```js
 predicate: ({ metrics }) => metrics.crownWins >= 50
 ```
+
+### Leaderboard Rankings Helper
+`ctx.leaderboard.rankings` centralizes cross-player comparisons so badge predicates can stay lightweight.
+
+- `crownGuessLeaders['1/6'...'6/6']` – shows who leads crown wins for each guess bucket and the winning total. Example: `ctx.leaderboard.rankings.crownGuessLeaders['1/6']` → `{ leaders: ['@ace'], winCount: 4 }`.
+- `playerGuessLeaders[player]['1/6'...'6/6']` – boolean lookup indicating whether `player` is tied for the lead in that bucket. Example:
+
+```js
+const isOneGuessLeader = !!ctx.leaderboard.rankings?.playerGuessLeaders?.[ctx.player]?.['1/6'];
+```
+
+These rankings are rebuilt each time `resolvePlayerBadge()` runs, so predicates can safely rely on them without recomputing leaderboards.
 
 ## Example Entry
 ```js
