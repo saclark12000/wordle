@@ -169,7 +169,7 @@
       icon: '👀',
       title: 'Sus Wins',
       description: (ctx) => `${ctx.player} logged ${ctx.metrics.susWins} one-guess solves.`,
-      predicate: (ctx) => !!(ctx.metrics && ctx.metrics.susWins > 1)
+      predicate: (ctx) => !!(ctx.metrics && ctx.metrics.susWins > 0)
     },
     {
       id: 'crown_leaderboard_top_ten',
