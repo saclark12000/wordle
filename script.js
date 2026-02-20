@@ -316,10 +316,10 @@ function buildGroupStatsMarkup(dataset, metrics, callouts) {
       <div class="playerCard__title">Group Stats</div>
       <div class="playerCard__stat">Total players: <strong>${players}</strong></div>
       <div class="playerCard__stat">Total games: <strong>${metrics.totalGames}</strong></div>
-      <div class="playerCard__stat">Total ???? wins: <strong>${metrics.crownWins}</strong> (${ratioPct}%)</div>
+      <div class="playerCard__stat">Total 👑 wins: <strong>${metrics.crownWins}</strong> (${ratioPct}%)</div>
       ${calloutsMarkup}
       <table class="playerCard__table">
-        <thead><tr><th>Round</th><th>Total</th><th>???? Wins</th></tr></thead>
+        <thead><tr><th>Round</th><th>Total</th><th>👑 Wins</th></tr></thead>
         <tbody>
           ${rows}
         </tbody>
