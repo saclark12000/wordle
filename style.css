@@ -331,48 +331,54 @@ body:not(.developer-mode) .developerPanel {
 }
 
 .playerCard__header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 248px) auto;
-  align-items: flex-start;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .playerCard__badgeWrap {
   display: grid;
-  grid-template-columns: repeat(3, 56px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  width: fit-content;
-  max-width: 100%;
-  padding: 12px;
-  border: 1px dashed rgba(255,255,255,.32);
-  border-radius: 20px;
-  background: rgba(0,0,0,.45);
-  justify-items: stretch;
-  align-content: start;
-  justify-self: center;
+  width: 100%;
+  margin-bottom: 8px;
 }
 
 .playerCard__badge {
-  width: 56px;
-  min-width: 56px;
-  max-width: 56px;
-  min-height: 56px;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  min-height: 74px;
   border: 1px solid rgba(255,255,255,.12);
-  border-radius: 8px;
-  background: rgba(5,8,14,.95);
+  border-radius: 12px;
+  background: rgba(4,5,6,.96);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 8px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 10px 12px;
   box-shadow:
-    inset 0 0 0 1px rgba(0,0,0,.7),
-    0 4px 14px rgba(0,0,0,.4);
+    inset 0 0 0 1px rgba(0,0,0,.6),
+    0 6px 18px rgba(0,0,0,.45);
   cursor: pointer;
   transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
   position: relative;
   overflow: hidden;
+}
+
+.playerCard__badge--earned {
+  border-color: rgba(201,180,88,.5);
+  background:
+    radial-gradient(circle at top right, rgba(201,180,88,.35), transparent 55%),
+    linear-gradient(160deg, rgba(18,36,20,.96), rgba(7,11,10,.96));
+}
+
+.playerCard__badge--locked {
+  border-color: rgba(255,255,255,.18);
+  background:
+    linear-gradient(160deg, rgba(4,4,4,.98), rgba(0,0,0,.98));
 }
 
 .playerCard__badge:not(.playerCard__badge--expandable) {
@@ -380,22 +386,22 @@ body:not(.developer-mode) .developerPanel {
 }
 
 .playerCard__badgeIcon {
-  font-size: 36px;
+  font-size: 24px;
   line-height: 1;
 }
 
 .playerCard__badgeImage {
-  max-width: 36px;
-  max-height: 36px;
+  max-width: 24px;
+  max-height: 24px;
   object-fit: contain;
 }
 
 .playerCard__badgeText {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text);
-  text-align: center;
-  font-weight: 600;
-  line-height: 1.2;
+  text-align: left;
+  font-weight: 700;
+  line-height: 1.25;
 }
 
 .playerCard__badge:focus-visible {
@@ -406,10 +412,37 @@ body:not(.developer-mode) .developerPanel {
 .playerCard__badgeContent {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 6px;
+  align-items: flex-start;
+  gap: 8px;
   transition: transform .25s ease, opacity .25s ease;
-  width: auto;
+  width: 100%;
+}
+
+.playerCard__badgeTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.playerCard__badgeLock {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.2);
+  background: rgba(0,0,0,.95);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.7);
+  flex: 0 0 auto;
+}
+
+.playerCard__badgeMetric {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.playerCard__badge--locked .playerCard__badgeMetric {
+  color: rgba(230,232,235,.65);
 }
 
 .playerCard__badgeText--fallback {
@@ -424,19 +457,41 @@ body:not(.developer-mode) .developerPanel {
   overflow: hidden;
   pointer-events: none;
   margin-top: 0;
+  border-top: 1px solid rgba(255,255,255,.12);
+  padding-top: 0;
   transition: max-height .3s ease, opacity .25s ease, margin-top .2s ease;
 }
 
 .playerCard__badgeTitle {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text);
   line-height: 1.3;
+  margin-bottom: 6px;
+}
+
+.playerCard__badgeDetailRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
   margin-bottom: 4px;
 }
 
-.playerCard__badgeDescription {
+.playerCard__badgeDetailRow span {
+  font-size: 11px;
+  color: var(--muted2);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.playerCard__badgeDetailRow strong {
   font-size: 12px;
+  color: var(--text);
+  text-align: right;
+}
+
+.playerCard__badgeDescription {
+  font-size: 11px;
   line-height: 1.4;
   color: var(--muted);
   background: transparent;
@@ -452,12 +507,11 @@ body:not(.developer-mode) .developerPanel {
   width: 100%;
   min-width: 0;
   max-width: none;
-  min-height: 84px;
+  min-height: 110px;
   align-items: flex-start;
   justify-content: flex-start;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-color: rgba(255,255,255,.6);
-  background: linear-gradient(180deg, rgba(19,23,31,.96), rgba(8,10,15,.96));
   box-shadow:
     inset 0 0 0 1px rgba(0,0,0,.4),
     0 10px 25px rgba(0,0,0,.6);
@@ -465,10 +519,21 @@ body:not(.developer-mode) .developerPanel {
   z-index: 1;
 }
 
+.playerCard__badge--expanded.playerCard__badge--earned {
+  background:
+    radial-gradient(circle at top right, rgba(201,180,88,.45), transparent 60%),
+    linear-gradient(160deg, rgba(23,46,26,.96), rgba(8,14,13,.96));
+}
+
+.playerCard__badge--expanded.playerCard__badge--locked {
+  background: linear-gradient(170deg, rgba(10,10,10,.98), rgba(1,1,1,.98));
+}
+
 .playerCard__badge--expanded .playerCard__badgeDetails {
   opacity: 1;
-  max-height: 220px;
+  max-height: 260px;
   margin-top: 8px;
+  padding-top: 8px;
   pointer-events: auto;
 }
 
@@ -492,23 +557,20 @@ body:not(.developer-mode) .developerPanel {
 }
 
 .playerCard__header .crownTable__panelBtn {
-  justify-self: end;
   margin-left: auto;
 }
 
 @media (max-width: 760px) {
   .playerCard__header {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .playerCard__badgeWrap {
-    justify-self: start;
-    width: fit-content;
-    max-width: 100%;
+    grid-template-columns: 1fr;
   }
 
   .playerCard__header .crownTable__panelBtn {
-    justify-self: start;
     margin-left: 0;
   }
 }

@@ -59,6 +59,7 @@ const {
   buildPlayerMetricsMap,
   buildLeaderboardRankings,
   getPlayerMetrics,
+  resolvePlayerCardBadges,
   resolvePlayerBadges,
   resolvePlayerBadge,
   buildPlayerBadgesMarkup,
@@ -254,7 +255,7 @@ function renderCrownTable(rows, dataset, windowMeta = null) {
   setGroupStatsPanel();
 }
 
-function buildPlayerStatsMarkup(player, metrics, badgeMarkup, insights) {
+function buildPlayerStatsMarkup(player, metrics, badgeMarkup) {
   const guessOrder = ['1','2','3','4','5','6','X'];
   const rows = guessOrder.map((g) => {
     const label = g === 'X' ? 'X/6 (fail)' : `${g}/6`;
@@ -262,47 +263,16 @@ function buildPlayerStatsMarkup(player, metrics, badgeMarkup, insights) {
     const crown = metrics.crownBuckets[g] || 0;
     return `<tr><td>${label}</td><td>${total}</td><td>${crown}</td></tr>`;
   }).join('');
-  const ratioPct = metrics.totalGames ? ((metrics.crownWins / metrics.totalGames) * 100).toFixed(1) : '0.0';
-  const susWins = typeof metrics.susWins === 'number' ? metrics.susWins : (metrics.buckets['1'] || 0);
-  const infoBlock = `
-    <div class="playerCard__info">
-      <div class="playerCard__title">${escapeHtml(player)}</div>
-      <div class="playerCard__stat">Total sus wins: <strong>${susWins}</strong></div>
-      <div class="playerCard__stat">Total games played: <strong>${metrics.totalGames}</strong></div>
-      <div class="playerCard__stat">&#128081; %: <strong>${ratioPct}%</strong></div>
-    </div>
-  `;
-  const badgeBlock = badgeMarkup ? `<div class="playerCard__badgeWrap">${badgeMarkup}</div>` : '';
-  const insightsBlock = insights
-    ? `
-    <div class="playerCard__insights">
-      <div class="playerCard__insight">
-        <span>Active crown streak</span>
-        <strong>${insights.activeCrownStreak || 0}</strong>
-      </div>
-      <div class="playerCard__insight">
-        <span>Best streak</span>
-        <strong>${insights.bestCrownStreak || 0}</strong>
-      </div>
-      <div class="playerCard__insight">
-        <span>Avg guesses when crowned</span>
-        <strong>${Number.isFinite(insights.avgGuessWhenCrowned) ? insights.avgGuessWhenCrowned.toFixed(1) : '--'}</strong>
-      </div>
-      <div class="playerCard__insight">
-        <span>Participation rate</span>
-        <strong>${formatPercent(insights.participationRate || 0)}</strong>
-      </div>
-    </div>
-  `
-    : '';
+  const badgeBlock = badgeMarkup
+    ? `<div class="playerCard__badgeWrap">${badgeMarkup}</div>`
+    : '<div class="status">No badges available for this player.</div>';
   return `
     <div class="playerCard">
       <div class="playerCard__header">
-        ${infoBlock}
-        ${badgeBlock}
+        <div class="playerCard__title">${escapeHtml(player)}</div>
         <button class="crownTable__panelBtn" type="button" data-crown-group-panel="true">Close</button>
       </div>
-      ${insightsBlock}
+      ${badgeBlock}
       <table class="playerCard__table">
         <thead><tr><th>Round</th><th>Total</th><th>Crown Wins</th></tr></thead>
         <tbody>
@@ -357,13 +327,20 @@ function buildGroupStatsMarkup(dataset, metrics, callouts) {
     </div>
   `;
 }
-function getPlayerBadgesMarkup(context, player) {
-  const badges = typeof resolvePlayerBadges === 'function'
-    ? resolvePlayerBadges(context, player, { maxBadges: 4 })
-    : [resolvePlayerBadge(context, player)].filter(Boolean);
+function getPlayerBadgesMarkup(context, player, insights) {
+  const badgeOpts = {
+    maxBadges: 8,
+    windowDays: context && context.windowDays ? context.windowDays : 0,
+    insights
+  };
+  const badges = typeof resolvePlayerCardBadges === 'function'
+    ? resolvePlayerCardBadges(context, player, badgeOpts)
+    : typeof resolvePlayerBadges === 'function'
+      ? resolvePlayerBadges(context, player, { ...badgeOpts, includeLocked: true })
+      : [resolvePlayerBadge(context, player)].filter(Boolean);
   if (!badges.length) return '';
   if (typeof buildPlayerBadgesMarkup === 'function') {
-    return buildPlayerBadgesMarkup(badges, { maxBadges: 4 });
+    return buildPlayerBadgesMarkup(badges, { maxBadges: 8 });
   }
   return badges.map((badge) => buildPlayerBadgeMarkup(badge)).join('');
 }
@@ -375,13 +352,13 @@ function setActiveCrownPlayer(player) {
   if (!panel || !container) return;
   crownContext.selectedPlayer = player;
   const metrics = getPlayerMetrics(crownContext, player);
-  const badgeMarkup = getPlayerBadgesMarkup(crownContext, player);
   const playerRows = stateStore.getPlayerRows(player);
   const insights = computePlayerInsights(metrics, {
     windowDays: crownContext.windowDays,
     rows: playerRows.length ? playerRows : metrics.rows
   });
-  panel.innerHTML = buildPlayerStatsMarkup(player, metrics, badgeMarkup, insights);
+  const badgeMarkup = getPlayerBadgesMarkup(crownContext, player, insights);
+  panel.innerHTML = buildPlayerStatsMarkup(player, metrics, badgeMarkup);
   const encoded = encodeURIComponent(player);
   container.querySelectorAll('[data-crown-player-row]').forEach((row) => {
     row.classList.toggle('crownTable__row--active', row.dataset.crownPlayerRow === encoded);

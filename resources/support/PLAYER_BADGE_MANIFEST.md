@@ -1,64 +1,67 @@
-# PLAYER_BADGE_MANIFEST Support Guide
+﻿# PLAYER_BADGE_MANIFEST Support Guide
 
-Use this guide whenever you need to add or update player badges in `badges.js`. The `PLAYER_BADGE_MANIFEST` array is the single source of truth for badge metadata and predicates that decide which badges a player earns (up to 4 are rendered).
+Use this guide whenever you need to add or update badges in `badges.js`.
+
+There are now two manifest arrays:
+- `PLAYER_BADGE_MANIFEST` - legacy earned-only badges used by `resolvePlayerBadges()` (default max: 4).
+- `PLAYER_CARD_BADGE_MANIFEST` - player card badge board used by `resolvePlayerCardBadges()` (default: all entries, includes locked + earned badges).
 
 ## Required Fields per Entry
-- `id` - Stable string identifier. Follow the `snake_case` pattern so tests can assert on it (for example `crown_leaderboard_first_place`).
-- `icon` / `image` - Visual shown in the player card. Use emoji strings for `icon` or provide a path/URL for `image` (with a matching `alt`).
-- `title` - Either a string or `(ctx, helpers) => string`. Keep it short; it is shown in expanded badge details.
-- `description` - Optional string or function used for tooltip/expanded copy. Explain why the badge was awarded.
-- `predicate` - **Required** function `(ctx, helpers) => boolean` that gates whether the badge is applied to the inspected player.
+- `id` - Stable identifier (`snake_case`) so tests can assert behavior.
+- `title` - String or `(ctx, helpers) => string`.
+- `predicate` - **Required** `(ctx, helpers) => boolean` function.
 
-Optional keys: `ariaLabel`, `alt`, and any other presentation attributes that `buildPlayerBadgeMarkup()` understands.
+## Common Visual Fields
+- `icon` / `image` - Earned visual treatment.
+- `lockedIcon` / `lockedImage` - Optional locked-state override.
+- `alt`, `ariaLabel` - Accessibility metadata.
+
+## Player Card Fields
+Use these for `PLAYER_CARD_BADGE_MANIFEST` entries so locked badges still communicate progress.
+- `progress` - String or function; shown on collapsed card and in expanded details.
+- `requirement` - String or function; shown in expanded details.
+- `description` - Optional explanatory copy.
 
 ## Context & Helpers Available to Predicates
-Every predicate receives a `ctx` object that includes:
-- `player` - Handle/name currently being resolved.
-- `leaderboard` - Array of `{ player, place, winCount, totalGames, ratio }` entries for the filtered window. The array also exposes a `.rankings` helper with comparison insights (see below).
-- `leaderboardEntry` - The entry for `player`, if present.
-- `dataset` - Normalized rows backing the active window.
-- `metrics` - Aggregated stats from `buildPlayerMetricsMap()` (`totalGames`, `crownWins`, `susWins`, `buckets`, etc.).
-- `rows` - The raw normalized rows for the player when `trackRows` is enabled.
-- `metricsMap` - Full map of all player metrics (for cross-player comparisons when needed).
-- `helpers` - Currently exposes `ordinal(n)` and `ratioPercent(wins, total)` for formatting.
+Every predicate receives a `ctx` object including:
+- `player`
+- `leaderboard`
+- `leaderboardEntry`
+- `dataset`
+- `metrics`
+- `rows`
+- `metricsMap`
+- `insights` (player insight metrics passed from `script.js`)
+- `windowDays`
+- `playerRank`
+- `helpers`
 
-You can destructure what you need inside the predicate for readability:
+`ctx.leaderboard.rankings` is still available for crown-guess leader comparisons.
 
-```js
-predicate: ({ metrics }) => metrics.crownWins >= 50
-```
+Helpers currently include:
+- `ordinal(n)`
+- `ratioPercent(wins, total)`
+- `percent(value, digits?)`
+- `metricNumber(value)`
 
-### Leaderboard Rankings Helper
-`ctx.leaderboard.rankings` centralizes cross-player comparisons so badge predicates can stay lightweight.
-
-- `crownGuessLeaders['1/6'...'6/6']` – shows who leads crown wins for each guess bucket and the winning total. Example: `ctx.leaderboard.rankings.crownGuessLeaders['1/6']` → `{ leaders: ['@ace'], winCount: 4 }`.
-- `playerGuessLeaders[player]['1/6'...'6/6']` – boolean lookup indicating whether `player` is tied for the lead in that bucket. Example:
-
-```js
-const isOneGuessLeader = !!ctx.leaderboard.rankings?.playerGuessLeaders?.[ctx.player]?.['1/6'];
-```
-
-These rankings are rebuilt each time `resolvePlayerBadges()` (or `resolvePlayerBadge()`) runs, so predicates can safely rely on them without recomputing leaderboards.
-
-## Example Entry
+## Example Player Card Entry
 ```js
 {
-  id: 'streak_guardian',
-  icon: String.fromCodePoint(0x1F6E1),
-  title: 'Streak Guardian',
-  description: (ctx) => `${ctx.player} kept crowns coming for ${ctx.metrics.crownWins} days straight.`,
-  predicate: ({ metrics, rows }) => {
-    if (!metrics || !rows?.length) return false;
-    return rows.every((row) => row.isCrown);
-  }
+  id: 'crown_conversion',
+  icon: () => String.fromCodePoint(0x1f451),
+  title: 'Crown Conversion',
+  requirement: 'Reach at least 30% crown conversion.',
+  progress: (ctx, helpers) => `${helpers.percent(ctx.metrics.crownWins / ctx.metrics.totalGames, 1)} / 30%`,
+  predicate: (ctx) => (ctx.metrics.totalGames > 0) && (ctx.metrics.crownWins / ctx.metrics.totalGames >= 0.3)
 }
 ```
 
-## Workflow for Adding a Badge
-1. **Plan the trigger.** Decide which metric or leaderboard scenario should award the badge and confirm the data exists in `ctx`.
-2. **Add the manifest entry.** Update `PLAYER_BADGE_MANIFEST` in `badges.js`, keeping the array order meaningful (matches render in order, and only the first 4 matches display).
-3. **Cover it with tests.** Extend `tests/badges.test.js` with a focused scenario that asserts the new badge `id` fires only when expected. Prefer checking `resolvePlayerBadges()` output and ordering; use `createCrownContext()` plus synthetic datasets to keep tests fast.
-4. **Manual smoke test.** Run `npm test`, then load the built-in sample via the UI and confirm badges render as icon chips and expand to show title + description for a representative player.
-5. **Document user-facing copy.** If the badge introduces terminology users might not recognize, add a brief note to `README.md` under the badges section.
+## Workflow for Adding/Updating a Badge
+1. Decide whether the change belongs in `PLAYER_BADGE_MANIFEST` (legacy earned list) or `PLAYER_CARD_BADGE_MANIFEST` (player card board).
+2. Add or update the entry in `badges.js`, keeping manifest order intentional.
+3. Update `tests/badges.test.js` for predicate behavior and ordering.
+4. Run `npm test`.
+5. Smoke test in browser: row selection, earned/locked visuals, and expand/collapse details.
+6. Update `README.md` if user-facing terminology changes.
 
-Keep manifest updates atomic: each change should introduce the new badge definition, matching tests, and any README adjustments in the same commit so future contributors understand the intent.
+Keep badge updates atomic: manifest change + tests + docs in one commit.
