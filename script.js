@@ -4,6 +4,10 @@
 const $ = (id) => document.getElementById(id);
 const DEFAULT_CSV_PATH = 'resources/game_data/wordleData.csv';
 const DEVELOPER_MODE = new URLSearchParams(window.location.search).get('developer') === 'true';
+const DEVELOPER_DOC_FILES = [
+  { title: 'README.md', path: 'README.md' },
+  { title: 'PLAYER_BADGE_MANIFEST.md', path: 'resources/support/PLAYER_BADGE_MANIFEST.md' }
+];
 const CrownWinsCore = window.CrownWinsCore || {};
 const {
   looksLikeWordleSummary,
@@ -209,6 +213,164 @@ function renderPreview(rows, columns) {
   }).join('');
   const body = `<tbody>${bodyRows}</tbody>`;
   table.innerHTML = head + body;
+}
+
+function renderSimpleMarkdown(markdown) {
+  const lines = String(markdown || '').replace(/\r\n/g, '\n').split('\n');
+  const html = [];
+  let inCode = false;
+  let inList = false;
+  let inOrderedList = false;
+  let inParagraph = false;
+
+  const closeParagraph = () => {
+    if (!inParagraph) return;
+    html.push('</p>');
+    inParagraph = false;
+  };
+
+  const closeList = () => {
+    if (!inList) return;
+    html.push('</ul>');
+    inList = false;
+  };
+
+  const closeOrderedList = () => {
+    if (!inOrderedList) return;
+    html.push('</ol>');
+    inOrderedList = false;
+  };
+
+  const applyInlineMarkdown = (text) => {
+    const escaped = escapeHtml(text);
+    return escaped
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer noopener">$1</a>');
+  };
+
+  for (const line of lines) {
+    if (line.trim().startsWith('```')) {
+      closeParagraph();
+      closeList();
+      closeOrderedList();
+      if (inCode) {
+        html.push('</code></pre>');
+      } else {
+        html.push('<pre><code>');
+      }
+      inCode = !inCode;
+      continue;
+    }
+
+    if (inCode) {
+      html.push(`${escapeHtml(line)}\n`);
+      continue;
+    }
+
+    const trimmed = line.trim();
+    if (!trimmed) {
+      closeParagraph();
+      closeList();
+      closeOrderedList();
+      continue;
+    }
+
+    const headingMatch = trimmed.match(/^(#{1,4})\s+(.*)$/);
+    if (headingMatch) {
+      closeParagraph();
+      closeList();
+      closeOrderedList();
+      const level = Math.min(4, headingMatch[1].length + 1);
+      html.push(`<h${level}>${applyInlineMarkdown(headingMatch[2])}</h${level}>`);
+      continue;
+    }
+
+    const listMatch = trimmed.match(/^[-*]\s+(.*)$/);
+    if (listMatch) {
+      closeParagraph();
+      closeOrderedList();
+      if (!inList) {
+        html.push('<ul>');
+        inList = true;
+      }
+      html.push(`<li>${applyInlineMarkdown(listMatch[1])}</li>`);
+      continue;
+    }
+
+    const orderedListMatch = trimmed.match(/^\d+\.\s+(.*)$/);
+    if (orderedListMatch) {
+      closeParagraph();
+      closeList();
+      if (!inOrderedList) {
+        html.push('<ol>');
+        inOrderedList = true;
+      }
+      html.push(`<li>${applyInlineMarkdown(orderedListMatch[1])}</li>`);
+      continue;
+    }
+
+    if (!inParagraph) {
+      closeList();
+      closeOrderedList();
+      html.push('<p>');
+      inParagraph = true;
+    } else {
+      html.push(' ');
+    }
+    html.push(applyInlineMarkdown(trimmed));
+  }
+
+  if (inCode) {
+    html.push('</code></pre>');
+  }
+  closeParagraph();
+  closeList();
+  closeOrderedList();
+
+  return html.join('');
+}
+
+async function loadDeveloperDocs() {
+  const container = $('developerDocs');
+  if (!container) return;
+  if (!DEVELOPER_MODE) {
+    container.innerHTML = '<div class="status">Enable developer mode to view docs.</div>';
+    return;
+  }
+
+  const results = await Promise.all(
+    DEVELOPER_DOC_FILES.map(async (doc) => {
+      try {
+        const res = await fetch(doc.path, { cache: 'no-cache' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        return { ...doc, content: text, error: null };
+      } catch (err) {
+        return { ...doc, content: '', error: err };
+      }
+    })
+  );
+
+  container.innerHTML = results
+    .map((doc) => {
+      if (doc.error) {
+        return `
+          <article class="developerDocs__entry">
+            <h3>${escapeHtml(doc.title)}</h3>
+            <div class="status warn">Unable to load ${escapeHtml(doc.path)}.</div>
+          </article>
+        `;
+      }
+      return `
+        <article class="developerDocs__entry">
+          <h3>${escapeHtml(doc.title)}</h3>
+          <div class="developerDocs__content">${renderSimpleMarkdown(doc.content)}</div>
+        </article>
+      `;
+    })
+    .join('');
 }
 
 function renderCrownTable(rows, dataset, windowMeta = null) {
@@ -668,6 +830,7 @@ $('crownTable').addEventListener('keydown', (event) => {
 // initialize
 clearAll();
 document.body.classList.toggle('developer-mode', DEVELOPER_MODE);
+loadDeveloperDocs();
 loadDefaultCsv();
 
 
