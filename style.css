@@ -39,7 +39,7 @@ h1 {
   margin: 0;
   font-size: 28px;
   letter-spacing: 1px;
-  text-transform: uppercase;
+  text-transform: lowercase;
 }
 
 .grid {

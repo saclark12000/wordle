@@ -567,12 +567,6 @@ function setStatus(el, msg, kind) {
   el.innerHTML = msg;
 }
 
-function updatePageTitle() {
-  const el = $('pageTitle');
-  if (!el) return;
-  el.textContent = 'Crown Wins Leaderboard';
-}
-
 // -----------------------------
 // Main actions
 // -----------------------------
@@ -585,7 +579,6 @@ function onCsvLoaded(rows, columns, sourceName) {
   stateStore.setLastDays(0);
   wordleDateField = null;
   crownModeReady = false;
-  updatePageTitle();
 
   const wordle = looksLikeWordleSummary(columns);
   $('btnExport').disabled = !wordle;
@@ -762,7 +755,6 @@ function clearAll() {
   $('btnExport').disabled = true;
   setStatus($('loadStatus'), 'No CSV loaded.', '');
   setStatus($('leaderboardStatus'), '', '');
-  updatePageTitle();
 }
 
 // -----------------------------

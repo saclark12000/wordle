@@ -1,4 +1,7 @@
-﻿# Crown Wins Leaderboard
+﻿# AI Generated
+It's mostly AI generated code. Some small bits handwritten, but everything mostly done through prompting.
+
+# Crown Wins Leaderboard
 
 Single-page web app focused on a single job: ingest the standardized Wordle/Hurdle group CSV export and render the "Crown Wins" leaderboard with player stats and badge callouts. All former generic charting paths have been removed; every control now maps directly to the leaderboard workflow.
 
