@@ -114,6 +114,7 @@ select {
 
 .btnrow {
   display: flex;
+  justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
   margin-top: 12px;
@@ -641,6 +642,11 @@ body:not(.developer-mode) .developerPanel {
   border-radius: 999px;
   font-size: 11px;
   cursor: pointer;
+}
+
+a.crownTable__panelBtn {
+  display: inline-block;
+  text-decoration: none;
 }
 
 .crownTable__panelBtn:hover {
