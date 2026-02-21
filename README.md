@@ -76,4 +76,7 @@ Run `npm test` to execute the Node test runner. The suite currently covers:
 - Run `npm test` before shipping changes; add new coverage when you touch the normalization or badge rules.
 
 
-
+## Developer Panel
+- The developer panel is written in a away to be documentation itself.
+- to view developer panel, make sure the url ends with /?developer=true
+    - [ Show Developer Panel ](/?developer=true)

@@ -432,7 +432,7 @@ function buildPlayerStatsMarkup(player, metrics, badgeMarkup) {
     <div class="playerCard">
       <div class="playerCard__header">
         <div class="playerCard__title">${escapeHtml(player)}</div>
-        <button class="crownTable__panelBtn" type="button" data-crown-group-panel="true">Close</button>
+        <button class="crownTable__panelBtn" type="button" data-crown-group-panel="true">✖</button>
       </div>
       ${badgeBlock}
       <table class="playerCard__table">
