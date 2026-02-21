@@ -4,47 +4,10 @@ const assert = require('node:assert/strict');
 const {
   createCrownContext,
   buildPlayerMetricsMap,
-  resolvePlayerBadges,
+  buildLeaderboardRankings,
   resolvePlayerCardBadges,
-  resolvePlayerBadge,
   buildPlayerBadgesMarkup
 } = require('../badges');
-
-test('resolvePlayerBadge prioritizes first place badge', () => {
-  const dataset = [
-    { player: '@ace', guesses: 1, solved: true, isCrown: true },
-    { player: '@ace', guesses: 1, solved: true, isCrown: false },
-    { player: '@buck', guesses: 2, solved: true, isCrown: true }
-  ];
-  const leaderboard = [
-    { player: '@ace', place: 1, winCount: 1, totalGames: 2, ratio: 0.5 },
-    { player: '@buck', place: 2, winCount: 1, totalGames: 1, ratio: 1 }
-  ];
-  const ctx = createCrownContext();
-  ctx.dataset = dataset;
-  ctx.leaderboard = leaderboard;
-  ctx.playerMetrics = buildPlayerMetricsMap(dataset);
-
-  const badge = resolvePlayerBadge(ctx, '@ace');
-  assert.ok(badge);
-  assert.equal(badge.id, 'crown_leaderboard_first_place');
-});
-
-test('resolvePlayerBadge returns sus-wins badge when applicable', () => {
-  const dataset = [
-    { player: '@sus', guesses: 1, solved: true, isCrown: false },
-    { player: '@sus', guesses: 1, solved: true, isCrown: false },
-    { player: '@sus', guesses: 2, solved: true, isCrown: false }
-  ];
-  const ctx = createCrownContext();
-  ctx.dataset = dataset;
-  ctx.playerMetrics = buildPlayerMetricsMap(dataset);
-  ctx.leaderboard = [];
-
-  const badge = resolvePlayerBadge(ctx, '@sus');
-  assert.ok(badge);
-  assert.equal(badge.id, 'has_sus_wins');
-});
 
 test('leaderboard rankings expose crown guess leaders', () => {
   const dataset = [
@@ -55,20 +18,8 @@ test('leaderboard rankings expose crown guess leaders', () => {
     { player: '@buck', guesses: 2, solved: true, isCrown: true },
     { player: '@buck', guesses: 2, solved: true, isCrown: true }
   ];
-  const leaderboard = [
-    { player: '@ace', place: 1, winCount: 4, totalGames: 4, ratio: 1 },
-    { player: '@buck', place: 2, winCount: 2, totalGames: 2, ratio: 1 }
-  ];
-  const ctx = createCrownContext();
-  ctx.dataset = dataset;
-  ctx.leaderboard = leaderboard;
-  ctx.playerMetrics = buildPlayerMetricsMap(dataset);
+  const rankings = buildLeaderboardRankings(buildPlayerMetricsMap(dataset));
 
-  const badge = resolvePlayerBadge(ctx, '@ace');
-  assert.ok(badge);
-
-  const rankings = ctx.leaderboard.rankings;
-  assert.ok(rankings, 'expected rankings object on ctx.leaderboard');
   assert.deepEqual(rankings.crownGuessLeaders['1/6'], { leaders: ['@ace'], winCount: 2 });
   assert.equal(rankings.crownGuessLeaders['2/6'].winCount, 2);
   assert.deepEqual(rankings.crownGuessLeaders['2/6'].leaders, ['@ace', '@buck']);
@@ -76,82 +27,61 @@ test('leaderboard rankings expose crown guess leaders', () => {
   assert.ok(!rankings.playerGuessLeaders['@buck']?.['1/6']);
 });
 
-test('resolvePlayerBadges returns up to four badges in manifest order', () => {
+test('resolvePlayerCardBadges returns all player-card badges by default', () => {
   const dataset = [
     { player: '@ace', guesses: 1, solved: true, isCrown: true },
-    { player: '@ace', guesses: 1, solved: true, isCrown: true },
     { player: '@ace', guesses: 2, solved: true, isCrown: true },
     { player: '@ace', guesses: 2, solved: true, isCrown: true },
+    { player: '@ace', guesses: 3, solved: true, isCrown: true },
+    { player: '@ace', guesses: 3, solved: true, isCrown: false },
+    { player: '@ace', guesses: 4, solved: true, isCrown: false },
+    { player: '@ace', guesses: 5, solved: true, isCrown: false },
+    { player: '@ace', guesses: 6, solved: true, isCrown: false },
     { player: '@ace', guesses: 2, solved: true, isCrown: true },
-    { player: '@ace', guesses: 2, solved: true, isCrown: true },
-    { player: '@ace', guesses: 2, solved: true, isCrown: true },
-    { player: '@ace', guesses: 2, solved: true, isCrown: true }
+    { player: '@ace', guesses: 2, solved: true, isCrown: false },
+    { player: '@buck', guesses: 2, solved: true, isCrown: true },
+    { player: '@cara', guesses: 2, solved: true, isCrown: true }
   ];
-  const leaderboard = [
-    { player: '@ace', place: 1, winCount: 8, totalGames: 8, ratio: 1 }
+
+  const ctx = createCrownContext();
+  ctx.dataset = dataset;
+  ctx.playerMetrics = buildPlayerMetricsMap(dataset);
+  ctx.windowDays = 10;
+
+  const badges = resolvePlayerCardBadges(ctx, '@ace', {
+    insights: {
+      activeCrownStreak: 3,
+      bestCrownStreak: 5,
+      avgGuessWhenCrowned: 2.4,
+      participationRate: 0.9
+    }
+  });
+
+  assert.equal(badges.length, 8);
+  assert.ok(badges.every((badge) => typeof badge.progress === 'string' && badge.progress.length > 0));
+  assert.ok(badges.every((badge) => typeof badge.requirement === 'string' && badge.requirement.length > 0));
+});
+
+test('resolvePlayerCardBadges honors maxBadges option', () => {
+  const dataset = [
+    { player: '@ace', guesses: 2, solved: true, isCrown: true },
+    { player: '@buck', guesses: 2, solved: true, isCrown: true }
   ];
   const ctx = createCrownContext();
   ctx.dataset = dataset;
-  ctx.leaderboard = leaderboard;
   ctx.playerMetrics = buildPlayerMetricsMap(dataset);
 
-  const badges = resolvePlayerBadges(ctx, '@ace');
+  const badges = resolvePlayerCardBadges(ctx, '@ace', {
+    maxBadges: 3,
+    insights: {
+      activeCrownStreak: 0,
+      bestCrownStreak: 0,
+      avgGuessWhenCrowned: null,
+      participationRate: 0.1
+    }
+  });
 
-  assert.equal(badges.length, 4);
-  assert.deepEqual(
-    badges.map((badge) => badge.id),
-    [
-      'crown_leaderboard_first_place',
-      'has_sus_wins',
-      'crown_guardian',
-      'win_under_20'
-    ]
-  );
-});
-
-test('resolvePlayerBadges honors maxBadges option', () => {
-  const dataset = [
-    { player: '@ace', guesses: 1, solved: true, isCrown: true },
-    { player: '@ace', guesses: 1, solved: true, isCrown: true },
-    { player: '@ace', guesses: 2, solved: true, isCrown: true },
-    { player: '@ace', guesses: 2, solved: true, isCrown: true },
-    { player: '@ace', guesses: 2, solved: true, isCrown: true },
-    { player: '@ace', guesses: 2, solved: true, isCrown: true },
-    { player: '@ace', guesses: 2, solved: true, isCrown: true },
-    { player: '@ace', guesses: 2, solved: true, isCrown: true }
-  ];
-  const leaderboard = [
-    { player: '@ace', place: 1, winCount: 8, totalGames: 8, ratio: 1 }
-  ];
-  const ctx = createCrownContext();
-  ctx.dataset = dataset;
-  ctx.leaderboard = leaderboard;
-  ctx.playerMetrics = buildPlayerMetricsMap(dataset);
-
-  const badges = resolvePlayerBadges(ctx, '@ace', { maxBadges: 2 });
-
-  assert.equal(badges.length, 2);
-  assert.deepEqual(
-    badges.map((badge) => badge.id),
-    ['crown_leaderboard_first_place', 'has_sus_wins']
-  );
-});
-
-test('buildPlayerBadgesMarkup limits output to four badge chips', () => {
-  const markup = buildPlayerBadgesMarkup([
-    { id: 'one', icon: '1', text: 'One', description: 'First' },
-    { id: 'two', icon: '2', text: 'Two', description: 'Second' },
-    { id: 'three', icon: '3', text: 'Three', description: 'Third' },
-    { id: 'four', icon: '4', text: 'Four', description: 'Fourth' },
-    { id: 'five', icon: '5', text: 'Five', description: 'Fifth' }
-  ]);
-
-  const interactiveBadgeCount = (markup.match(/data-player-badge=\"true\"/g) || []).length;
-  assert.equal(interactiveBadgeCount, 4);
-  assert.ok(!markup.includes('data-badge-id="five"'));
-  assert.ok(markup.includes('class="playerCard__badgeDetails"'));
-  assert.ok(markup.includes('class="playerCard__badgeTitle">One</div>'));
-  assert.ok(markup.includes('class="playerCard__badgeDescription">First</div>'));
+  assert.equal(badges.length, 3);
 });
 
 test('resolvePlayerCardBadges returns locked badges with progress and requirement text', () => {
@@ -172,7 +102,6 @@ test('resolvePlayerCardBadges returns locked badges with progress and requiremen
   const ctx = createCrownContext();
   ctx.dataset = dataset;
   ctx.playerMetrics = buildPlayerMetricsMap(dataset);
-  ctx.leaderboard = [];
 
   const badges = resolvePlayerCardBadges(ctx, '@late', {
     windowDays: 20,
@@ -190,6 +119,27 @@ test('resolvePlayerCardBadges returns locked badges with progress and requiremen
   assert.ok(badges.every((badge) => badge.earned === false));
   assert.equal(badges.find((badge) => badge.id === 'top_ten_rank').progress, 'Current rank: 12th (0 crowns)');
   assert.equal(badges.find((badge) => badge.id === 'games_played').progress, '1 / 12 games');
+});
+
+test('buildPlayerBadgesMarkup limits output to eight badge chips', () => {
+  const markup = buildPlayerBadgesMarkup([
+    { id: 'one', icon: '1', text: 'One', description: 'First', progress: '1/1', requirement: 'Done' },
+    { id: 'two', icon: '2', text: 'Two', description: 'Second', progress: '1/1', requirement: 'Done' },
+    { id: 'three', icon: '3', text: 'Three', description: 'Third', progress: '1/1', requirement: 'Done' },
+    { id: 'four', icon: '4', text: 'Four', description: 'Fourth', progress: '1/1', requirement: 'Done' },
+    { id: 'five', icon: '5', text: 'Five', description: 'Fifth', progress: '1/1', requirement: 'Done' },
+    { id: 'six', icon: '6', text: 'Six', description: 'Sixth', progress: '1/1', requirement: 'Done' },
+    { id: 'seven', icon: '7', text: 'Seven', description: 'Seventh', progress: '1/1', requirement: 'Done' },
+    { id: 'eight', icon: '8', text: 'Eight', description: 'Eighth', progress: '1/1', requirement: 'Done' },
+    { id: 'nine', icon: '9', text: 'Nine', description: 'Ninth', progress: '1/1', requirement: 'Done' }
+  ], { maxBadges: 8 });
+
+  const interactiveBadgeCount = (markup.match(/data-player-badge="true"/g) || []).length;
+  assert.equal(interactiveBadgeCount, 8);
+  assert.ok(!markup.includes('data-badge-id="nine"'));
+  assert.ok(markup.includes('class="playerCard__badgeDetails"'));
+  assert.ok(markup.includes('class="playerCard__badgeTitle">One</div>'));
+  assert.ok(markup.includes('class="playerCard__badgeDescription">First</div>'));
 });
 
 test('buildPlayerBadgesMarkup renders locked badge state and details rows', () => {
@@ -213,5 +163,3 @@ test('buildPlayerBadgesMarkup renders locked badge state and details rows', () =
   assert.ok(markup.includes('Current'));
   assert.ok(markup.includes('Requirement'));
 });
-
-

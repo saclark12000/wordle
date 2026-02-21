@@ -11,7 +11,7 @@ Single-page web app focused on a single job: ingest the standardized Wordle/Hurd
 - **Normalization pipeline** – `crownWinsCore.js` exposes pure helpers (`normalizeWordle`, `wordleCrownWins`, etc.) that convert emoji columns into tidy player/day rows and can now be unit tested in isolation.
 - **Leaderboard view** – `renderCrownTable()` replaces the old Chart.js canvas with the dedicated crown-table layout, including player detail panes and multi-badge toggles.
 - **Preview + export** – the data preview only shows the rows backing the current "Last N days" window, and you can download the normalized rows with **Export normalized CSV**.
-- **Badge system** – `badges.js` now drives two badge flows: legacy earned-only badges plus a player-card badge board (`PLAYER_CARD_BADGE_MANIFEST`) that renders 8 tiles. Earned tiles are full-color, locked tiles render as black boxes, and expanding a tile shows current progress plus requirements.
+- **Badge system** – `badges.js` drives the player-card badge board (`PLAYER_CARD_BADGE_MANIFEST`) with 8 tiles. Earned tiles are full-color, locked tiles render as black boxes, and expanding a tile shows current progress plus requirements.
 
 ## Expected CSV Shape
 ```
@@ -20,7 +20,7 @@ date posted,day streak,crown round,crown,1/6,2/6,3/6,4/6,5/6,6/6,X/6
 ```
 The parser looks for:
 - `1/6` … `X/6` columns with space-separated handles per guess bucket.
-- A crown column (`crown`, `👑`, or their legacy mojibake spellings) listing winners per day.
+- A crown column (`crown` or `👑`) listing winners per day.
 - An optional `crown round` column describing which streak or round the crown applied to.
 If any required column is missing the app leaves the controls disabled and surfaces a warning.
 
@@ -50,7 +50,7 @@ Only PapaParse is loaded at runtime. Chart.js has been removed entirely.
 4. Hit **Export normalized CSV** if you need the tidy format for spreadsheets or other tooling.
 
 ## Support Resources
-- Refer to `resources/support/PLAYER_BADGE_MANIFEST.md` for a step-by-step checklist on adding or updating badge definitions inside `PLAYER_BADGE_MANIFEST` and `PLAYER_CARD_BADGE_MANIFEST`. It explains manifest fields (including progress/requirement copy), available predicate context, and the test workflow.
+- Refer to `resources/support/PLAYER_BADGE_MANIFEST.md` for a step-by-step checklist on adding or updating `PLAYER_CARD_BADGE_MANIFEST` entries. It explains manifest fields (including progress/requirement copy), available predicate context, and the test workflow.
 
 ## Smoke Checklist
 - Load the built-in sample -> leaderboard populates, selecting rows updates the detail pane.
@@ -62,7 +62,7 @@ Only PapaParse is loaded at runtime. Chart.js has been removed entirely.
 Run `npm test` to execute the Node test runner. The suite currently covers:
 - `normalizeWordle` edge cases (crowns, failed rows, date parsing).
 - `wordleCrownWins` ordering logic.
-- Badge selection heuristics, earned/locked player-card badge resolution, and badge markup limits/order (including legacy max-4 behavior).
+- Badge selection heuristics, earned/locked player-card badge resolution, and badge markup limits/order for the 8-tile player card.
 
 ## Known Limitations
 - **Global mutable state** – the browser implementation still keeps `rawRows`, `normalizedWordle`, and `crownContext` in module scope, so further modularization would help.
@@ -77,6 +77,6 @@ Run `npm test` to execute the Node test runner. The suite currently covers:
 
 
 ## Developer Panel
-- The developer panel is written in a away to be documentation itself.
-- to view developer panel, make sure the url ends with /?developer=true
-    - [ Show Developer Panel ](/?developer=true)
+- The developer panel doubles as in-app documentation by rendering key markdown docs.
+- To view the developer panel, open the app with the query string `?developer=true`.
+  - [Show Developer Panel](?developer=true)

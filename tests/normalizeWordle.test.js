@@ -37,3 +37,26 @@ test('normalizeWordle flattens Wordle CSV rows', () => {
   assert.equal(zero.guesses, null);
 });
 
+test('normalizeWordle supports emoji crown column names', () => {
+  const columns = ['date posted', '👑', '👑 Round', '1/6', '2/6', '3/6', '4/6', '5/6', '6/6', 'X/6'];
+  const rows = [
+    {
+      'date posted': '2025-06-06',
+      '👑': '@ace',
+      '👑 Round': '2/6',
+      '1/6': '--',
+      '2/6': '@ace',
+      '3/6': '--',
+      '4/6': '--',
+      '5/6': '--',
+      '6/6': '--',
+      'X/6': '--'
+    }
+  ];
+  const normalized = normalizeWordle(rows, detectDateField(columns));
+  assert.equal(normalized.length, 1);
+  assert.equal(normalized[0].player, '@ace');
+  assert.equal(normalized[0].isCrown, true);
+  assert.equal(normalized[0].crownRound, '2/6');
+});
+

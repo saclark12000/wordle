@@ -209,51 +209,6 @@
     }
   };
 
-  const PLAYER_BADGE_MANIFEST = [
-    {
-      id: 'crown_leaderboard_first_place',
-      icon: () => iconFromCodePoint(0x1f451),
-      title: '1st Place',
-      description: (ctx) => `${ctx.player} leads with ${ctx.leaderboardEntry.winCount} crowns.`,
-      predicate: (ctx) => !!ctx.leaderboardEntry && ctx.leaderboardEntry.place === 1
-    },
-    {
-      id: 'has_sus_wins',
-      icon: () => iconFromCodePoint(0x1f440),
-      title: 'Sus Wins',
-      description: (ctx) => `${ctx.player} logged ${ctx.metrics.susWins} one-guess solves.`,
-      predicate: (ctx) => !!(ctx.metrics && ctx.metrics.susWins > 0)
-    },
-    {
-      id: 'crown_leaderboard_top_ten',
-      icon: () => iconFromCodePoint(0x1f3c5),
-      title: (ctx) => `${getOrdinal(ctx.leaderboardEntry.place)} Place`,
-      description: (ctx) => `${ctx.player} is top 10 with ${ctx.leaderboardEntry.winCount} wins.`,
-      predicate: (ctx) => !!ctx.leaderboardEntry && ctx.leaderboardEntry.place > 1 && ctx.leaderboardEntry.place <= 10
-    },
-    {
-      id: 'crown_guardian',
-      icon: () => iconFromCodePoint(0x1f6e1),
-      title: 'Crown Guardian',
-      description: (ctx) => `${ctx.player} kept crowns coming for ${ctx.metrics.crownWins} days.`,
-      predicate: (ctx) => ctx.metrics.crownWins > 7
-    },
-    {
-      id: 'win_under_20',
-      icon: () => iconFromCodePoint(0x1f625),
-      title: 'Finding Footing',
-      description: (ctx) => `${ctx.player} is still chasing crowns (${ctx.metrics.crownWins} so far).`,
-      predicate: (ctx) => !!(ctx.metrics && ctx.metrics.crownWins < 20)
-    },
-    {
-      id: 'low_games_played',
-      icon: () => iconFromCodePoint(0x1f634),
-      title: 'Power Nap',
-      description: (ctx) => `${ctx.player} has only played ${ctx.metrics.totalGames} games in this window.`,
-      predicate: (ctx) => !!(ctx.metrics && ctx.dataset && ctx.metrics.totalGames < Math.max(3, Math.round(ctx.dataset.length * 0.05)))
-    }
-  ];
-
   const PLAYER_CARD_BADGE_MANIFEST = [
     {
       id: 'top_ten_rank',
@@ -342,8 +297,6 @@
       predicate: (ctx) => Number(getInsights(ctx).participationRate) >= 0.8
     }
   ];
-
-  const PLAYER_BADGE_RULES = PLAYER_BADGE_MANIFEST;
 
   function buildBadgePayload(entry, ctx, opts = {}) {
     const earned = opts.earned !== false;
@@ -447,25 +400,12 @@
     });
   }
 
-  function resolvePlayerBadges(context, player, opts = {}) {
-    return resolveBadgesFromManifest(PLAYER_BADGE_MANIFEST, context, player, {
-      ...opts,
-      includeLocked: !!opts.includeLocked,
-      defaultLimit: 4
-    });
-  }
-
   function resolvePlayerCardBadges(context, player, opts = {}) {
     return resolveBadgesFromManifest(PLAYER_CARD_BADGE_MANIFEST, context, player, {
       ...opts,
       includeLocked: opts.includeLocked !== false,
       defaultLimit: PLAYER_CARD_BADGE_MANIFEST.length
     });
-  }
-
-  function resolvePlayerBadge(context, player) {
-    const badges = resolvePlayerBadges(context, player, { maxBadges: 1 });
-    return badges.length ? badges[0] : null;
   }
 
   function normalizeBadgeDomId(value) {
@@ -538,7 +478,9 @@
   function buildPlayerBadgesMarkup(badges, opts = {}) {
     if (!Array.isArray(badges) || !badges.length) return '';
     const requestedLimit = Number(opts.maxBadges);
-    const maxBadges = Number.isFinite(requestedLimit) ? Math.max(1, Math.floor(requestedLimit)) : 4;
+    const maxBadges = Number.isFinite(requestedLimit)
+      ? Math.max(1, Math.floor(requestedLimit))
+      : PLAYER_CARD_BADGE_MANIFEST.length;
     return badges
       .filter(Boolean)
       .slice(0, maxBadges)
@@ -546,25 +488,16 @@
       .join('');
   }
 
-  function buildPlayerBadgeMarkup(badge) {
-    return buildPlayerBadgesMarkup(badge ? [badge] : [], { maxBadges: 1 });
-  }
-
   global.BadgeSystem = {
-    PLAYER_BADGE_MANIFEST,
     PLAYER_CARD_BADGE_MANIFEST,
-    PLAYER_BADGE_RULES,
     createCrownContext,
     createEmptyPlayerMetrics,
     updatePlayerMetricsFromRow,
     buildPlayerMetricsMap,
     buildLeaderboardRankings,
     getPlayerMetrics,
-    resolvePlayerBadges,
     resolvePlayerCardBadges,
-    resolvePlayerBadge,
-    buildPlayerBadgesMarkup,
-    buildPlayerBadgeMarkup
+    buildPlayerBadgesMarkup
   };
 
   if (typeof module !== 'undefined' && module.exports) {

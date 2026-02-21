@@ -1,6 +1,6 @@
 (function (global) {
-  const CROWN_COL_NAMES = ['👑', 'ðŸ‘‘', 'Ã°Å¸â€˜â€˜', 'crown'];
-  const CROWN_ROUND_COL_NAMES = ['👑 Round', 'ðŸ‘‘ Round', 'Ã°Å¸â€˜â€˜ Round', 'crown round'];
+  const CROWN_COL_NAMES = ['👑', 'crown'];
+  const CROWN_ROUND_COL_NAMES = ['👑 Round', 'crown round'];
 
   function normalizeHandle(handle) {
     if (!handle) return null;
@@ -157,4 +157,3 @@
 
   global.CrownWinsCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);
-

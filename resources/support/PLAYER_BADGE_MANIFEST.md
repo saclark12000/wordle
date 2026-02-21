@@ -1,9 +1,8 @@
-﻿# PLAYER_BADGE_MANIFEST Support Guide
+# Player Badge Manifest Support Guide
 
 Use this guide whenever you need to add or update badges in `badges.js`.
 
-There are now two manifest arrays:
-- `PLAYER_BADGE_MANIFEST` - legacy earned-only badges used by `resolvePlayerBadges()` (default max: 4).
+Primary manifest in active use:
 - `PLAYER_CARD_BADGE_MANIFEST` - player card badge board used by `resolvePlayerCardBadges()` (default: all entries, includes locked + earned badges).
 
 ## Required Fields per Entry
@@ -57,11 +56,10 @@ Helpers currently include:
 ```
 
 ## Workflow for Adding/Updating a Badge
-1. Decide whether the change belongs in `PLAYER_BADGE_MANIFEST` (legacy earned list) or `PLAYER_CARD_BADGE_MANIFEST` (player card board).
-2. Add or update the entry in `badges.js`, keeping manifest order intentional.
-3. Update `tests/badges.test.js` for predicate behavior and ordering.
-4. Run `npm test`.
-5. Smoke test in browser: row selection, earned/locked visuals, and expand/collapse details.
-6. Update `README.md` if user-facing terminology changes.
+1. Add or update the entry in `PLAYER_CARD_BADGE_MANIFEST` inside `badges.js`, keeping manifest order intentional.
+2. Update `tests/badges.test.js` for predicate behavior and ordering.
+3. Run `npm test`.
+4. Smoke test in browser: row selection, earned/locked visuals, and expand/collapse details.
+5. Update `README.md` if user-facing terminology changes.
 
 Keep badge updates atomic: manifest change + tests + docs in one commit.

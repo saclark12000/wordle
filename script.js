@@ -64,13 +64,10 @@ const {
   buildLeaderboardRankings,
   getPlayerMetrics,
   resolvePlayerCardBadges,
-  resolvePlayerBadges,
-  resolvePlayerBadge,
-  buildPlayerBadgesMarkup,
-  buildPlayerBadgeMarkup
+  buildPlayerBadgesMarkup
 } = window.BadgeSystem || {};
 
-if (!createCrownContext || !resolvePlayerBadge) {
+if (!createCrownContext || !resolvePlayerCardBadges || !buildPlayerBadgesMarkup) {
   throw new Error('BadgeSystem module failed to load.');
 }
 
@@ -94,10 +91,6 @@ function summarizeMetrics(rows) {
     updatePlayerMetricsFromRow(metrics, r);
   }
   return metrics;
-}
-
-function computeGroupMetrics(rows) {
-  return summarizeMetrics(rows);
 }
 
 function computePlayerInsights(metrics, opts = {}) {
@@ -495,16 +488,9 @@ function getPlayerBadgesMarkup(context, player, insights) {
     windowDays: context && context.windowDays ? context.windowDays : 0,
     insights
   };
-  const badges = typeof resolvePlayerCardBadges === 'function'
-    ? resolvePlayerCardBadges(context, player, badgeOpts)
-    : typeof resolvePlayerBadges === 'function'
-      ? resolvePlayerBadges(context, player, { ...badgeOpts, includeLocked: true })
-      : [resolvePlayerBadge(context, player)].filter(Boolean);
+  const badges = resolvePlayerCardBadges(context, player, badgeOpts);
   if (!badges.length) return '';
-  if (typeof buildPlayerBadgesMarkup === 'function') {
-    return buildPlayerBadgesMarkup(badges, { maxBadges: 8 });
-  }
-  return badges.map((badge) => buildPlayerBadgeMarkup(badge)).join('');
+  return buildPlayerBadgesMarkup(badges, { maxBadges: 8 });
 }
 
 function setActiveCrownPlayer(player) {
@@ -536,7 +522,7 @@ function setGroupStatsPanel() {
     panel.innerHTML = '<div class="status">Load a Wordle CSV to see group stats.</div>';
     return;
   }
-  const metrics = computeGroupMetrics(dataset);
+  const metrics = summarizeMetrics(dataset);
   const callouts = deriveGroupCallouts(dataset, metrics);
   panel.innerHTML = buildGroupStatsMarkup(dataset, metrics, callouts);
   crownContext.selectedPlayer = null;
@@ -713,7 +699,7 @@ function render() {
 
   const latestCopy = latestLabel ? ` Latest day: <strong>${escapeHtml(latestLabel)}</strong>.` : '';
   const baseMsg = `Rendered Crown Wins leaderboard for the last <strong>${dayLimit}</strong> day(s) covering <strong>${rowCount || limitedWordle.length}</strong> CSV rows.`;
-  const devLinkMsg = ` See <a href="/?developer=true" >/?developer=true</a> for more tech stuff. `;
+  const devLinkMsg = DEVELOPER_MODE ? '' : ' See <a href="?developer=true">?developer=true</a> for developer docs.';
   setStatus($('leaderboardStatus'), baseMsg + latestCopy + devLinkMsg, rows.length ? 'ok' : 'warn');
 }
 

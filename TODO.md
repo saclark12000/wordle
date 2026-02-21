@@ -12,7 +12,6 @@
 - Ship a compact layout for narrow screens so the leaderboard and preview can stack without overflowing the viewport.
 
 ## Badges & Insights
-- Move `PLAYER_BADGE_RULES` into a declarative manifest (title, description, predicate) with shared helpers to simplify adding or rewording badges.
 - Surface richer player insights (streaks, average guesses when crowned, participation rate) inside the detail pane.
 - Experiment with group-level callouts (e.g., "Newcomer surge" when new players earn crowns) to add narrative context.
 
@@ -23,7 +22,7 @@
 
 ## Tooling & Quality
 - Add ESLint/Prettier plus a git hook or CI job so formatting and lint checks run automatically.
-- Extend the Node test suite to cover `getWordleLastDaysSubset()`, date parsing edge cases, and projected badge combinations.
+- Extend the Node test suite to cover additional date parsing edge cases and projected badge combinations.
 - Wire the test script into CI (e.g., GitHub Actions) and publish run badges in the README.
 
 
