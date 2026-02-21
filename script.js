@@ -713,7 +713,8 @@ function render() {
 
   const latestCopy = latestLabel ? ` Latest day: <strong>${escapeHtml(latestLabel)}</strong>.` : '';
   const baseMsg = `Rendered Crown Wins leaderboard for the last <strong>${dayLimit}</strong> day(s) covering <strong>${rowCount || limitedWordle.length}</strong> CSV rows.`;
-  setStatus($('leaderboardStatus'), baseMsg + latestCopy, rows.length ? 'ok' : 'warn');
+  const devLinkMsg = ` See <a href="/?developer=true" >/?developer=true</a> for more tech stuff. `;
+  setStatus($('leaderboardStatus'), baseMsg + latestCopy + devLinkMsg, rows.length ? 'ok' : 'warn');
 }
 
 function exportNormalized() {
