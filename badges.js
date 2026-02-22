@@ -295,6 +295,14 @@
       requirement: 'Participate in at least 80% of days in this window.',
       progress: (ctx) => `${formatPercent(Number(getInsights(ctx).participationRate) || 0, 0)} / 80%`,
       predicate: (ctx) => Number(getInsights(ctx).participationRate) >= 0.8
+    },
+    {
+      id: 'badge_collector',
+      icon: '🎁',
+      title: 'Badge Collector',
+      requirement: 'Earn at least 5 badges in this window.',
+      progress: (ctx, helpers) => `${helpers.metricNumber(ctx.badgeState && ctx.badgeState.earnedBadgeCount)} / 5 badges earned`,
+      predicate: (ctx) => Number(ctx.badgeState && ctx.badgeState.earnedBadgeCount) >= 5
     }
   ];
 
@@ -332,18 +340,51 @@
     const includeLocked = !!opts.includeLocked;
     const requestedLimit = Number(opts.maxBadges);
     const maxBadges = Number.isFinite(requestedLimit) ? Math.max(1, Math.floor(requestedLimit)) : 1;
+    const badgeEntries = Array.isArray(manifest) ? manifest.filter(Boolean) : [];
     const matches = [];
-    for (const entry of manifest || []) {
-      if (!entry || typeof entry.predicate !== 'function') continue;
+    const evaluated = [];
+    const collectorEntries = [];
+
+    function runPredicate(entry, predicateCtx) {
       let earned = false;
       try {
-        earned = !!entry.predicate(ctx, BADGE_HELPERS);
+        earned = !!entry.predicate(predicateCtx, BADGE_HELPERS);
       } catch (err) {
         console.warn('Badge predicate failed', entry.id, err);
+        return false;
+      }
+      return earned;
+    }
+
+    for (const entry of badgeEntries) {
+      if (typeof entry.predicate !== 'function') continue;
+      if (entry.id === 'badge_collector') {
+        collectorEntries.push(entry);
         continue;
       }
-      if (!earned && !includeLocked) continue;
-      const payload = buildBadgePayload(entry, ctx, { earned });
+      evaluated.push({ entry, earned: runPredicate(entry, ctx) });
+    }
+
+    const earnedBadgeIds = evaluated
+      .filter((item) => item.earned)
+      .map((item) => item.entry.id)
+      .filter(Boolean);
+    const badgeState = {
+      earnedBadgeIds,
+      earnedBadgeCount: earnedBadgeIds.length
+    };
+    const enrichedCtx = {
+      ...ctx,
+      badgeState
+    };
+
+    for (const entry of collectorEntries) {
+      evaluated.push({ entry, earned: runPredicate(entry, enrichedCtx) });
+    }
+
+    for (const item of evaluated) {
+      if (!item.earned && !includeLocked) continue;
+      const payload = buildBadgePayload(item.entry, enrichedCtx, { earned: item.earned });
       if (!payload) continue;
       matches.push(payload);
       if (matches.length >= maxBadges) break;
@@ -379,6 +420,10 @@
       insights,
       windowDays,
       playerRank: getPlayerRank(metricsMap, player),
+      badgeState: {
+        earnedBadgeIds: [],
+        earnedBadgeCount: 0
+      },
       helpers: BADGE_HELPERS
     };
   }

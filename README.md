@@ -11,7 +11,7 @@ Single-page web app focused on a single job: ingest the standardized Wordle/Hurd
 - **Normalization pipeline** – `crownWinsCore.js` exposes pure helpers (`normalizeWordle`, `wordleCrownWins`, etc.) that convert emoji columns into tidy player/day rows and can now be unit tested in isolation.
 - **Leaderboard view** – `renderCrownTable()` replaces the old Chart.js canvas with the dedicated crown-table layout, including player detail panes and multi-badge toggles.
 - **Preview + export** – the data preview only shows the rows backing the current "Last N days" window, and you can download the normalized rows with **Export normalized CSV**.
-- **Badge system** – `badges.js` drives the player-card badge board (`PLAYER_CARD_BADGE_MANIFEST`) with 8 tiles. Earned tiles are full-color, locked tiles render as black boxes, and expanding a tile shows current progress plus requirements.
+- **Badge system** – `badges.js` drives the player-card badge board (`PLAYER_CARD_BADGE_MANIFEST`) from the full manifest. Earned tiles are full-color, locked tiles render as black boxes, and expanding a tile shows current progress plus requirements.
 
 ## Expected CSV Shape
 ```
@@ -55,14 +55,14 @@ Only PapaParse is loaded at runtime. Chart.js has been removed entirely.
 ## Smoke Checklist
 - Load the built-in sample -> leaderboard populates, selecting rows updates the detail pane.
 - Change **Last N days** -> leaderboard, preview table, and status copy reflect the new window.
-- Toggle player badges -> player cards render an 8-tile badge board; earned badges are full-color, locked badges are black, and expanding a tile reveals title + current metric + requirement.
+- Toggle player badges -> player cards render all available manifest badges; earned badges are full-color, locked badges are black, and expanding a tile reveals title + current metric + requirement.
 - Export normalized CSV -> downloaded file opens in Excel with crowns rendered correctly.
 
 ## Tests
 Run `npm test` to execute the Node test runner. The suite currently covers:
 - `normalizeWordle` edge cases (crowns, failed rows, date parsing).
 - `wordleCrownWins` ordering logic.
-- Badge selection heuristics, earned/locked player-card badge resolution, and badge markup limits/order for the 8-tile player card.
+- Badge selection heuristics, earned/locked player-card badge resolution, and badge markup limits/order for player-card badges.
 
 ## Known Limitations
 - **Global mutable state** – the browser implementation still keeps `rawRows`, `normalizedWordle`, and `crownContext` in module scope, so further modularization would help.

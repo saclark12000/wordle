@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+  PLAYER_CARD_BADGE_MANIFEST,
   createCrownContext,
   buildPlayerMetricsMap,
   buildLeaderboardRankings,
@@ -57,9 +58,13 @@ test('resolvePlayerCardBadges returns all player-card badges by default', () => 
     }
   });
 
-  assert.equal(badges.length, 8);
+  assert.equal(badges.length, PLAYER_CARD_BADGE_MANIFEST.length);
   assert.ok(badges.every((badge) => typeof badge.progress === 'string' && badge.progress.length > 0));
   assert.ok(badges.every((badge) => typeof badge.requirement === 'string' && badge.requirement.length > 0));
+  const badgeCollector = badges.find((badge) => badge.id === 'badge_collector');
+  assert.ok(badgeCollector);
+  assert.equal(badgeCollector.earned, true);
+  assert.equal(badgeCollector.progress, '8 / 5 badges earned');
 });
 
 test('resolvePlayerCardBadges honors maxBadges option', () => {
@@ -113,15 +118,16 @@ test('resolvePlayerCardBadges returns locked badges with progress and requiremen
     }
   });
 
-  assert.equal(badges.length, 8);
+  assert.equal(badges.length, PLAYER_CARD_BADGE_MANIFEST.length);
   assert.ok(badges.every((badge) => typeof badge.progress === 'string' && badge.progress.length > 0));
   assert.ok(badges.every((badge) => typeof badge.requirement === 'string' && badge.requirement.length > 0));
   assert.ok(badges.every((badge) => badge.earned === false));
   assert.equal(badges.find((badge) => badge.id === 'top_ten_rank').progress, 'Current rank: 12th (0 crowns)');
   assert.equal(badges.find((badge) => badge.id === 'games_played').progress, '1 / 12 games');
+  assert.equal(badges.find((badge) => badge.id === 'badge_collector').progress, '0 / 5 badges earned');
 });
 
-test('buildPlayerBadgesMarkup limits output to eight badge chips', () => {
+test('buildPlayerBadgesMarkup supports rendering more than eight badge chips', () => {
   const markup = buildPlayerBadgesMarkup([
     { id: 'one', icon: '1', text: 'One', description: 'First', progress: '1/1', requirement: 'Done' },
     { id: 'two', icon: '2', text: 'Two', description: 'Second', progress: '1/1', requirement: 'Done' },
@@ -132,11 +138,11 @@ test('buildPlayerBadgesMarkup limits output to eight badge chips', () => {
     { id: 'seven', icon: '7', text: 'Seven', description: 'Seventh', progress: '1/1', requirement: 'Done' },
     { id: 'eight', icon: '8', text: 'Eight', description: 'Eighth', progress: '1/1', requirement: 'Done' },
     { id: 'nine', icon: '9', text: 'Nine', description: 'Ninth', progress: '1/1', requirement: 'Done' }
-  ], { maxBadges: 8 });
+  ], { maxBadges: 9 });
 
   const interactiveBadgeCount = (markup.match(/data-player-badge="true"/g) || []).length;
-  assert.equal(interactiveBadgeCount, 8);
-  assert.ok(!markup.includes('data-badge-id="nine"'));
+  assert.equal(interactiveBadgeCount, 9);
+  assert.ok(markup.includes('data-badge-id="nine"'));
   assert.ok(markup.includes('class="playerCard__badgeDetails"'));
   assert.ok(markup.includes('class="playerCard__badgeTitle">One</div>'));
   assert.ok(markup.includes('class="playerCard__badgeDescription">First</div>'));

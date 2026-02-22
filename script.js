@@ -484,13 +484,12 @@ function buildGroupStatsMarkup(dataset, metrics, callouts) {
 }
 function getPlayerBadgesMarkup(context, player, insights) {
   const badgeOpts = {
-    maxBadges: 8,
     windowDays: context && context.windowDays ? context.windowDays : 0,
     insights
   };
   const badges = resolvePlayerCardBadges(context, player, badgeOpts);
   if (!badges.length) return '';
-  return buildPlayerBadgesMarkup(badges, { maxBadges: 8 });
+  return buildPlayerBadgesMarkup(badges);
 }
 
 function setActiveCrownPlayer(player) {

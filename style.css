@@ -360,7 +360,7 @@ body:not(.developer-mode) .developerPanel {
 }
 
 .crownTable__panel {
-  flex: 1 1 280px;
+  flex: 1 1 560px;
   border: 1px solid rgba(255,255,255,.08);
   border-radius: 14px;
   padding: 16px;
