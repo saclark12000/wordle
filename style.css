@@ -541,25 +541,19 @@ body:not(.developer-mode) .developerPanel {
 }
 
 .playerCard__badgeClose {
-
   border: 1px solid rgba(255,255,255,.15);
   background: rgba(255,255,255,.08);
   color: var(--text);
   padding: 6px 12px;
   border-radius: 999px;
   font-size: 11px;
-
   display: none;
-  color: rgba(255,255,255,.9);
-  font-size: 17px;
-  font-weight: 700;
-  line-height: 1;
   cursor: pointer;
 }
 
 .playerCard__badgeClose:hover {
-  border-color: rgba(255,255,255,.48);
-  background: rgba(0,0,0,.62);
+  border-color: var(--accent-secondary);
+  color: var(--accent-secondary);
 }
 
 .playerCard__badgeClose:focus-visible {
@@ -568,13 +562,18 @@ body:not(.developer-mode) .developerPanel {
 }
 
 .playerCard__badgeLock {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  border: 1px solid rgba(255,255,255,.2);
-  background: rgba(0,0,0,.95);
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,.7);
-  flex: 0 0 auto;
+  font-size: 24px;
+  line-height: 1;
+  filter: grayscale(100%);
+  position: relative;
+}
+
+.playerCard__badgeLock::after {
+  content: "🔒";
+  font-size: 14px;
+  position: absolute;
+  bottom: 0;
+  right: 0;
 }
 
 .playerCard__badgeMetric {

@@ -481,7 +481,7 @@
     } else if (hasIcon) {
       contentParts.push(`<div class="playerCard__badgeIcon" aria-hidden="true">${badge.icon}</div>`);
     } else {
-      contentParts.push('<div class="playerCard__badgeLock" aria-hidden="true"></div>');
+      contentParts.push(`<div class="playerCard__badgeLock" aria-hidden="true">${badge.icon}</div>`);
     }
     if (hasTitle) {
       // contentParts.push(`<div class="playerCard__badgeText">${escapeHtml(badge.text)}</div>`);

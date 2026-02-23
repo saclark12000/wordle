@@ -458,7 +458,8 @@ function buildPlayerStatsMarkup(player, metrics, badgeMarkup) {
       </div>
       ${badgeBlock}
       <table class="playerCard__table">
-        <thead><tr><th>Round</th><th>Total</th><th>👑 Wins</th></tr></thead>
+        <div class="playerCard__title">${escapeHtml(player)}'s Personal Stats</div>
+        <thead><tr><th>Round</th><th>Wins</th><th>👑 Wins</th></tr></thead>
         <tbody>
           ${rows}
         </tbody>
