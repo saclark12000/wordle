@@ -412,15 +412,44 @@ function renderCrownTable(rows, dataset, windowMeta = null) {
 
 function buildPlayerStatsMarkup(player, metrics, badgeMarkup) {
   const guessOrder = ['1','2','3','4','5','6','X'];
-  const rows = guessOrder.map((g) => {
+  let highestCrownRows = { val: null, rows:[]};
+  let highestTotalRows = { val: null, rows:[]};
+  let rows = guessOrder.map((g) => {
     const label = g === 'X' ? 'X/6 (fail)' : `${g}/6`;
     const total = metrics.buckets[g] || 0;
     const crown = metrics.crownBuckets[g] || 0;
-    return `<tr><td>${label}</td><td>${total}</td><td>${crown}</td></tr>`;
+
+    // Track which guess counts have the highest crown wins for potential highlighting
+    if (highestCrownRows.val === null || crown > highestCrownRows.val) {
+      highestCrownRows.val = crown;
+      highestCrownRows.rows = [g];
+    } else if (crown === highestCrownRows.val) {
+      highestCrownRows.rows.push(g);
+    }
+
+    if (highestTotalRows.val === null || total > highestTotalRows.val) {
+      highestTotalRows.val = total;
+      highestTotalRows.rows = [g];
+    } else if (total === highestTotalRows.val) {
+      highestTotalRows.rows.push(g);
+    }
+
+    return `<tr id='playerCardRow_${g}'><td>${label}</td><td>${total}<span id='playerCardTotalHighlight_${g}' class="playerCard__total--highlight_hidden">🏅</span></td><td id='playerCardCrown_${g}'>${crown}<span id='playerCardCrownHighlight_${g}' class="playerCard__crown--highlight_hidden">👑</span></td></tr>`;
   }).join('');
+
+  // Determine which guess count has the highest crown wins for potential highlighting
+  highestCrownRows.rows.forEach((g) => {
+    rows = rows.replace(`id='playerCardCrownHighlight_${g}' class="playerCard__crown--highlight_hidden"`, `id='playerCardCrownHighlight_${g}' class="playerCard__crown--highlight_visible"`);
+  });
+
+   highestTotalRows.rows.forEach((g) => {
+    rows = rows.replace(`id='playerCardTotalHighlight_${g}' class="playerCard__total--highlight_hidden"`, `id='playerCardTotalHighlight_${g}' class="playerCard__total--highlight_visible"`);
+  });
+
   const badgeBlock = badgeMarkup
     ? `<div class="playerCard__badgeWrap">${badgeMarkup}</div>`
     : '<div class="status">No badges available for this player.</div>';
+
   return `
     <div class="playerCard">
       <div class="playerCard__header">
@@ -429,7 +458,7 @@ function buildPlayerStatsMarkup(player, metrics, badgeMarkup) {
       </div>
       ${badgeBlock}
       <table class="playerCard__table">
-        <thead><tr><th>Round</th><th>Total</th><th>Crown Wins</th></tr></thead>
+        <thead><tr><th>Round</th><th>Total</th><th>👑 Wins</th></tr></thead>
         <tbody>
           ${rows}
         </tbody>

@@ -484,7 +484,7 @@
       contentParts.push('<div class="playerCard__badgeLock" aria-hidden="true"></div>');
     }
     if (hasTitle) {
-      contentParts.push(`<div class="playerCard__badgeText">${escapeHtml(badge.text)}</div>`);
+      // contentParts.push(`<div class="playerCard__badgeText">${escapeHtml(badge.text)}</div>`);
     }
 
     const label = badge.ariaLabel || [badge.text, badge.progress, badge.requirement].filter(Boolean).join('. ');
@@ -513,7 +513,6 @@
       <div class="playerCard__badge${stateClass}${expandableClass}"${interactionAttrs}${titleAttr}${ariaAttr}${dataAttr}${stateAttr}>
         <div class="playerCard__badgeContent">
           <div class="playerCard__badgeTop">${contentParts.join('')}</div>
-          ${hasProgress ? `<div class="playerCard__badgeMetric">${escapeHtml(badge.progress)}</div>` : ''}
         </div>
         ${detailsMarkup}
       </div>
