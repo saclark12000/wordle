@@ -576,6 +576,12 @@ function toggleBadgeExpansion(badge) {
   badge.setAttribute('aria-expanded', expanded ? 'true' : 'false');
 }
 
+function collapseBadgeExpansion(badge) {
+  if (!badge || !badge.classList.contains('playerCard__badge--expandable')) return;
+  badge.classList.remove('playerCard__badge--expanded');
+  badge.setAttribute('aria-expanded', 'false');
+}
+
 function setStatus(el, msg, kind) {
   el.className = 'status ' + (kind || '');
   el.innerHTML = msg;
@@ -798,6 +804,13 @@ $('btnExport').addEventListener('click', exportNormalized);
 $('btnClear').addEventListener('click', clearAll);
 
 $('crownTable').addEventListener('click', (event) => {
+  const badgeClose = event.target.closest('[data-player-badge-close]');
+  if (badgeClose) {
+    event.preventDefault();
+    const badge = badgeClose.closest('[data-player-badge]');
+    collapseBadgeExpansion(badge);
+    return;
+  }
   const link = event.target.closest('[data-crown-player]');
   if (link) {
     event.preventDefault();
@@ -819,7 +832,7 @@ $('crownTable').addEventListener('click', (event) => {
     return;
   }
   const badge = event.target.closest('[data-player-badge]');
-  if (badge) {
+  if (badge && !badge.classList.contains('playerCard__badge--expanded')) {
     event.preventDefault();
     toggleBadgeExpansion(badge);
     return;
@@ -828,6 +841,7 @@ $('crownTable').addEventListener('click', (event) => {
 
 $('crownTable').addEventListener('keydown', (event) => {
   if (event.key !== 'Enter' && event.key !== ' ') return;
+  if (event.target.closest('[data-player-badge-close]')) return;
   const badge = event.target.closest('[data-player-badge]');
   if (!badge) return;
   event.preventDefault();

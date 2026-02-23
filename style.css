@@ -456,6 +456,11 @@ body:not(.developer-mode) .developerPanel {
   overflow: hidden;
 }
 
+.playerCard__badge--expanded {
+  cursor: default;
+}
+
+
 .playerCard__badge--earned {
   border-color: rgba(201,180,88,.5);
   background:
@@ -509,8 +514,36 @@ body:not(.developer-mode) .developerPanel {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   width: 100%;
+}
+
+.playerCard__badgeClose {
+
+  border: 1px solid rgba(255,255,255,.15);
+  background: rgba(255,255,255,.08);
+  color: var(--text);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+
+  display: none;
+  color: rgba(255,255,255,.9);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.playerCard__badgeClose:hover {
+  border-color: rgba(255,255,255,.48);
+  background: rgba(0,0,0,.62);
+}
+
+.playerCard__badgeClose:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .playerCard__badgeLock {
@@ -626,6 +659,23 @@ body:not(.developer-mode) .developerPanel {
 
 .playerCard__badge--expanded .playerCard__badgeContent {
   transform: none;
+}
+
+.playerCard__badge--expanded .playerCard__badgeTop {
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.playerCard__badge--expanded .playerCard__badgeIcon,
+.playerCard__badge--expanded .playerCard__badgeImage,
+.playerCard__badge--expanded .playerCard__badgeLock {
+  margin-right: auto;
+}
+
+.playerCard__badge--expanded .playerCard__badgeClose {
+  display: inline-flex;
+  flex: 0 0 auto;
 }
 
 .playerCard__crown--highlight {

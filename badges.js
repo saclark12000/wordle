@@ -499,6 +499,9 @@
     const interactionAttrs = hasDetails
       ? ` role="button" tabindex="0" data-player-badge="true" aria-expanded="false" aria-controls="${controlsId}"`
       : '';
+    const closeControlMarkup = hasDetails
+      ? '<button type="button" class="playerCard__badgeClose" data-player-badge-close="true" aria-label="Collapse badge details">✖</button>'
+      : '';
     const detailsMarkup = hasDetails
       ? `
         <div class="playerCard__badgeDetails" id="${controlsId}">
@@ -512,7 +515,10 @@
     return `
       <div class="playerCard__badge${stateClass}${expandableClass}"${interactionAttrs}${titleAttr}${ariaAttr}${dataAttr}${stateAttr}>
         <div class="playerCard__badgeContent">
-          <div class="playerCard__badgeTop">${contentParts.join('')}</div>
+          <div class="playerCard__badgeTop">
+            ${contentParts.join('')}
+            ${closeControlMarkup}
+          </div>
         </div>
         ${detailsMarkup}
       </div>
