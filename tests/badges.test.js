@@ -169,3 +169,25 @@ test('buildPlayerBadgesMarkup renders locked badge state and details rows', () =
   assert.ok(markup.includes('Current'));
   assert.ok(markup.includes('Requirement'));
 });
+
+test('buildPlayerBadgesMarkup groups active badges above inactive badges', () => {
+  const markup = buildPlayerBadgesMarkup(
+    [
+      { id: 'locked_a', text: 'Locked A', progress: '0/2', requirement: 'Get 2', earned: false },
+      { id: 'earned_a', icon: 'A', text: 'Earned A', progress: '2/2', requirement: 'Done', earned: true },
+      { id: 'locked_b', text: 'Locked B', progress: '1/3', requirement: 'Get 3', earned: false },
+      { id: 'earned_b', icon: 'B', text: 'Earned B', progress: '3/3', requirement: 'Done', earned: true }
+    ],
+    { maxBadges: 4 }
+  );
+
+  const activeHeaderIndex = markup.indexOf('playerCard__badgeGroupTitle">🟩 Active badges</div>');
+  const inactiveHeaderIndex = markup.indexOf('playerCard__badgeGroupTitle">⬛ Inactive badges</div>');
+  const earnedFirstIndex = markup.indexOf('data-badge-id="earned_a"');
+  const lockedFirstIndex = markup.indexOf('data-badge-id="locked_a"');
+
+  assert.ok(activeHeaderIndex >= 0);
+  assert.ok(inactiveHeaderIndex > activeHeaderIndex);
+  assert.ok(earnedFirstIndex >= 0);
+  assert.ok(lockedFirstIndex > earnedFirstIndex);
+});

@@ -531,11 +531,31 @@
     const maxBadges = Number.isFinite(requestedLimit)
       ? Math.max(1, Math.floor(requestedLimit))
       : PLAYER_CARD_BADGE_MANIFEST.length;
-    return badges
+    const limitedBadges = badges
       .filter(Boolean)
       .slice(0, maxBadges)
-      .map((badge, index) => buildSinglePlayerBadgeMarkup(badge, index))
-      .join('');
+    const earnedBadges = limitedBadges.filter((badge) => badge.earned !== false);
+    const lockedBadges = limitedBadges.filter((badge) => badge.earned === false);
+
+    const buildGroupMarkup = (label, groupBadges, startIndex) => {
+      if (!groupBadges.length) return '';
+      const itemsMarkup = groupBadges
+        .map((badge, index) => buildSinglePlayerBadgeMarkup(badge, startIndex + index))
+        .join('');
+      return `
+        <section class="playerCard__badgeGroup" aria-label="${escapeHtml(label)}">
+          <div class="playerCard__badgeGroupTitle">${escapeHtml(label)}</div>
+          <div class="playerCard__badgeGrid">
+            ${itemsMarkup}
+          </div>
+        </section>
+      `;
+    };
+
+    return [
+      buildGroupMarkup('🟩 Earned Badges', earnedBadges, 0),
+      buildGroupMarkup('⬛ Locked Badges', lockedBadges, earnedBadges.length)
+    ].join('');
   }
 
   global.BadgeSystem = {

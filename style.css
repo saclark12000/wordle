@@ -430,6 +430,27 @@ body:not(.developer-mode) .developerPanel {
 }
 
 .playerCard__badgeWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+.playerCard__badgeGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.playerCard__badgeGroupTitle {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.playerCard__badgeGrid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
@@ -723,6 +744,10 @@ a.crownTable__panelBtn {
   }
 
   .playerCard__badgeWrap {
+    gap: 12px;
+  }
+
+  .playerCard__badgeGrid {
     grid-template-columns: 1fr;
   }
 
