@@ -34,11 +34,39 @@ Use these first when writing/maintaining badge rules:
   - `custom` (project-specific metrics you add over time)
 - `ctx.metricValues` - flattened read view (custom > insights > derived > core precedence).
 
+### Available Metric Keys
+Use `ctx.metric('key')` or `ctx.metricNumber('key')`.
+
+`core` keys (always present):
+- `player` - Player handle currently being evaluated (string).
+- `totalGames` - Total number of games the player appeared in for the active window.
+- `solvedGames` - Number of solved games (1/6 through 6/6).
+- `failGames` - Number of failed games (`X/6`).
+- `crownWins` - Number of games where the player earned the crown.
+- `susWins` - Number of one-guess solves (`1/6`).
+- `winRatio` - Rounded crown-to-games ratio (`Math.round(crownWins / totalGames)`).
+- `buckets` - Guess-distribution counts keyed by `1..6` and `X`.
+- `crownBuckets` - Crown-win distribution counts keyed by `1..6` and `X`.
+- `rows` - Normalized player rows in the active window (array of row objects).
+- `playerRank` - Player rank by crown wins in the active leaderboard (1-based).
+- `windowDays` - Active day-window size used for badge evaluation.
+
+`derived` keys (always present):
+- `crownRatio` - Exact crown conversion ratio (`crownWins / totalGames`).
+- `gamesPlayedTarget` - Dynamic participation target used by the built-in games-played badge.
+- `playerRank` - Same value as core `playerRank`; available in derived namespace for explicit lookup.
+
+`insights` keys (present when supplied via `metricSources.insights`):
+- `activeCrownStreak` - Current consecutive-day crown streak.
+- `bestCrownStreak` - Best consecutive-day crown streak in the current window.
+- `avgGuessWhenCrowned` - Average guess number on games where the player was crowned.
+- `participationRate` - Fraction of days participated in (`totalGames / windowDays`, usually `0..1`).
+
+`custom` keys:
+- Any custom key/value pair you provide via `context.badgeMetricSources.custom` or `opts.metricSources.custom`.
+
 ### Core context data
 - `player`
-- `metrics`
-- `windowDays`
-- `playerRank`
 - `badgeState`
 - `data` object:
   - `data.leaderboard`
@@ -46,9 +74,6 @@ Use these first when writing/maintaining badge rules:
   - `data.dataset`
   - `data.rows`
   - `data.metricsMap`
-
-### Legacy compatibility
-Legacy flat fields (`leaderboard`, `dataset`, `rows`, `insights`, etc.) are still populated for existing predicates, but new badge rules should use `ctx.metric*` + `ctx.data`.
 
 Helpers currently include:
 - `ordinal(n)`
@@ -76,9 +101,9 @@ You no longer need to expand top-level `ctx` fields.
 1. Put new values into one of these inputs when resolving badges:
    - `context.badgeMetricSources`
    - `opts.metricSources`
-   - `opts.customMetrics` / `opts.extraMetrics` (shorthand for `custom`)
 2. Read the metric in predicates via `ctx.metric('yourMetric')` or `ctx.metricNumber('yourMetric')`.
 3. If needed, access a specific namespace with dot notation (`ctx.metric('insights.participationRate')`).
+4. Do not use legacy aliases (for example `opts.insights`); only `metricSources` is supported.
 
 Example:
 ```js

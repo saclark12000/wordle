@@ -62,10 +62,10 @@ test('buildBadgeContext exposes metric helpers and merged metric sources', () =>
 
   const badgeCtx = buildBadgeContext(context, '@ace', {
     windowDays: 20,
-    insights: {
-      participationRate: 0.4
-    },
     metricSources: {
+      insights: {
+        participationRate: 0.4
+      },
       custom: {
         participationRate: 0.85
       }
@@ -79,6 +79,10 @@ test('buildBadgeContext exposes metric helpers and merged metric sources', () =>
   assert.equal(badgeCtx.metric('bonusMetric'), 42);
   assert.equal(badgeCtx.metricNumber('playerRank'), 1);
   assert.equal(badgeCtx.metric('totalGames'), 2);
+  assert.equal('metrics' in badgeCtx, false);
+  assert.equal('insights' in badgeCtx, false);
+  assert.equal('rows' in badgeCtx, false);
+  assert.equal('leaderboard' in badgeCtx, false);
 });
 
 test('resolvePlayerCardBadges returns all player-card badges by default', () => {
@@ -103,11 +107,13 @@ test('resolvePlayerCardBadges returns all player-card badges by default', () => 
   ctx.windowDays = 10;
 
   const badges = resolvePlayerCardBadges(ctx, '@ace', {
-    insights: {
-      activeCrownStreak: 3,
-      bestCrownStreak: 5,
-      avgGuessWhenCrowned: 2.4,
-      participationRate: 0.9
+    metricSources: {
+      insights: {
+        activeCrownStreak: 3,
+        bestCrownStreak: 5,
+        avgGuessWhenCrowned: 2.4,
+        participationRate: 0.9
+      }
     }
   });
 
@@ -131,11 +137,13 @@ test('resolvePlayerCardBadges honors maxBadges option', () => {
 
   const badges = resolvePlayerCardBadges(ctx, '@ace', {
     maxBadges: 3,
-    insights: {
-      activeCrownStreak: 0,
-      bestCrownStreak: 0,
-      avgGuessWhenCrowned: null,
-      participationRate: 0.1
+    metricSources: {
+      insights: {
+        activeCrownStreak: 0,
+        bestCrownStreak: 0,
+        avgGuessWhenCrowned: null,
+        participationRate: 0.1
+      }
     }
   });
 
@@ -163,11 +171,13 @@ test('resolvePlayerCardBadges returns locked badges with progress and requiremen
 
   const badges = resolvePlayerCardBadges(ctx, '@late', {
     windowDays: 20,
-    insights: {
-      activeCrownStreak: 0,
-      bestCrownStreak: 0,
-      avgGuessWhenCrowned: null,
-      participationRate: 0.05
+    metricSources: {
+      insights: {
+        activeCrownStreak: 0,
+        bestCrownStreak: 0,
+        avgGuessWhenCrowned: null,
+        participationRate: 0.05
+      }
     }
   });
 
@@ -191,13 +201,13 @@ test('resolvePlayerCardBadges allows custom metric overrides without expanding c
   ctx.playerMetrics = buildPlayerMetricsMap(dataset);
 
   const badges = resolvePlayerCardBadges(ctx, '@ace', {
-    insights: {
-      activeCrownStreak: 0,
-      bestCrownStreak: 0,
-      avgGuessWhenCrowned: null,
-      participationRate: 0.1
-    },
     metricSources: {
+      insights: {
+        activeCrownStreak: 0,
+        bestCrownStreak: 0,
+        avgGuessWhenCrowned: null,
+        participationRate: 0.1
+      },
       custom: {
         activeCrownStreak: 4,
         bestCrownStreak: 6,
@@ -214,6 +224,30 @@ test('resolvePlayerCardBadges allows custom metric overrides without expanding c
   assert.equal(badges.find((badge) => badge.id === 'active_streak').progress, '4 / 3 days');
   assert.equal(badges.find((badge) => badge.id === 'participation_rate').progress, '85% / 80%');
   assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').progress, 'Current avg: 3.2 guesses');
+});
+
+test('resolvePlayerCardBadges ignores legacy insight option aliases', () => {
+  const dataset = [
+    { player: '@ace', guesses: 2, solved: true, isCrown: true },
+    { player: '@ace', guesses: 3, solved: true, isCrown: false }
+  ];
+  const ctx = createCrownContext();
+  ctx.dataset = dataset;
+  ctx.playerMetrics = buildPlayerMetricsMap(dataset);
+
+  const badges = resolvePlayerCardBadges(ctx, '@ace', {
+    insights: {
+      activeCrownStreak: 5,
+      bestCrownStreak: 5,
+      avgGuessWhenCrowned: 2.5,
+      participationRate: 1
+    }
+  });
+
+  assert.equal(badges.find((badge) => badge.id === 'active_streak').earned, false);
+  assert.equal(badges.find((badge) => badge.id === 'best_streak').earned, false);
+  assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').earned, false);
+  assert.equal(badges.find((badge) => badge.id === 'participation_rate').earned, false);
 });
 
 test('buildPlayerBadgesMarkup supports rendering more than eight badge chips', () => {

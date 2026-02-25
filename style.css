@@ -510,14 +510,6 @@ body:not(.developer-mode) .developerPanel {
   object-fit: contain;
 }
 
-.playerCard__badgeText {
-  font-size: 13px;
-  color: var(--text);
-  text-align: left;
-  font-weight: 700;
-  line-height: 1.25;
-}
-
 .playerCard__badge:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -574,21 +566,6 @@ body:not(.developer-mode) .developerPanel {
   position: absolute;
   bottom: 0;
   right: 0;
-}
-
-.playerCard__badgeMetric {
-  font-size: 11px;
-  line-height: 1.35;
-  color: var(--muted);
-}
-
-.playerCard__badge--locked .playerCard__badgeMetric {
-  color: rgba(230,232,235,.65);
-}
-
-.playerCard__badgeText--fallback {
-  font-size: 11px;
-  line-height: 1.15;
 }
 
 .playerCard__badgeDetails {

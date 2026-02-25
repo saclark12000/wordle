@@ -57,6 +57,7 @@ Only PapaParse is loaded at runtime. Chart.js has been removed entirely.
 - Store reusable or long-lived custom badge metrics on `crownContext.badgeMetricSources` (or pass them per-call via `resolvePlayerCardBadges(..., { metricSources })`).
 - Prefer `ctx.metric('metricName')` and `ctx.metricNumber('metricName')` in badge predicates/progress copy.
 - Use namespaced lookup (`ctx.metric('insights.participationRate')`) when you need explicit source control.
+- Legacy option aliases like `opts.insights` are intentionally ignored; use `metricSources.insights`.
 
 ## Smoke Checklist
 - Load the built-in sample -> leaderboard populates, selecting rows updates the detail pane.

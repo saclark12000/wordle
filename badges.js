@@ -70,7 +70,13 @@
       leaderboard,
       dataset: [],
       selectedPlayer: null,
-      playerMetrics: new Map()
+      playerMetrics: new Map(),
+      badgeMetricSources: {
+        core: {},
+        insights: {},
+        derived: {},
+        custom: {}
+      }
     };
   }
 
@@ -296,19 +302,16 @@
   }
 
   function getGamesPlayedTarget(ctx) {
-    const metricValue = ctx && typeof ctx.metricNumber === 'function'
-      ? ctx.metricNumber('gamesPlayedTarget', NaN)
-      : NaN;
+    const metricValue = getMetricNumber(ctx, 'gamesPlayedTarget', NaN);
     if (Number.isFinite(metricValue) && metricValue > 0) {
       return Math.round(metricValue);
     }
-    return computeGamesPlayedTarget(ctx && ctx.windowDays);
+    return 10;
   }
 
   function getCrownRatio(metrics) {
-    const source = metrics && metrics.metrics ? metrics.metrics : metrics;
-    if (!source || !source.totalGames) return 0;
-    return source.crownWins / source.totalGames;
+    if (!metrics || !metrics.totalGames) return 0;
+    return metrics.crownWins / metrics.totalGames;
   }
 
   function getMetricValue(ctx, key, fallback) {
@@ -345,50 +348,48 @@
     {
       id: 'top_ten_rank',
       icon: () => iconFromCodePoint(0x1f3c5),
-      title: (ctx) => (ctx.playerRank ? `${getOrdinal(ctx.playerRank)} Place` : 'Top 10 Rank'),
-      description: (ctx) => `${ctx.player} has ${ctx.metrics.crownWins} crowns this window.`,
+      title: (ctx) => {
+        const playerRank = getMetricNumber(ctx, 'playerRank', 0);
+        return playerRank ? `${getOrdinal(playerRank)} Place` : 'Top 10 Rank';
+      },
+      description: (ctx) => `${ctx.player} has ${getMetricNumber(ctx, 'crownWins', 0)} crowns this window.`,
       requirement: 'Finish in the top 10 for crown wins in this window.',
       progress: (ctx) => {
-        if (!ctx.playerRank) return 'Current rank: --';
-        return `Current rank: ${getOrdinal(ctx.playerRank)} (${ctx.metrics.crownWins} crowns)`;
+        const playerRank = getMetricNumber(ctx, 'playerRank', 0);
+        if (!playerRank) return 'Current rank: --';
+        return `Current rank: ${getOrdinal(playerRank)} (${getMetricNumber(ctx, 'crownWins', 0)} crowns)`;
       },
-      predicate: (ctx) => Number(ctx.playerRank) > 0 && Number(ctx.playerRank) <= 10
+      predicate: (ctx) => {
+        const playerRank = getMetricNumber(ctx, 'playerRank', 0);
+        return playerRank > 0 && playerRank <= 10;
+      }
     },
     {
       id: 'sus_wins',
       icon: () => iconFromCodePoint(0x1f440),
       title: 'Sus Wins',
-      description: (ctx) => `${ctx.player} one-guess solves in this window.`,
-      requirement: 'Get at least 1 one-guess solve.',
-      progress: (ctx) => `${ctx.metrics.susWins} / 1 one-guess solves`,
-      predicate: (ctx) => Number(ctx.metrics.susWins) >= 1
+      description: (ctx) => `${ctx.player}'s one-guess #wordle-hurdle solves.`,
+      requirement: 'Get at least a single one-guess solve.',
+      progress: (ctx) => `${getMetricNumber(ctx, 'susWins', 0)} one-guess solves`,
+      predicate: (ctx) => getMetricNumber(ctx, 'susWins', 0) >= 1
     },
     {
       id: 'games_played',
       icon: () => iconFromCodePoint(0x1f4c5),
       title: 'Games Played',
-      description: (ctx) => `${ctx.player} participation volume in this window.`,
+      description: (ctx) => `${ctx.player} #wordle-hurdle participation.`,
       requirement: (ctx) => `Play at least ${getGamesPlayedTarget(ctx)} games.`,
-      progress: (ctx) => `${ctx.metrics.totalGames} / ${getGamesPlayedTarget(ctx)} games`,
-      predicate: (ctx) => Number(ctx.metrics.totalGames) >= getGamesPlayedTarget(ctx)
+      progress: (ctx) => `${getMetricNumber(ctx, 'totalGames', 0)} games played.`,
+      predicate: (ctx) => getMetricNumber(ctx, 'totalGames', 0) >= getGamesPlayedTarget(ctx)
     },
     {
       id: 'crown_conversion',
       icon: () => iconFromCodePoint(0x1f451),
       title: 'Crown Conversion',
-      description: (ctx) => `${ctx.player} crown-win percentage this window.`,
-      requirement: 'Reach at least 30% crown conversion.',
-      progress: (ctx) => `${formatPercent(getMetricNumber(ctx, 'crownRatio', getCrownRatio(ctx.metrics)), 1)} / 30%`,
-      predicate: (ctx) => getMetricNumber(ctx, 'crownRatio', getCrownRatio(ctx.metrics)) >= 0.3
-    },
-    {
-      id: 'active_streak',
-      icon: () => iconFromCodePoint(0x1f525),
-      title: 'Active Crown Streak',
-      description: (ctx) => `${ctx.player}'s current active crown streak.`,
-      requirement: 'Hold an active crown streak of at least 3 days.',
-      progress: (ctx) => `${getMetricNumber(ctx, 'activeCrownStreak', 0)} / 3 days`,
-      predicate: (ctx) => getMetricNumber(ctx, 'activeCrownStreak', 0) >= 3
+      description: (ctx) => `${ctx.player} crown-win percentage.`,
+      requirement: 'At least 30% of all wins are crown wins.',
+      progress: (ctx) => `${formatPercent(getMetricNumber(ctx, 'crownRatio', 0), 1)}`,
+      predicate: (ctx) => getMetricNumber(ctx, 'crownRatio', 0) >= 0.3
     },
     {
       id: 'best_streak',
@@ -396,8 +397,17 @@
       title: 'Best Crown Streak',
       description: (ctx) => `${ctx.player}'s best crown streak in this window.`,
       requirement: 'Reach a best streak of at least 5 days.',
-      progress: (ctx) => `${getMetricNumber(ctx, 'bestCrownStreak', 0)} / 5 days`,
+      progress: (ctx) => `${getMetricNumber(ctx, 'bestCrownStreak', 0)} days.`,
       predicate: (ctx) => getMetricNumber(ctx, 'bestCrownStreak', 0) >= 5
+    },
+    {
+      id: 'under_five_games',
+      icon: () => iconFromCodePoint(0x1f331),
+      title: 'Fresh Player',
+      description: (ctx) => `${ctx.player} has fewer than 5 games in this window.`,
+      requirement: 'Play fewer than 5 games in the current window.',
+      progress: (ctx) => `${ctx.metricNumber('totalGames', 0)} games played.`,
+      predicate: (ctx) => ctx.metricNumber('totalGames', 0) < 5
     },
     {
       id: 'efficient_crowns',
@@ -536,13 +546,7 @@
   function collectBadgeMetricSources(context, opts, defaultSources) {
     const sources = createMetricSourceContainer(defaultSources);
     mergeNamespacedMetricSources(sources, context && context.badgeMetricSources);
-    mergeNamespacedMetricSources(sources, context && context.metricSources);
     mergeNamespacedMetricSources(sources, opts && opts.metricSources);
-    mergeMetricSource(sources.insights, context && context.insights);
-    mergeMetricSource(sources.insights, opts && opts.insights);
-    mergeMetricSource(sources.custom, context && context.customMetrics);
-    mergeMetricSource(sources.custom, opts && opts.customMetrics);
-    mergeMetricSource(sources.custom, opts && opts.extraMetrics);
     return sources;
   }
 
@@ -588,27 +592,16 @@
     };
     return {
       player,
-      metrics,
-      windowDays,
-      playerRank,
       metricSources: metricRegistry.sources,
       metricValues: metricRegistry.values,
       metric: metricRegistry.get,
       metricNumber: metricRegistry.getNumber,
       hasMetric: metricRegistry.has,
       data: badgeDataContext,
-      // Legacy flat fields kept for existing badge predicates.
-      leaderboard,
-      dataset,
-      leaderboardEntry,
-      rows,
-      metricsMap,
-      insights: metricRegistry.sources.insights,
       badgeState: {
         earnedBadgeIds: [],
         earnedBadgeCount: 0
-      },
-      helpers: BADGE_HELPERS
+      }
     };
   }
 
@@ -666,9 +659,6 @@
       contentParts.push(`<div class="playerCard__badgeIcon" aria-hidden="true">${badge.icon}</div>`);
     } else {
       contentParts.push(`<div class="playerCard__badgeLock" aria-hidden="true">${badge.icon}</div>`);
-    }
-    if (hasTitle) {
-      // contentParts.push(`<div class="playerCard__badgeText">${escapeHtml(badge.text)}</div>`);
     }
 
     const label = badge.ariaLabel || [badge.text, badge.progress, badge.requirement].filter(Boolean).join('. ');
