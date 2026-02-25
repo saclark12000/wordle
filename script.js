@@ -379,6 +379,9 @@ function renderCrownTable(rows, dataset, windowMeta = null) {
     dataset,
     selectedPlayer: null,
     playerMetrics: playerMetricsMap,
+    badgeMetricSources: {
+      custom: {}
+    },
     windowMeta,
     windowDays: windowMeta && windowMeta.limit ? windowMeta.limit : 0
   };
@@ -515,7 +518,9 @@ function buildGroupStatsMarkup(dataset, metrics, callouts) {
 function getPlayerBadgesMarkup(context, player, insights) {
   const badgeOpts = {
     windowDays: context && context.windowDays ? context.windowDays : 0,
-    insights
+    metricSources: {
+      insights
+    }
   };
   const badges = resolvePlayerCardBadges(context, player, badgeOpts);
   if (!badges.length) return '';

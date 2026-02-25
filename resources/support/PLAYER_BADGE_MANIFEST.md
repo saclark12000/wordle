@@ -22,26 +22,41 @@ Use these for `PLAYER_CARD_BADGE_MANIFEST` entries so locked badges still commun
 - `description` - Optional explanatory copy.
 
 ## Context & Helpers Available to Predicates
-Every predicate receives a `ctx` object including:
+### Preferred metric API (new)
+Use these first when writing/maintaining badge rules:
+- `ctx.metric(key, fallback?)` - get any metric value by key.
+- `ctx.metricNumber(key, fallback?)` - numeric-safe accessor.
+- `ctx.hasMetric(key)` - check if a metric exists.
+- `ctx.metricSources` - namespaced storage for metrics:
+  - `core` (player totals from normalized rows)
+  - `derived` (computed values like `crownRatio`, `gamesPlayedTarget`)
+  - `insights` (metrics passed from `script.js`)
+  - `custom` (project-specific metrics you add over time)
+- `ctx.metricValues` - flattened read view (custom > insights > derived > core precedence).
+
+### Core context data
 - `player`
-- `leaderboard`
-- `leaderboardEntry`
-- `dataset`
 - `metrics`
-- `rows`
-- `metricsMap`
-- `insights` (player insight metrics passed from `script.js`)
 - `windowDays`
 - `playerRank`
-- `helpers`
+- `badgeState`
+- `data` object:
+  - `data.leaderboard`
+  - `data.leaderboardEntry`
+  - `data.dataset`
+  - `data.rows`
+  - `data.metricsMap`
 
-`ctx.leaderboard.rankings` is still available for crown-guess leader comparisons.
+### Legacy compatibility
+Legacy flat fields (`leaderboard`, `dataset`, `rows`, `insights`, etc.) are still populated for existing predicates, but new badge rules should use `ctx.metric*` + `ctx.data`.
 
 Helpers currently include:
 - `ordinal(n)`
 - `ratioPercent(wins, total)`
 - `percent(value, digits?)`
 - `metricNumber(value)`
+- `metric(ctx, key, fallback?)`
+- `metricNumberFrom(ctx, key, fallback?)`
 
 ## Example Player Card Entry
 ```js
@@ -50,9 +65,30 @@ Helpers currently include:
   icon: () => String.fromCodePoint(0x1f451),
   title: 'Crown Conversion',
   requirement: 'Reach at least 30% crown conversion.',
-  progress: (ctx, helpers) => `${helpers.percent(ctx.metrics.crownWins / ctx.metrics.totalGames, 1)} / 30%`,
-  predicate: (ctx) => (ctx.metrics.totalGames > 0) && (ctx.metrics.crownWins / ctx.metrics.totalGames >= 0.3)
+  progress: (ctx, helpers) => `${helpers.percent(ctx.metricNumber('crownRatio', 0), 1)} / 30%`,
+  predicate: (ctx) => ctx.metricNumber('crownRatio', 0) >= 0.3
 }
+```
+
+## Adding New Metrics for Future Badges
+You no longer need to expand top-level `ctx` fields.
+
+1. Put new values into one of these inputs when resolving badges:
+   - `context.badgeMetricSources`
+   - `opts.metricSources`
+   - `opts.customMetrics` / `opts.extraMetrics` (shorthand for `custom`)
+2. Read the metric in predicates via `ctx.metric('yourMetric')` or `ctx.metricNumber('yourMetric')`.
+3. If needed, access a specific namespace with dot notation (`ctx.metric('insights.participationRate')`).
+
+Example:
+```js
+const badges = resolvePlayerCardBadges(context, '@ace', {
+  metricSources: {
+    custom: {
+      clutchWins: 7
+    }
+  }
+});
 ```
 
 ## Workflow for Adding/Updating a Badge

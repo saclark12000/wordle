@@ -12,6 +12,7 @@ Single-page web app focused on a single job: ingest the standardized Wordle/Hurd
 - **Leaderboard view** – `renderCrownTable()` replaces the old Chart.js canvas with the dedicated crown-table layout, including player detail panes and multi-badge toggles.
 - **Preview + export** – the data preview only shows the rows backing the current "Last N days" window, and you can download the normalized rows with **Export normalized CSV**.
 - **Badge system** – `badges.js` drives the player-card badge board (`PLAYER_CARD_BADGE_MANIFEST`) from the full manifest. Earned tiles are full-color, locked tiles render as black boxes, and expanding a tile shows current progress plus requirements.
+- **Badge metric registry** – badge predicates now consume `ctx.metric(...)`/`ctx.metricNumber(...)` against namespaced metric sources (`core`, `derived`, `insights`, `custom`) so new metrics can be added without growing top-level badge context fields.
 
 ## Expected CSV Shape
 ```
@@ -50,7 +51,12 @@ Only PapaParse is loaded at runtime. Chart.js has been removed entirely.
 4. Hit **Export normalized CSV** if you need the tidy format for spreadsheets or other tooling.
 
 ## Support Resources
-- Refer to `resources/support/PLAYER_BADGE_MANIFEST.md` for a step-by-step checklist on adding or updating `PLAYER_CARD_BADGE_MANIFEST` entries. It explains manifest fields (including progress/requirement copy), available predicate context, and the test workflow.
+- Refer to `resources/support/PLAYER_BADGE_MANIFEST.md` for a step-by-step checklist on adding or updating `PLAYER_CARD_BADGE_MANIFEST` entries. It explains manifest fields (including progress/requirement copy), the `ctx.metric*` API, and the test workflow.
+
+## Extending Badge Metrics
+- Store reusable or long-lived custom badge metrics on `crownContext.badgeMetricSources` (or pass them per-call via `resolvePlayerCardBadges(..., { metricSources })`).
+- Prefer `ctx.metric('metricName')` and `ctx.metricNumber('metricName')` in badge predicates/progress copy.
+- Use namespaced lookup (`ctx.metric('insights.participationRate')`) when you need explicit source control.
 
 ## Smoke Checklist
 - Load the built-in sample -> leaderboard populates, selecting rows updates the detail pane.

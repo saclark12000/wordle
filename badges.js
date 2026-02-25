@@ -157,6 +157,122 @@
     return `${(value * 100).toFixed(digits)}%`;
   }
 
+  const BADGE_METRIC_NAMESPACE_ORDER = ['custom', 'insights', 'derived', 'core'];
+
+  function isPlainObject(value) {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+  }
+
+  function cloneMetricSource(value) {
+    if (!isPlainObject(value)) return {};
+    return { ...value };
+  }
+
+  function mergeMetricSource(target, source) {
+    if (!isPlainObject(target) || !isPlainObject(source)) return target;
+    Object.keys(source).forEach((key) => {
+      target[key] = source[key];
+    });
+    return target;
+  }
+
+  function mergeNamespacedMetricSources(target, source) {
+    if (!isPlainObject(target) || !isPlainObject(source)) return target;
+    const hasNamespaces = BADGE_METRIC_NAMESPACE_ORDER.some((namespace) => isPlainObject(source[namespace]));
+    if (hasNamespaces) {
+      BADGE_METRIC_NAMESPACE_ORDER.forEach((namespace) => {
+        mergeMetricSource(target[namespace], source[namespace]);
+      });
+      return target;
+    }
+    mergeMetricSource(target.custom, source);
+    return target;
+  }
+
+  function getMetricFromPath(source, path) {
+    if (!source || path === null || path === undefined) return undefined;
+    const key = String(path).trim();
+    if (!key) return undefined;
+    if (!key.includes('.')) {
+      return source[key];
+    }
+    const parts = key.split('.');
+    let cursor = source;
+    for (const part of parts) {
+      if (!cursor || (typeof cursor !== 'object' && !Array.isArray(cursor))) {
+        return undefined;
+      }
+      cursor = cursor[part];
+      if (cursor === undefined) return undefined;
+    }
+    return cursor;
+  }
+
+  function flattenMetricSources(sources) {
+    const flattened = {};
+    mergeMetricSource(flattened, sources && sources.core);
+    mergeMetricSource(flattened, sources && sources.derived);
+    mergeMetricSource(flattened, sources && sources.insights);
+    mergeMetricSource(flattened, sources && sources.custom);
+    return flattened;
+  }
+
+  function createBadgeMetricRegistry(inputSources = {}) {
+    const sources = {
+      core: cloneMetricSource(inputSources.core),
+      insights: cloneMetricSource(inputSources.insights),
+      derived: cloneMetricSource(inputSources.derived),
+      custom: cloneMetricSource(inputSources.custom)
+    };
+
+    function get(key, fallback) {
+      const normalizedKey = key === null || key === undefined ? '' : String(key).trim();
+      if (!normalizedKey) return fallback;
+      if (normalizedKey.includes('.')) {
+        const namespacedValue = getMetricFromPath(sources, normalizedKey);
+        if (namespacedValue !== undefined) {
+          return namespacedValue;
+        }
+      }
+      for (const namespace of BADGE_METRIC_NAMESPACE_ORDER) {
+        const value = getMetricFromPath(sources[namespace], normalizedKey);
+        if (value !== undefined) {
+          return value;
+        }
+      }
+      return fallback;
+    }
+
+    function getNumber(key, fallback = 0) {
+      const raw = get(key, fallback);
+      const parsed = Number(raw);
+      if (Number.isFinite(parsed)) return parsed;
+      const parsedFallback = Number(fallback);
+      return Number.isFinite(parsedFallback) ? parsedFallback : 0;
+    }
+
+    function has(key) {
+      const marker = Symbol('missing-badge-metric');
+      return get(key, marker) !== marker;
+    }
+
+    return {
+      sources,
+      values: flattenMetricSources(sources),
+      get,
+      getNumber,
+      has
+    };
+  }
+
+  function computeGamesPlayedTarget(windowDays) {
+    const parsedWindowDays = Number(windowDays) || 0;
+    if (parsedWindowDays > 0) {
+      return Math.max(8, Math.round(parsedWindowDays * 0.6));
+    }
+    return 10;
+  }
+
   function getPlayerRank(metricsMap, player) {
     if (!(metricsMap instanceof Map) || !player) return null;
     const ranked = [...metricsMap.entries()]
@@ -180,20 +296,34 @@
   }
 
   function getGamesPlayedTarget(ctx) {
-    const windowDays = Number(ctx && ctx.windowDays) || 0;
-    if (windowDays > 0) {
-      return Math.max(8, Math.round(windowDays * 0.6));
+    const metricValue = ctx && typeof ctx.metricNumber === 'function'
+      ? ctx.metricNumber('gamesPlayedTarget', NaN)
+      : NaN;
+    if (Number.isFinite(metricValue) && metricValue > 0) {
+      return Math.round(metricValue);
     }
-    return 10;
+    return computeGamesPlayedTarget(ctx && ctx.windowDays);
   }
 
   function getCrownRatio(metrics) {
-    if (!metrics || !metrics.totalGames) return 0;
-    return metrics.crownWins / metrics.totalGames;
+    const source = metrics && metrics.metrics ? metrics.metrics : metrics;
+    if (!source || !source.totalGames) return 0;
+    return source.crownWins / source.totalGames;
   }
 
-  function getInsights(ctx) {
-    return ctx && ctx.insights ? ctx.insights : {};
+  function getMetricValue(ctx, key, fallback) {
+    if (ctx && typeof ctx.metric === 'function') {
+      return ctx.metric(key, fallback);
+    }
+    return fallback;
+  }
+
+  function getMetricNumber(ctx, key, fallback = 0) {
+    if (ctx && typeof ctx.metricNumber === 'function') {
+      return ctx.metricNumber(key, fallback);
+    }
+    const parsed = Number(fallback);
+    return Number.isFinite(parsed) ? parsed : 0;
   }
 
   const BADGE_HELPERS = {
@@ -206,7 +336,9 @@
     metricNumber: (value) => {
       if (!Number.isFinite(value)) return '0';
       return `${Math.round(value)}`;
-    }
+    },
+    metric: (ctx, key, fallback) => getMetricValue(ctx, key, fallback),
+    metricNumberFrom: (ctx, key, fallback = 0) => getMetricNumber(ctx, key, fallback)
   };
 
   const PLAYER_CARD_BADGE_MANIFEST = [
@@ -246,8 +378,8 @@
       title: 'Crown Conversion',
       description: (ctx) => `${ctx.player} crown-win percentage this window.`,
       requirement: 'Reach at least 30% crown conversion.',
-      progress: (ctx) => `${formatPercent(getCrownRatio(ctx.metrics), 1)} / 30%`,
-      predicate: (ctx) => getCrownRatio(ctx.metrics) >= 0.3
+      progress: (ctx) => `${formatPercent(getMetricNumber(ctx, 'crownRatio', getCrownRatio(ctx.metrics)), 1)} / 30%`,
+      predicate: (ctx) => getMetricNumber(ctx, 'crownRatio', getCrownRatio(ctx.metrics)) >= 0.3
     },
     {
       id: 'active_streak',
@@ -255,8 +387,8 @@
       title: 'Active Crown Streak',
       description: (ctx) => `${ctx.player}'s current active crown streak.`,
       requirement: 'Hold an active crown streak of at least 3 days.',
-      progress: (ctx) => `${Number(getInsights(ctx).activeCrownStreak) || 0} / 3 days`,
-      predicate: (ctx) => Number(getInsights(ctx).activeCrownStreak) >= 3
+      progress: (ctx) => `${getMetricNumber(ctx, 'activeCrownStreak', 0)} / 3 days`,
+      predicate: (ctx) => getMetricNumber(ctx, 'activeCrownStreak', 0) >= 3
     },
     {
       id: 'best_streak',
@@ -264,8 +396,8 @@
       title: 'Best Crown Streak',
       description: (ctx) => `${ctx.player}'s best crown streak in this window.`,
       requirement: 'Reach a best streak of at least 5 days.',
-      progress: (ctx) => `${Number(getInsights(ctx).bestCrownStreak) || 0} / 5 days`,
-      predicate: (ctx) => Number(getInsights(ctx).bestCrownStreak) >= 5
+      progress: (ctx) => `${getMetricNumber(ctx, 'bestCrownStreak', 0)} / 5 days`,
+      predicate: (ctx) => getMetricNumber(ctx, 'bestCrownStreak', 0) >= 5
     },
     {
       id: 'efficient_crowns',
@@ -274,14 +406,14 @@
       description: (ctx) => `${ctx.player}'s average guesses on crowned wins.`,
       requirement: 'Keep average guesses when crowned at 3.5 or lower.',
       progress: (ctx) => {
-        const raw = getInsights(ctx).avgGuessWhenCrowned;
+        const raw = getMetricValue(ctx, 'avgGuessWhenCrowned', null);
         const avg = Number(raw);
         if (raw === null || raw === undefined || raw === '') return 'No crowned solves yet';
         if (!Number.isFinite(avg)) return 'No crowned solves yet';
         return `Current avg: ${avg.toFixed(1)} guesses`;
       },
       predicate: (ctx) => {
-        const raw = getInsights(ctx).avgGuessWhenCrowned;
+        const raw = getMetricValue(ctx, 'avgGuessWhenCrowned', null);
         const avg = Number(raw);
         if (raw === null || raw === undefined || raw === '') return false;
         return Number.isFinite(avg) && avg <= 3.5;
@@ -293,8 +425,8 @@
       title: 'Participation Rate',
       description: (ctx) => `${ctx.player}'s participation across the active window.`,
       requirement: 'Participate in at least 80% of days in this window.',
-      progress: (ctx) => `${formatPercent(Number(getInsights(ctx).participationRate) || 0, 0)} / 80%`,
-      predicate: (ctx) => Number(getInsights(ctx).participationRate) >= 0.8
+      progress: (ctx) => `${formatPercent(getMetricNumber(ctx, 'participationRate', 0), 0)} / 80%`,
+      predicate: (ctx) => getMetricNumber(ctx, 'participationRate', 0) >= 0.8
     },
     {
       id: 'badge_collector',
@@ -392,7 +524,29 @@
     return matches;
   }
 
-  function buildBadgeContext(context, player, opts = {}) {
+  function createMetricSourceContainer(defaultSources = {}) {
+    return {
+      core: cloneMetricSource(defaultSources.core),
+      insights: cloneMetricSource(defaultSources.insights),
+      derived: cloneMetricSource(defaultSources.derived),
+      custom: cloneMetricSource(defaultSources.custom)
+    };
+  }
+
+  function collectBadgeMetricSources(context, opts, defaultSources) {
+    const sources = createMetricSourceContainer(defaultSources);
+    mergeNamespacedMetricSources(sources, context && context.badgeMetricSources);
+    mergeNamespacedMetricSources(sources, context && context.metricSources);
+    mergeNamespacedMetricSources(sources, opts && opts.metricSources);
+    mergeMetricSource(sources.insights, context && context.insights);
+    mergeMetricSource(sources.insights, opts && opts.insights);
+    mergeMetricSource(sources.custom, context && context.customMetrics);
+    mergeMetricSource(sources.custom, opts && opts.customMetrics);
+    mergeMetricSource(sources.custom, opts && opts.extraMetrics);
+    return sources;
+  }
+
+  function buildBadgeContext(context = {}, player, opts = {}) {
     const leaderboard = Array.isArray(context.leaderboard) ? context.leaderboard : [];
     const dataset = Array.isArray(context.dataset) ? context.dataset : [];
     const metricsMap = context && context.playerMetrics instanceof Map ? context.playerMetrics : buildPlayerMetricsMap(dataset);
@@ -407,19 +561,49 @@
     const leaderboardEntry = leaderboard.find((entry) => entry.player === player) || null;
     const metrics = getPlayerMetrics(context, player);
     const rows = metrics && Array.isArray(metrics.rows) ? metrics.rows : [];
-    const insights = opts.insights || (context && context.insights) || null;
     const windowDays = Number(opts.windowDays || (context && context.windowDays)) || 0;
-    return {
-      player,
+    const playerRank = getPlayerRank(metricsMap, player);
+    const defaultMetricSources = {
+      core: {
+        ...metrics,
+        playerRank,
+        windowDays
+      },
+      insights: {},
+      derived: {
+        crownRatio: getCrownRatio(metrics),
+        gamesPlayedTarget: computeGamesPlayedTarget(windowDays),
+        playerRank
+      },
+      custom: {}
+    };
+    const collectedMetricSources = collectBadgeMetricSources(context, opts, defaultMetricSources);
+    const metricRegistry = createBadgeMetricRegistry(collectedMetricSources);
+    const badgeDataContext = {
       leaderboard,
       dataset,
       leaderboardEntry,
+      rows,
+      metricsMap
+    };
+    return {
+      player,
       metrics,
+      windowDays,
+      playerRank,
+      metricSources: metricRegistry.sources,
+      metricValues: metricRegistry.values,
+      metric: metricRegistry.get,
+      metricNumber: metricRegistry.getNumber,
+      hasMetric: metricRegistry.has,
+      data: badgeDataContext,
+      // Legacy flat fields kept for existing badge predicates.
+      leaderboard,
+      dataset,
+      leaderboardEntry,
       rows,
       metricsMap,
-      insights,
-      windowDays,
-      playerRank: getPlayerRank(metricsMap, player),
+      insights: metricRegistry.sources.insights,
       badgeState: {
         earnedBadgeIds: [],
         earnedBadgeCount: 0
@@ -561,11 +745,13 @@
   global.BadgeSystem = {
     PLAYER_CARD_BADGE_MANIFEST,
     createCrownContext,
+    createBadgeMetricRegistry,
     createEmptyPlayerMetrics,
     updatePlayerMetricsFromRow,
     buildPlayerMetricsMap,
     buildLeaderboardRankings,
     getPlayerMetrics,
+    buildBadgeContext,
     resolvePlayerCardBadges,
     buildPlayerBadgesMarkup
   };

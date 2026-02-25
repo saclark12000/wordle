@@ -4,8 +4,10 @@ const assert = require('node:assert/strict');
 const {
   PLAYER_CARD_BADGE_MANIFEST,
   createCrownContext,
+  createBadgeMetricRegistry,
   buildPlayerMetricsMap,
   buildLeaderboardRankings,
+  buildBadgeContext,
   resolvePlayerCardBadges,
   buildPlayerBadgesMarkup
 } = require('../badges');
@@ -26,6 +28,57 @@ test('leaderboard rankings expose crown guess leaders', () => {
   assert.deepEqual(rankings.crownGuessLeaders['2/6'].leaders, ['@ace', '@buck']);
   assert.ok(rankings.playerGuessLeaders['@ace']['1/6']);
   assert.ok(!rankings.playerGuessLeaders['@buck']?.['1/6']);
+});
+
+test('createBadgeMetricRegistry resolves precedence and namespaced lookup', () => {
+  const registry = createBadgeMetricRegistry({
+    core: { participationRate: 0.2, nested: { value: 1 } },
+    derived: { participationRate: 0.4, gamesPlayedTarget: 10 },
+    insights: { participationRate: 0.6, activeCrownStreak: 2 },
+    custom: { participationRate: 0.9 }
+  });
+
+  assert.equal(registry.get('participationRate'), 0.9);
+  assert.equal(registry.get('insights.activeCrownStreak'), 2);
+  assert.equal(registry.get('core.nested.value'), 1);
+  assert.equal(registry.getNumber('missingMetric', 7), 7);
+  assert.equal(registry.has('derived.gamesPlayedTarget'), true);
+  assert.equal(registry.values.participationRate, 0.9);
+});
+
+test('buildBadgeContext exposes metric helpers and merged metric sources', () => {
+  const dataset = [
+    { player: '@ace', guesses: 2, solved: true, isCrown: true },
+    { player: '@ace', guesses: 4, solved: true, isCrown: false }
+  ];
+  const context = createCrownContext();
+  context.dataset = dataset;
+  context.playerMetrics = buildPlayerMetricsMap(dataset);
+  context.badgeMetricSources = {
+    custom: {
+      bonusMetric: 42
+    }
+  };
+
+  const badgeCtx = buildBadgeContext(context, '@ace', {
+    windowDays: 20,
+    insights: {
+      participationRate: 0.4
+    },
+    metricSources: {
+      custom: {
+        participationRate: 0.85
+      }
+    }
+  });
+
+  assert.equal(badgeCtx.metricNumber('gamesPlayedTarget'), 12);
+  assert.equal(badgeCtx.metricNumber('crownRatio').toFixed(1), '0.5');
+  assert.equal(badgeCtx.metric('participationRate'), 0.85);
+  assert.equal(badgeCtx.metric('insights.participationRate'), 0.4);
+  assert.equal(badgeCtx.metric('bonusMetric'), 42);
+  assert.equal(badgeCtx.metricNumber('playerRank'), 1);
+  assert.equal(badgeCtx.metric('totalGames'), 2);
 });
 
 test('resolvePlayerCardBadges returns all player-card badges by default', () => {
@@ -127,6 +180,42 @@ test('resolvePlayerCardBadges returns locked badges with progress and requiremen
   assert.equal(badges.find((badge) => badge.id === 'badge_collector').progress, '0 / 5 badges earned');
 });
 
+test('resolvePlayerCardBadges allows custom metric overrides without expanding ctx shape', () => {
+  const dataset = [
+    { player: '@ace', guesses: 2, solved: true, isCrown: true },
+    { player: '@ace', guesses: 3, solved: true, isCrown: false },
+    { player: '@buck', guesses: 2, solved: true, isCrown: true }
+  ];
+  const ctx = createCrownContext();
+  ctx.dataset = dataset;
+  ctx.playerMetrics = buildPlayerMetricsMap(dataset);
+
+  const badges = resolvePlayerCardBadges(ctx, '@ace', {
+    insights: {
+      activeCrownStreak: 0,
+      bestCrownStreak: 0,
+      avgGuessWhenCrowned: null,
+      participationRate: 0.1
+    },
+    metricSources: {
+      custom: {
+        activeCrownStreak: 4,
+        bestCrownStreak: 6,
+        avgGuessWhenCrowned: 3.2,
+        participationRate: 0.85
+      }
+    }
+  });
+
+  assert.equal(badges.find((badge) => badge.id === 'active_streak').earned, true);
+  assert.equal(badges.find((badge) => badge.id === 'best_streak').earned, true);
+  assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').earned, true);
+  assert.equal(badges.find((badge) => badge.id === 'participation_rate').earned, true);
+  assert.equal(badges.find((badge) => badge.id === 'active_streak').progress, '4 / 3 days');
+  assert.equal(badges.find((badge) => badge.id === 'participation_rate').progress, '85% / 80%');
+  assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').progress, 'Current avg: 3.2 guesses');
+});
+
 test('buildPlayerBadgesMarkup supports rendering more than eight badge chips', () => {
   const markup = buildPlayerBadgesMarkup([
     { id: 'one', icon: '1', text: 'One', description: 'First', progress: '1/1', requirement: 'Done' },
@@ -170,7 +259,7 @@ test('buildPlayerBadgesMarkup renders locked badge state and details rows', () =
   assert.ok(markup.includes('Requirement'));
 });
 
-test('buildPlayerBadgesMarkup groups active badges above inactive badges', () => {
+test('buildPlayerBadgesMarkup groups earned badges above locked badges', () => {
   const markup = buildPlayerBadgesMarkup(
     [
       { id: 'locked_a', text: 'Locked A', progress: '0/2', requirement: 'Get 2', earned: false },
@@ -181,8 +270,8 @@ test('buildPlayerBadgesMarkup groups active badges above inactive badges', () =>
     { maxBadges: 4 }
   );
 
-  const activeHeaderIndex = markup.indexOf('playerCard__badgeGroupTitle">🟩 Active badges</div>');
-  const inactiveHeaderIndex = markup.indexOf('playerCard__badgeGroupTitle">⬛ Inactive badges</div>');
+  const activeHeaderIndex = markup.indexOf('Earned Badges</div>');
+  const inactiveHeaderIndex = markup.indexOf('Locked Badges</div>');
   const earnedFirstIndex = markup.indexOf('data-badge-id="earned_a"');
   const lockedFirstIndex = markup.indexOf('data-badge-id="locked_a"');
 
