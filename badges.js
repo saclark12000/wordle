@@ -365,6 +365,15 @@
       }
     },
     {
+      id: 'crown_ratio',
+      icon: '💰',
+      title: 'Crown Ratio',
+      description: (ctx) => `${ctx.player}'s crown win percentage.`,
+      requirement: 'At least 30% of all wins are crown wins.',
+      progress: (ctx) => `${formatPercent(getMetricNumber(ctx, 'crownRatio', 0), 1)}`,
+      predicate: (ctx) => getMetricNumber(ctx, 'crownRatio', 0) >= 0.3
+    },
+    {
       id: 'sus_wins',
       icon: () => iconFromCodePoint(0x1f440),
       title: 'Sus Wins',
@@ -395,8 +404,8 @@
       id: 'best_streak',
       icon: () => iconFromCodePoint(0x1f6e1),
       title: 'Best Crown Streak',
-      description: (ctx) => `${ctx.player}'s best crown streak in this window.`,
-      requirement: 'Reach a best streak of at least 5 days.',
+      description: (ctx) => `${ctx.player}'s best crown streak.`,
+      requirement: 'Gain crown wins for at least 5 days in a row.',
       progress: (ctx) => `${getMetricNumber(ctx, 'bestCrownStreak', 0)} days.`,
       predicate: (ctx) => getMetricNumber(ctx, 'bestCrownStreak', 0) >= 5
     },
@@ -404,17 +413,17 @@
       id: 'under_five_games',
       icon: () => iconFromCodePoint(0x1f331),
       title: 'Fresh Player',
-      description: (ctx) => `${ctx.player} has fewer than 5 games in this window.`,
-      requirement: 'Play fewer than 5 games in the current window.',
+      description: (ctx) => `${ctx.player} has fewer than 5 #wordle-hurdle games.`,
+      requirement: 'Play fewer than 5 games.',
       progress: (ctx) => `${ctx.metricNumber('totalGames', 0)} games played.`,
       predicate: (ctx) => ctx.metricNumber('totalGames', 0) < 5
     },
     {
       id: 'efficient_crowns',
-      icon: () => iconFromCodePoint(0x1f3af),
+      icon: '🗄',
       title: 'Crown Efficiency',
       description: (ctx) => `${ctx.player}'s average guesses on crowned wins.`,
-      requirement: 'Keep average guesses when crowned at 3.5 or lower.',
+      requirement: 'Keep average guesses when crowned at 4 or lower.',
       progress: (ctx) => {
         const raw = getMetricValue(ctx, 'avgGuessWhenCrowned', null);
         const avg = Number(raw);
@@ -426,24 +435,24 @@
         const raw = getMetricValue(ctx, 'avgGuessWhenCrowned', null);
         const avg = Number(raw);
         if (raw === null || raw === undefined || raw === '') return false;
-        return Number.isFinite(avg) && avg <= 3.5;
+        return Number.isFinite(avg) && avg < 4;
       }
     },
     {
       id: 'participation_rate',
       icon: () => iconFromCodePoint(0x1f4ca),
       title: 'Participation Rate',
-      description: (ctx) => `${ctx.player}'s participation across the active window.`,
-      requirement: 'Participate in at least 80% of days in this window.',
-      progress: (ctx) => `${formatPercent(getMetricNumber(ctx, 'participationRate', 0), 0)} / 80%`,
-      predicate: (ctx) => getMetricNumber(ctx, 'participationRate', 0) >= 0.8
+      description: (ctx) => `${ctx.player}'s #wordle-hurdle participation.`,
+      requirement: 'Participate in at least 85% of days.',
+      progress: (ctx) => `${formatPercent(getMetricNumber(ctx, 'participationRate', 0), 0)} participation`,
+      predicate: (ctx) => getMetricNumber(ctx, 'participationRate', 0) >= 0.85
     },
     {
       id: 'badge_collector',
       icon: '🎁',
       title: 'Badge Collector',
-      requirement: 'Earn at least 5 badges in this window.',
-      progress: (ctx, helpers) => `${helpers.metricNumber(ctx.badgeState && ctx.badgeState.earnedBadgeCount)} / 5 badges earned`,
+      requirement: 'Earn at least 5 badges.',
+      progress: (ctx, helpers) => `${helpers.metricNumber(ctx.badgeState && ctx.badgeState.earnedBadgeCount)} badges earned`,
       predicate: (ctx) => Number(ctx.badgeState && ctx.badgeState.earnedBadgeCount) >= 5
     }
   ];
@@ -605,6 +614,82 @@
     };
   }
 
+  function summarizeBadgeContextForDebug(ctx, opts = {}) {
+    const maxLeaderboard = Math.max(1, Number(opts.maxLeaderboard) || 10);
+    const maxRows = Math.max(1, Number(opts.maxRows) || 8);
+    if (!ctx || typeof ctx !== 'object') {
+      return {
+        player: null,
+        error: 'No badge context provided.'
+      };
+    }
+
+    const data = ctx.data && typeof ctx.data === 'object' ? ctx.data : {};
+    const metricSources = ctx.metricSources && typeof ctx.metricSources === 'object'
+      ? ctx.metricSources
+      : { core: {}, derived: {}, insights: {}, custom: {} };
+    const coreMetrics = metricSources.core || {};
+    const derivedMetrics = metricSources.derived || {};
+    const badgeState = ctx.badgeState || { earnedBadgeIds: [], earnedBadgeCount: 0 };
+    const leaderboard = Array.isArray(data.leaderboard) ? data.leaderboard : [];
+    const rows = Array.isArray(data.rows) ? data.rows : [];
+
+    const leaderboardPreview = leaderboard
+      .slice(0, maxLeaderboard)
+      .map((entry) => ({
+        player: entry && entry.player ? entry.player : '',
+        place: Number(entry && entry.place) || 0,
+        winCount: Number(entry && entry.winCount) || 0,
+        ratio: Number(entry && entry.ratio) || 0
+      }));
+
+    const rowPreview = rows
+      .slice(0, maxRows)
+      .map((row) => ({
+        dayLabel: row && row.dayLabel ? row.dayLabel : '',
+        dayIndex: Number(row && row.dayIndex) || 0,
+        guesses: row && row.guesses !== undefined ? row.guesses : null,
+        solved: !!(row && row.solved),
+        isCrown: !!(row && row.isCrown)
+      }));
+
+    return {
+      player: ctx.player || null,
+      badgeState: {
+        earnedBadgeCount: Number(badgeState.earnedBadgeCount) || 0,
+        earnedBadgeIds: Array.isArray(badgeState.earnedBadgeIds) ? [...badgeState.earnedBadgeIds] : []
+      },
+      metrics: {
+        totalGames: Number(coreMetrics.totalGames) || 0,
+        solvedGames: Number(coreMetrics.solvedGames) || 0,
+        failGames: Number(coreMetrics.failGames) || 0,
+        crownWins: Number(coreMetrics.crownWins) || 0,
+        susWins: Number(coreMetrics.susWins) || 0,
+        playerRank: Number(coreMetrics.playerRank) || 0,
+        windowDays: Number(coreMetrics.windowDays) || 0
+      },
+      derived: {
+        crownRatio: Number(derivedMetrics.crownRatio) || 0,
+        gamesPlayedTarget: Number(derivedMetrics.gamesPlayedTarget) || 0
+      },
+      sourceKeyCounts: {
+        core: Object.keys(coreMetrics).length,
+        derived: Object.keys(derivedMetrics).length,
+        insights: Object.keys(metricSources.insights || {}).length,
+        custom: Object.keys(metricSources.custom || {}).length
+      },
+      dataSummary: {
+        leaderboardCount: leaderboard.length,
+        datasetRowCount: Array.isArray(data.dataset) ? data.dataset.length : 0,
+        playerRowCount: rows.length,
+        leaderboardPreviewCount: leaderboardPreview.length,
+        rowPreviewCount: rowPreview.length
+      },
+      leaderboardPreview,
+      rowPreview
+    };
+  }
+
   function resolveBadgesFromManifest(manifest, context, player, opts = {}) {
     if (!context || !player) return [];
     const includeLocked = !!opts.includeLocked;
@@ -742,6 +827,7 @@
     buildLeaderboardRankings,
     getPlayerMetrics,
     buildBadgeContext,
+    summarizeBadgeContextForDebug,
     resolvePlayerCardBadges,
     buildPlayerBadgesMarkup
   };

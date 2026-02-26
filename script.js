@@ -63,6 +63,8 @@ const {
   buildPlayerMetricsMap,
   buildLeaderboardRankings,
   getPlayerMetrics,
+  buildBadgeContext,
+  summarizeBadgeContextForDebug,
   resolvePlayerCardBadges,
   buildPlayerBadgesMarkup
 } = window.BadgeSystem || {};
@@ -589,8 +591,87 @@ function collapseBadgeExpansion(badge) {
 }
 
 function setStatus(el, msg, kind) {
+  if (!el) return;
   el.className = 'status ' + (kind || '');
   el.innerHTML = msg;
+}
+
+function logDeveloperBadgeCtx() {
+  const toolsStatus = $('devToolsStatus');
+  if (!DEVELOPER_MODE) {
+    setStatus(toolsStatus, 'Enable developer mode to use ctx logging.', 'warn');
+    return;
+  }
+  if (!crownModeReady || !crownContext || !Array.isArray(crownContext.dataset) || !crownContext.dataset.length) {
+    setStatus(toolsStatus, 'Load and render Wordle data before logging ctx.', 'warn');
+    console.warn('[Developer] Cannot log badge ctx: no active dataset.');
+    return;
+  }
+  if (typeof buildBadgeContext !== 'function' || typeof summarizeBadgeContextForDebug !== 'function') {
+    setStatus(toolsStatus, 'Badge debug helpers are unavailable.', 'warn');
+    console.warn('[Developer] Badge debug helpers are unavailable.');
+    return;
+  }
+
+  const subset = stateStore.getLastDaysSubset();
+  const selectedPlayer =
+    crownContext.selectedPlayer ||
+    (Array.isArray(crownContext.leaderboard) && crownContext.leaderboard[0] ? crownContext.leaderboard[0].player : null) ||
+    null;
+  const overview = {
+    timestamp: new Date().toISOString(),
+    selectedPlayer,
+    crownModeReady,
+    datasetRows: crownContext.dataset.length,
+    leaderboardRows: Array.isArray(crownContext.leaderboard) ? crownContext.leaderboard.length : 0,
+    subsetDays: subset.limit,
+    subsetRows: subset.data.length,
+    latestLabel: subset.latestLabel || ''
+  };
+
+  if (!selectedPlayer) {
+    console.groupCollapsed('[Developer] badge ctx snapshot (no selected player)');
+    console.log('Overview', overview);
+    console.log('Crown context', crownContext);
+    console.groupEnd();
+    setStatus(toolsStatus, 'Logged context without a selected player. Select a player row for full badge ctx.', 'ok');
+    return;
+  }
+
+  const metrics = getPlayerMetrics(crownContext, selectedPlayer);
+  const playerRows = stateStore.getPlayerRows(selectedPlayer);
+  const insights = computePlayerInsights(metrics, {
+    windowDays: crownContext.windowDays,
+    rows: playerRows.length ? playerRows : metrics.rows
+  });
+  const metricSources = { insights };
+  const badgeCtx = buildBadgeContext(crownContext, selectedPlayer, {
+    windowDays: crownContext.windowDays,
+    metricSources
+  });
+  const badgeSummary = summarizeBadgeContextForDebug(badgeCtx, {
+    maxLeaderboard: 10,
+    maxRows: 8
+  });
+  const badges = resolvePlayerCardBadges(crownContext, selectedPlayer, {
+    windowDays: crownContext.windowDays,
+    metricSources
+  });
+
+  console.groupCollapsed(`[Developer] badge ctx snapshot: ${selectedPlayer}`);
+  console.log('Overview', overview);
+  console.log('Badge context summary', badgeSummary);
+  console.log('Badge context (raw)', badgeCtx);
+  console.table(
+    badges.map((badge) => ({
+      id: badge.id,
+      earned: badge.earned !== false,
+      progress: badge.progress || '',
+      requirement: badge.requirement || ''
+    }))
+  );
+  console.groupEnd();
+  setStatus(toolsStatus, `Logged badge ctx snapshot for ${selectedPlayer}.`, 'ok');
 }
 
 // -----------------------------
@@ -808,6 +889,10 @@ $('btnLoadSample').addEventListener('click', async () => {
 $('btnRender').addEventListener('click', render);
 $('btnExport').addEventListener('click', exportNormalized);
 $('btnClear').addEventListener('click', clearAll);
+const btnLogCtx = $('btnLogCtx');
+if (btnLogCtx) {
+  btnLogCtx.addEventListener('click', logDeveloperBadgeCtx);
+}
 
 $('crownTable').addEventListener('click', (event) => {
   const badgeClose = event.target.closest('[data-player-badge-close]');

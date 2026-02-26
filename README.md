@@ -85,5 +85,6 @@ Run `npm test` to execute the Node test runner. The suite currently covers:
 
 ## Developer Panel
 - The developer panel doubles as in-app documentation by rendering key markdown docs.
+- Developer Tools now includes **Log current badge ctx**, which prints a grouped, human-readable badge-context snapshot to the browser console (plus raw ctx and badge result table).
 - To view the developer panel, open the app with the query string `?developer=true`.
   - [Show Developer Panel](?developer=true)

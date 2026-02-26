@@ -8,6 +8,7 @@ const {
   buildPlayerMetricsMap,
   buildLeaderboardRankings,
   buildBadgeContext,
+  summarizeBadgeContextForDebug,
   resolvePlayerCardBadges,
   buildPlayerBadgesMarkup
 } = require('../badges');
@@ -83,6 +84,39 @@ test('buildBadgeContext exposes metric helpers and merged metric sources', () =>
   assert.equal('insights' in badgeCtx, false);
   assert.equal('rows' in badgeCtx, false);
   assert.equal('leaderboard' in badgeCtx, false);
+});
+
+test('summarizeBadgeContextForDebug returns readable snapshot sections', () => {
+  const dataset = [
+    { player: '@ace', guesses: 1, solved: true, isCrown: true, dayIndex: 1, dayLabel: '2025-01-01' },
+    { player: '@ace', guesses: 3, solved: true, isCrown: false, dayIndex: 2, dayLabel: '2025-01-02' },
+    { player: '@buck', guesses: 2, solved: true, isCrown: true, dayIndex: 2, dayLabel: '2025-01-02' }
+  ];
+  const context = createCrownContext();
+  context.dataset = dataset;
+  context.playerMetrics = buildPlayerMetricsMap(dataset);
+  context.leaderboard = [
+    { place: 1, player: '@ace', winCount: 1, ratio: 0.5 },
+    { place: 2, player: '@buck', winCount: 1, ratio: 1 }
+  ];
+
+  const badgeCtx = buildBadgeContext(context, '@ace', {
+    windowDays: 2,
+    metricSources: {
+      insights: {
+        activeCrownStreak: 1
+      }
+    }
+  });
+  const summary = summarizeBadgeContextForDebug(badgeCtx, { maxLeaderboard: 1, maxRows: 1 });
+
+  assert.equal(summary.player, '@ace');
+  assert.equal(summary.metrics.totalGames, 2);
+  assert.equal(summary.derived.gamesPlayedTarget, 8);
+  assert.equal(summary.sourceKeyCounts.insights, 1);
+  assert.equal(summary.dataSummary.leaderboardCount, 2);
+  assert.equal(summary.leaderboardPreview.length, 1);
+  assert.equal(summary.rowPreview.length, 1);
 });
 
 test('resolvePlayerCardBadges returns all player-card badges by default', () => {
