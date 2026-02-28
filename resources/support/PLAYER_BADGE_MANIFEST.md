@@ -63,15 +63,14 @@ Use `ctx.metric('key')` or `ctx.metricNumber('key')`.
 `derived` keys (always present):
 - `crownRatio` - Exact crown conversion ratio (`crownWins / totalGames`).
 - `failRatio` - Exact fail ratio (`failGames / totalGames`).
-- `gamesPlayedTarget` - Current day-window count (`windowDays`) used by participation badges (`on_the_board`, `always_guessing`).
+- `gamesPlayedTarget` - Current day-window count (`windowDays`) used by participation requirement copy (for example `always_guessing`).
 - `playerRank` - Same value as core `playerRank`; available in derived namespace for explicit lookup.
 - `maxFailGames` - Highest failed-game total among players in the current leaderboard window.
 
 ### Badge ID notes
 - Deprecated IDs removed from the active manifest: `games_played`, `participation_rate`, `crown_ratio`.
-- Current participation/conversion replacements:
-  - `on_the_board` (45% participation threshold based on `gamesPlayedTarget`).
-  - `always_guessing` (85% participation threshold).
+- Current participation/conversion badges:
+  - `always_guessing` (earned at 15% participation, with icon tiers by participation: `15-44%=0`, `45-64%=1`, `65-84%=2`, `85%+=3`).
   - `crown_conversion` (30% crown conversion threshold).
 
 `insights` keys (present when supplied via `metricSources.insights`):

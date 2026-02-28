@@ -370,6 +370,40 @@
     return 10;
   }
 
+  function getPercentTierStars(percent, thresholds = [0.45, 0.65, 0.85], maxStars = 3) {
+    const parsedPercent = Number(percent);
+    if (!Number.isFinite(parsedPercent) || parsedPercent <= 0) return 0;
+    const parsedThresholds = Array.isArray(thresholds)
+      ? thresholds
+          .map((value) => Number(value))
+          .filter((value) => Number.isFinite(value) && value > 0)
+          .sort((a, b) => a - b)
+      : [];
+    let stars = 0;
+    parsedThresholds.forEach((threshold) => {
+      if (parsedPercent >= threshold) {
+        stars += 1;
+      }
+    });
+    return Math.max(0, Math.min(Number(maxStars) || 0, stars));
+  }
+
+  const ALWAYS_GUESSING_UNLOCK_THRESHOLD = 0.15;
+  const ALWAYS_GUESSING_STAR_THRESHOLDS = [0.45, 0.65, 0.85];
+
+  function getAlwaysGuessingTierStars(ctx) {
+    return getPercentTierStars(
+      getMetricNumber(ctx, 'participationRate', 0),
+      ALWAYS_GUESSING_STAR_THRESHOLDS,
+      3
+    );
+  }
+
+  function getAlwaysGuessingTierRequirement(ctx) {
+    const gamesTarget = Math.round(getGamesPlayedTarget(ctx) * ALWAYS_GUESSING_UNLOCK_THRESHOLD);
+    return `Earn at least 15% participation (${gamesTarget} games). Tier ladder: 0⭐ 15-44%, 1⭐ 45-64%, 2⭐ 65-84%, 3⭐ 85%+.`;
+  }
+
   function getCrownRatio(metrics) {
     if (!metrics || !metrics.totalGames) return 0;
     return metrics.crownWins / metrics.totalGames;
@@ -454,14 +488,14 @@
     },
     {
       id: 'always_guessing',
-      icon: () => buildLayeredBadgeIcon({
-        stars: 2
+      icon: (ctx) => buildLayeredBadgeIcon({
+        stars: getAlwaysGuessingTierStars(ctx)
       }),
       title: 'Always Guessing',
       description: (ctx) => `${ctx.player}'s #wordle-hurdle participation.`,
-      requirement: (ctx) => `Play 85% of the time. ${Math.round(getGamesPlayedTarget(ctx) *.85)} games.`,
-      progress: (ctx) => `${formatPercent(getMetricNumber(ctx, 'participationRate', 0), 0)} participation. ${getMetricNumber(ctx, 'totalGames', 0)} games played.`,
-      predicate: (ctx) => getMetricNumber(ctx, 'participationRate', 0) >= 0.85
+      requirement: (ctx) => getAlwaysGuessingTierRequirement(ctx),
+      progress: (ctx) => `${formatPercent(getMetricNumber(ctx, 'participationRate', 0), 0)} participation. ${getMetricNumber(ctx, 'totalGames', 0)} games played. Tier: ${getAlwaysGuessingTierStars(ctx)}⭐`,
+      predicate: (ctx) => getMetricNumber(ctx, 'participationRate', 0) >= ALWAYS_GUESSING_UNLOCK_THRESHOLD
     },
     {
       id: 'most_failed_games',
