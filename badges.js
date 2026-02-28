@@ -440,9 +440,9 @@
       predicate: (ctx) => getMetricNumber(ctx, 'crownRatio', 0) >= 0.3
     },
     {
-      id: 'best_streak',
-      icon: () => iconFromCodePoint(0x1f6e1),
-      title: 'Best Crown Streak',
+      id: 'crown_win_streak',
+      icon: () => '🍆',
+      title: 'Long Streak',
       description: (ctx) => `${ctx.player}'s best crown streak.`,
       requirement: 'Gain crown wins for at least 5 days in a row.',
       progress: (ctx) => `${getMetricNumber(ctx, 'bestCrownStreak', 0)} days.`,
