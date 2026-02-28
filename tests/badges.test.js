@@ -10,7 +10,8 @@ const {
   buildBadgeContext,
   summarizeBadgeContextForDebug,
   resolvePlayerCardBadges,
-  buildPlayerBadgesMarkup
+  buildPlayerBadgesMarkup,
+  buildRoundBreakdownBadgeMap
 } = require('../badges');
 
 test('leaderboard rankings expose crown guess leaders', () => {
@@ -252,10 +253,10 @@ test('resolvePlayerCardBadges allows custom metric overrides without expanding c
     }
   });
 
-  assert.equal(badges.find((badge) => badge.id === 'best_streak').earned, true);
+  assert.equal(badges.find((badge) => badge.id === 'crown_win_streak').earned, true);
   assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').earned, true);
   assert.equal(badges.find((badge) => badge.id === 'participation_rate').earned, true);
-  assert.equal(badges.find((badge) => badge.id === 'best_streak').progress, '6 days.');
+  assert.equal(badges.find((badge) => badge.id === 'crown_win_streak').progress, '6 days.');
   assert.equal(badges.find((badge) => badge.id === 'participation_rate').progress, '85% participation');
   assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').progress, 'Current avg: 3.2 guesses');
 });
@@ -278,7 +279,7 @@ test('resolvePlayerCardBadges ignores legacy insight option aliases', () => {
     }
   });
 
-  assert.equal(badges.find((badge) => badge.id === 'best_streak').earned, false);
+  assert.equal(badges.find((badge) => badge.id === 'crown_win_streak').earned, false);
   assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').earned, false);
   assert.equal(badges.find((badge) => badge.id === 'participation_rate').earned, false);
 });
@@ -356,8 +357,58 @@ test('resolvePlayerCardBadges awards bucket_master when player leads any crown r
   assert.ok(otherBucketMaster);
   assert.equal(leadBucketMaster.earned, true);
   assert.equal(leadBucketMaster.progress, 'Leading rounds: 1/6, 2/6');
+  assert.deepEqual(leadBucketMaster.roundBreakdownSlots, [
+    { round: '1', column: 'crownWins' },
+    { round: '2', column: 'crownWins' }
+  ]);
   assert.equal(otherBucketMaster.earned, true);
   assert.equal(otherBucketMaster.progress, 'Leading rounds: 2/6');
+  assert.deepEqual(otherBucketMaster.roundBreakdownSlots, [
+    { round: '2', column: 'crownWins' }
+  ]);
+});
+
+test('buildRoundBreakdownBadgeMap indexes manifest-provided round slots', () => {
+  const map = buildRoundBreakdownBadgeMap([
+    {
+      id: 'bucket_master',
+      icon: '<span class="badgeIcon--goldBucket">🥫</span>',
+      earned: true,
+      roundBreakdownSlots: [
+        { round: '1', column: 'crownWins' },
+        { round: '2/6', column: 'crownWins' }
+      ]
+    },
+    {
+      id: 'wins_badge',
+      icon: '✅',
+      earned: true,
+      roundBreakdownSlots: [{ round: 'X', column: 'wins' }]
+    },
+    {
+      id: 'locked_bucket',
+      icon: '🔒',
+      earned: false,
+      roundBreakdownSlots: [{ round: '3', column: 'crownWins' }]
+    }
+  ]);
+
+  assert.equal(map.crownWins['1'].length, 1);
+  assert.equal(map.crownWins['1'][0].id, 'bucket_master');
+  assert.equal(map.crownWins['2'][0].id, 'bucket_master');
+  assert.equal(map.wins.X[0].id, 'wins_badge');
+  assert.equal(map.crownWins['3'], undefined);
+
+  const includeLockedMap = buildRoundBreakdownBadgeMap([
+    {
+      id: 'locked_bucket',
+      icon: '🔒',
+      earned: false,
+      roundBreakdownSlots: [{ round: '3', column: 'crownWins' }]
+    }
+  ], { includeLocked: true });
+
+  assert.equal(includeLockedMap.crownWins['3'][0].id, 'locked_bucket');
 });
 
 test('buildPlayerBadgesMarkup supports rendering more than eight badge chips', () => {

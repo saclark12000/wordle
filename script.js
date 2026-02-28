@@ -66,10 +66,11 @@ const {
   buildBadgeContext,
   summarizeBadgeContextForDebug,
   resolvePlayerCardBadges,
-  buildPlayerBadgesMarkup
+  buildPlayerBadgesMarkup,
+  buildRoundBreakdownBadgeMap
 } = window.BadgeSystem || {};
 
-if (!createCrownContext || !resolvePlayerCardBadges || !buildPlayerBadgesMarkup) {
+if (!createCrownContext || !resolvePlayerCardBadges || !buildPlayerBadgesMarkup || !buildRoundBreakdownBadgeMap) {
   throw new Error('BadgeSystem module failed to load.');
 }
 
@@ -415,7 +416,35 @@ function renderCrownTable(rows, dataset, windowMeta = null) {
   setGroupStatsPanel();
 }
 
-function buildPlayerStatsMarkup(player, metrics, badgeMarkup) {
+function getRoundBreakdownCellBadges(roundBreakdownBadges, column, round) {
+  if (!roundBreakdownBadges || typeof roundBreakdownBadges !== 'object') return [];
+  const columnEntries = roundBreakdownBadges[column];
+  if (!columnEntries || typeof columnEntries !== 'object') return [];
+  const key = String(round || '').toUpperCase();
+  const badges = columnEntries[key];
+  return Array.isArray(badges) ? badges.filter(Boolean) : [];
+}
+
+function buildRoundBreakdownCellBadgeMarkup(roundBreakdownBadges, column, round) {
+  const badges = getRoundBreakdownCellBadges(roundBreakdownBadges, column, round);
+  if (!badges.length) return '';
+  const items = badges
+    .map((badge) => {
+      if (!badge || !badge.icon) return '';
+      const tooltip = [badge.text, badge.progress, badge.requirement, badge.description].filter(Boolean).join(' - ');
+      const label = badge.ariaLabel || [badge.text, badge.progress, badge.requirement].filter(Boolean).join('. ');
+      const titleAttr = tooltip ? ` title="${escapeHtml(tooltip)}"` : '';
+      const labelAttr = label ? ` role="img" aria-label="${escapeHtml(label)}"` : ' aria-hidden="true"';
+      const idAttr = badge.id ? ` data-round-badge-id="${escapeHtml(badge.id)}"` : '';
+      return `<span class="playerCard__tableBadge"${titleAttr}${labelAttr}${idAttr}>${badge.icon}</span>`;
+    })
+    .filter(Boolean)
+    .join('');
+  if (!items) return '';
+  return `<span class="playerCard__tableBadgeWrap">${items}</span>`;
+}
+
+function buildPlayerStatsMarkup(player, metrics, badgeMarkup, roundBreakdownBadges = null) {
   const guessOrder = ['1','2','3','4','5','6','X'];
   let highestCrownRows = { val: null, rows:[]};
   let highestTotalRows = { val: null, rows:[]};
@@ -423,6 +452,7 @@ function buildPlayerStatsMarkup(player, metrics, badgeMarkup) {
     const label = g === 'X' ? 'X/6 (fail)' : `${g}/6`;
     const total = metrics.buckets[g] || 0;
     const crown = metrics.crownBuckets[g] || 0;
+    const crownBadges = buildRoundBreakdownCellBadgeMarkup(roundBreakdownBadges, 'crownWins', g);
 
     // Track which guess counts have the highest crown wins for potential highlighting
     if (highestCrownRows.val === null || crown > highestCrownRows.val) {
@@ -439,7 +469,7 @@ function buildPlayerStatsMarkup(player, metrics, badgeMarkup) {
       highestTotalRows.rows.push(g);
     }
 
-    return `<tr id='playerCardRow_${g}'><td>${label}</td><td>${total}<span id='playerCardTotalHighlight_${g}' class="playerCard__total--highlight_hidden">🏅</span></td><td id='playerCardCrown_${g}'>${crown}<span id='playerCardCrownHighlight_${g}' class="playerCard__crown--highlight_hidden">👑</span></td></tr>`;
+    return `<tr id='playerCardRow_${g}'><td>${label}</td><td><span id='playerCardTotalHighlight_${g}' class="playerCard__total--highlight_hidden">🏅</span>${total}</td><td id='playerCardCrown_${g}'><span class="playerCard__tableValue"><span id='playerCardCrownHighlight_${g}' class="playerCard__crown--highlight_hidden">👑</span>${crown}${crownBadges}</span></td></tr>`;
   }).join('');
 
   // Determine which guess count has the highest crown wins for potential highlighting
@@ -517,7 +547,7 @@ function buildGroupStatsMarkup(dataset, metrics, callouts) {
     </div>
   `;
 }
-function getPlayerBadgesMarkup(context, player, insights) {
+function getPlayerBadgeRenderData(context, player, insights) {
   const badgeOpts = {
     windowDays: context && context.windowDays ? context.windowDays : 0,
     metricSources: {
@@ -525,8 +555,10 @@ function getPlayerBadgesMarkup(context, player, insights) {
     }
   };
   const badges = resolvePlayerCardBadges(context, player, badgeOpts);
-  if (!badges.length) return '';
-  return buildPlayerBadgesMarkup(badges);
+  return {
+    badgeMarkup: badges.length ? buildPlayerBadgesMarkup(badges) : '',
+    roundBreakdownBadges: buildRoundBreakdownBadgeMap(badges)
+  };
 }
 
 function setActiveCrownPlayer(player) {
@@ -541,8 +573,13 @@ function setActiveCrownPlayer(player) {
     windowDays: crownContext.windowDays,
     rows: playerRows.length ? playerRows : metrics.rows
   });
-  const badgeMarkup = getPlayerBadgesMarkup(crownContext, player, insights);
-  panel.innerHTML = buildPlayerStatsMarkup(player, metrics, badgeMarkup);
+  const badgeRenderData = getPlayerBadgeRenderData(crownContext, player, insights);
+  panel.innerHTML = buildPlayerStatsMarkup(
+    player,
+    metrics,
+    badgeRenderData.badgeMarkup,
+    badgeRenderData.roundBreakdownBadges
+  );
   const encoded = encodeURIComponent(player);
   container.querySelectorAll('[data-crown-player-row]').forEach((row) => {
     row.classList.toggle('crownTable__row--active', row.dataset.crownPlayerRow === encoded);

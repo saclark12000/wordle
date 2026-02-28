@@ -12,6 +12,7 @@ Single-page web app focused on a single job: ingest the standardized Wordle/Hurd
 - **Leaderboard view** – `renderCrownTable()` replaces the old Chart.js canvas with the dedicated crown-table layout, including player detail panes and multi-badge toggles.
 - **Preview + export** – the data preview only shows the rows backing the current "Last N days" window, and you can download the normalized rows with **Export normalized CSV**.
 - **Badge system** – `badges.js` drives the player-card badge board (`PLAYER_CARD_BADGE_MANIFEST`) from the full manifest. Earned tiles are full-color, locked tiles render as black boxes, and expanding a tile shows current progress plus requirements.
+- **Round Breakdown badge placements** – manifest entries can publish `roundBreakdownSlots` so a selected subset of earned badges render inline beside Round Breakdown values (for example, `bucket_master` icons in the 👑 wins column on awarding rounds).
 - **Badge metric registry** – badge predicates now consume `ctx.metric(...)`/`ctx.metricNumber(...)` against namespaced metric sources (`core`, `derived`, `insights`, `custom`) so new metrics can be added without growing top-level badge context fields.
 
 ## Expected CSV Shape
@@ -29,7 +30,7 @@ If any required column is missing the app leaves the controls disabled and surfa
 1. **Load** – `parseCsvText()` (script.js) runs PapaParse with `header: true` and stamps each raw row with a hidden `__rowIndex`.
 2. **Detect** – `onCsvLoaded()` validates the schema, normalizes rows via `normalizeWordle()`, and populates the "Last N days" input with the total day count.
 3. **Render** – `render()` builds the day subset, feeds it to `wordleCrownWins()`, renders the leaderboard, and syncs the preview table to the same subset.
-4. **Interact** – clicking rows in the crown-table updates the player card, converts non-table stats into badge tiles, and keeps the Crown Wins table visible. Clicking/Enter/Space on a badge expands it to show metrics + requirements; clicking "Close" returns to group stats.
+4. **Interact** – clicking rows in the crown-table updates the player card, converts non-table stats into badge tiles, and keeps the Crown Wins table visible. Clicking/Enter/Space on a badge expands it to show metrics + requirements; clicking "Close" returns to group stats. Round Breakdown values can also show inline badge icons when a manifest entry declares matching `roundBreakdownSlots`.
 
 ## Project Layout
 ```
@@ -63,6 +64,7 @@ Only PapaParse is loaded at runtime. Chart.js has been removed entirely.
 - Load the built-in sample -> leaderboard populates, selecting rows updates the detail pane.
 - Change **Last N days** -> leaderboard, preview table, and status copy reflect the new window.
 - Toggle player badges -> player cards render all available manifest badges; earned badges are full-color, locked badges are black, and expanding a tile reveals title + current metric + requirement.
+- Bucket Master smoke check -> when a player leads one or more crown rounds, the 🥫 icon appears next to the corresponding 👑 wins values in Round Breakdown.
 - Export normalized CSV -> downloaded file opens in Excel with crowns rendered correctly.
 
 ## Tests

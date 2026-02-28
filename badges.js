@@ -18,6 +18,41 @@
     return `${bucketKey}/6`;
   }
 
+  function normalizeRoundKey(value) {
+    if (value === null || value === undefined) return '';
+    const normalized = String(value).trim().toUpperCase();
+    if (!normalized) return '';
+    if (normalized === 'X' || normalized === 'X/6') return 'X';
+    const bucketMatch = normalized.match(/^([1-6])(\/6)?$/);
+    return bucketMatch ? bucketMatch[1] : '';
+  }
+
+  function normalizeRoundBreakdownColumn(value) {
+    return value === 'wins' ? 'wins' : 'crownWins';
+  }
+
+  function normalizeRoundBreakdownSlots(value) {
+    const entries = Array.isArray(value) ? value : [value];
+    const slots = [];
+    entries.forEach((entry) => {
+      if (entry === null || entry === undefined) return;
+      if (typeof entry === 'string' || typeof entry === 'number') {
+        const round = normalizeRoundKey(entry);
+        if (!round) return;
+        slots.push({ round, column: 'crownWins' });
+        return;
+      }
+      if (!isPlainObject(entry)) return;
+      const round = normalizeRoundKey(entry.round !== undefined ? entry.round : entry.bucket);
+      if (!round) return;
+      slots.push({
+        round,
+        column: normalizeRoundBreakdownColumn(entry.column)
+      });
+    });
+    return slots;
+  }
+
   function buildLeaderboardRankings(metricsMap) {
     const rankings = {
       crownGuessLeaders: {},
@@ -497,6 +532,10 @@
         if (!leadingRounds.length) return 'No round leads yet';
         return `Leading rounds: ${leadingRounds.join(', ')}`;
       },
+      roundBreakdownSlots: (ctx) => getBucketMasterRoundKeys(ctx).map((round) => ({
+        round,
+        column: 'crownWins'
+      })),
       predicate: (ctx) => getBucketMasterRounds(ctx).length > 0
     },
     {
@@ -509,7 +548,7 @@
     }
   ];
 
-  function getBucketMasterRounds(ctx) {
+  function getBucketMasterRoundKeys(ctx) {
     const metricsMap = ctx && ctx.data && ctx.data.metricsMap instanceof Map
       ? ctx.data.metricsMap
       : null;
@@ -535,11 +574,15 @@
       });
 
       if (groupMaxRoundWins > 0 && playerRoundWins === groupMaxRoundWins) {
-        leadingRounds.push(formatGuessBucketLabel(bucketKey));
+        leadingRounds.push(bucketKey);
       }
     });
 
     return leadingRounds;
+  }
+
+  function getBucketMasterRounds(ctx) {
+    return getBucketMasterRoundKeys(ctx).map((bucketKey) => formatGuessBucketLabel(bucketKey));
   }
 
   function buildBadgePayload(entry, ctx, opts = {}) {
@@ -557,6 +600,9 @@
       !earned && entry.lockedIcon !== undefined ? entry.lockedIcon : entry.icon,
       fieldCtx
     );
+    const roundBreakdownSlots = normalizeRoundBreakdownSlots(
+      resolveBadgeField(entry.roundBreakdownSlots, fieldCtx)
+    );
     if (!title && !icon && !image && !progress) return null;
     return {
       id: entry.id,
@@ -568,6 +614,7 @@
       progress,
       alt: resolveBadgeField(entry.alt, fieldCtx),
       ariaLabel: resolveBadgeField(entry.ariaLabel, fieldCtx),
+      roundBreakdownSlots,
       earned
     };
   }
@@ -906,6 +953,38 @@
     ].join('');
   }
 
+  function createRoundBreakdownColumnMap() {
+    return {
+      wins: {},
+      crownWins: {}
+    };
+  }
+
+  function buildRoundBreakdownBadgeMap(badges, opts = {}) {
+    const includeLocked = !!opts.includeLocked;
+    const map = createRoundBreakdownColumnMap();
+    if (!Array.isArray(badges) || !badges.length) return map;
+    badges.forEach((badge) => {
+      if (!badge) return;
+      if (!includeLocked && badge.earned === false) return;
+      const slots = normalizeRoundBreakdownSlots(badge.roundBreakdownSlots);
+      if (!slots.length) return;
+      slots.forEach((slot) => {
+        const column = normalizeRoundBreakdownColumn(slot.column);
+        const round = normalizeRoundKey(slot.round);
+        if (!round) return;
+        if (!Array.isArray(map[column][round])) {
+          map[column][round] = [];
+        }
+        if (map[column][round].some((existing) => existing && existing.id === badge.id)) {
+          return;
+        }
+        map[column][round].push(badge);
+      });
+    });
+    return map;
+  }
+
   global.BadgeSystem = {
     PLAYER_CARD_BADGE_MANIFEST,
     createCrownContext,
@@ -918,7 +997,8 @@
     buildBadgeContext,
     summarizeBadgeContextForDebug,
     resolvePlayerCardBadges,
-    buildPlayerBadgesMarkup
+    buildPlayerBadgesMarkup,
+    buildRoundBreakdownBadgeMap
   };
 
   if (typeof module !== 'undefined' && module.exports) {

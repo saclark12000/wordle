@@ -20,6 +20,10 @@ Use these for `PLAYER_CARD_BADGE_MANIFEST` entries so locked badges still commun
 - `progress` - String or function; shown on collapsed card and in expanded details.
 - `requirement` - String or function; shown in expanded details.
 - `description` - Optional explanatory copy.
+- `roundBreakdownSlots` - Optional string/object/array or function returning slots for inline Round Breakdown rendering.
+  - Supported slot keys: `round` (or `bucket`) and optional `column` (`crownWins` default, `wins` supported).
+  - `round` values accept `1..6`, `X`, and `#/6` label form (for example `2/6`).
+  - This is intended for a subset of badges; only badges that declare slots are rendered in table cells.
 
 ## Context & Helpers Available to Predicates
 ### Preferred metric API (new)
@@ -97,6 +101,22 @@ Helpers currently include:
 }
 ```
 
+## Example Round Breakdown Placement
+```js
+{
+  id: 'bucket_master',
+  icon: () => '<span class="badgeIcon--goldBucket">🥫</span>',
+  title: 'Bucket Master',
+  progress: (ctx) => {
+    const rounds = getBucketMasterRounds(ctx);
+    return rounds.length ? `Leading rounds: ${rounds.join(', ')}` : 'No round leads yet';
+  },
+  roundBreakdownSlots: (ctx) =>
+    getBucketMasterRoundKeys(ctx).map((round) => ({ round, column: 'crownWins' })),
+  predicate: (ctx) => getBucketMasterRounds(ctx).length > 0
+}
+```
+
 ## Adding New Metrics for Future Badges
 You no longer need to expand top-level `ctx` fields.
 
@@ -123,6 +143,7 @@ const badges = resolvePlayerCardBadges(context, '@ace', {
 2. Update `tests/badges.test.js` for predicate behavior and ordering.
 3. Run `npm test`.
 4. Smoke test in browser: row selection, earned/locked visuals, and expand/collapse details.
-5. Update `README.md` if user-facing terminology changes.
+5. If `roundBreakdownSlots` changed, verify inline table badges appear beside the targeted Round Breakdown values.
+6. Update `README.md` if user-facing terminology changes.
 
 Keep badge updates atomic: manifest change + tests + docs in one commit.

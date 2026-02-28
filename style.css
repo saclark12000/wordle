@@ -693,6 +693,27 @@ body:not(.developer-mode) .developerPanel {
   background-color: var(--accent-background);
 }
 
+.playerCard__tableValue {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.playerCard__tableBadgeWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.playerCard__tableBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-size: 13px;
+}
+
 .playerCard__crown--highlight_hidden, .playerCard__total--highlight_hidden {
   display: none;
 }
