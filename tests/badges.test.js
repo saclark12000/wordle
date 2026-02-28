@@ -11,7 +11,8 @@ const {
   summarizeBadgeContextForDebug,
   resolvePlayerCardBadges,
   buildPlayerBadgesMarkup,
-  buildRoundBreakdownBadgeMap
+  buildRoundBreakdownBadgeMap,
+  buildLayeredBadgeIcon
 } = require('../badges');
 
 test('leaderboard rankings expose crown guess leaders', () => {
@@ -46,6 +47,23 @@ test('createBadgeMetricRegistry resolves precedence and namespaced lookup', () =
   assert.equal(registry.getNumber('missingMetric', 7), 7);
   assert.equal(registry.has('derived.gamesPlayedTarget'), true);
   assert.equal(registry.values.participationRate, 0.9);
+});
+
+test('buildLayeredBadgeIcon builds reusable layered icon markup', () => {
+  const iconMarkup = buildLayeredBadgeIcon({
+    background: '🔥',
+    foreground: '🎖',
+    backgroundClass: 'badgeIconLayered__background--fire',
+    foregroundClass: 'badgeIconLayered__foreground--medal'
+  });
+
+  assert.ok(iconMarkup.includes('badgeIconLayered'));
+  assert.ok(iconMarkup.includes('badgeIconLayered__background'));
+  assert.ok(iconMarkup.includes('badgeIconLayered__foreground'));
+  assert.ok(iconMarkup.includes('badgeIconLayered__background--fire'));
+  assert.ok(iconMarkup.includes('badgeIconLayered__foreground--medal'));
+  assert.ok(iconMarkup.includes('🔥'));
+  assert.ok(iconMarkup.includes('🎖'));
 });
 
 test('buildBadgeContext exposes metric helpers and merged metric sources', () => {
@@ -222,7 +240,7 @@ test('resolvePlayerCardBadges returns locked badges with progress and requiremen
   assert.ok(badges.some((badge) => badge.earned === false));
   assert.equal(badges.find((badge) => badge.id === 'under_five_games').earned, true);
   assert.equal(badges.find((badge) => badge.id === 'top_ten_rank').progress, 'Current rank: 12th (0 crowns)');
-  assert.equal(badges.find((badge) => badge.id === 'on_the_board').progress, '1 games played.');
+  assert.equal(badges.find((badge) => badge.id === 'on_the_board').progress, '5% participation. 1 games played.');
   assert.equal(badges.find((badge) => badge.id === 'badge_collector').progress, '1 badges earned');
 });
 
@@ -257,7 +275,8 @@ test('resolvePlayerCardBadges allows custom metric overrides without expanding c
   assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').earned, true);
   assert.equal(badges.find((badge) => badge.id === 'always_guessing').earned, true);
   assert.equal(badges.find((badge) => badge.id === 'crown_win_streak').progress, '6 days.');
-  assert.equal(badges.find((badge) => badge.id === 'always_guessing').progress, '85% participation');
+  assert.equal(badges.find((badge) => badge.id === 'always_guessing').progress, '85% participation. 2 games played.');
+  assert.ok(badges.find((badge) => badge.id === 'always_guessing').icon.includes('badgeIconLayered'));
   assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').progress, 'Current avg: 3.2 guesses');
 });
 
@@ -293,9 +312,9 @@ test('resolvePlayerCardBadges uses windowDays threshold for on_the_board badge',
   assert.ok(onBoardShort);
   assert.equal(onBoardSteady.earned, true);
   assert.equal(onBoardSteady.requirement, 'Play 45% of the time. 9 games.');
-  assert.equal(onBoardSteady.progress, '9 games played.');
+  assert.equal(onBoardSteady.progress, '45% participation. 9 games played.');
   assert.equal(onBoardShort.earned, false);
-  assert.equal(onBoardShort.progress, '8 games played.');
+  assert.equal(onBoardShort.progress, '40% participation. 8 games played.');
 });
 
 test('resolvePlayerCardBadges ignores legacy insight option aliases', () => {

@@ -14,6 +14,7 @@ Primary manifest in active use:
 - `icon` / `image` - Earned visual treatment.
 - `lockedIcon` / `lockedImage` - Optional locked-state override.
 - `alt`, `ariaLabel` - Accessibility metadata.
+- For layered icon compositions (for example a foreground medal over a fire background), use `buildLayeredBadgeIcon(...)` from `badges.js` instead of hand-built HTML strings.
 
 ## Player Card Fields
 Use these for `PLAYER_CARD_BADGE_MANIFEST` entries so locked badges still communicate progress.
@@ -106,6 +107,21 @@ Helpers currently include:
   requirement: 'Reach at least 30% crown conversion.',
   progress: (ctx, helpers) => `${helpers.percent(ctx.metricNumber('crownRatio', 0), 1)} / 30%`,
   predicate: (ctx) => ctx.metricNumber('crownRatio', 0) >= 0.3
+}
+```
+
+## Example Layered Icon Helper
+```js
+{
+  id: 'always_guessing',
+  icon: () => buildLayeredBadgeIcon({
+    background: '🔥',
+    foreground: '🎖',
+    backgroundClass: 'badgeIconLayered__background--fire',
+    foregroundClass: 'badgeIconLayered__foreground--medal'
+  }),
+  title: 'Always Guessing',
+  predicate: (ctx) => ctx.metricNumber('participationRate', 0) >= 0.85
 }
 ```
 

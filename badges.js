@@ -12,6 +12,32 @@
     return String.fromCodePoint(codePoint);
   }
 
+  function joinClassNames(...parts) {
+    return parts
+      .flat()
+      .filter((part) => part !== null && part !== undefined)
+      .map((part) => String(part).trim())
+      .filter(Boolean)
+      .join(' ');
+  }
+
+  function buildLayeredBadgeIcon(opts = {}) {
+    const foreground = opts.foreground || opts.front || '';
+    const background = opts.background || opts.back || '';
+    if (!foreground && !background) return '';
+
+    const wrapperClass = joinClassNames('badgeIconLayered', opts.wrapperClass);
+    const backgroundClass = joinClassNames('badgeIconLayered__background', opts.backgroundClass);
+    const foregroundClass = joinClassNames('badgeIconLayered__foreground', opts.foregroundClass);
+    const backgroundMarkup = background
+      ? `<span class="${escapeHtml(backgroundClass)}" aria-hidden="true">${escapeHtml(background)}</span>`
+      : '';
+    const foregroundMarkup = foreground
+      ? `<span class="${escapeHtml(foregroundClass)}" aria-hidden="true">${escapeHtml(foreground)}</span>`
+      : '';
+    return `<span class="${escapeHtml(wrapperClass)}" aria-hidden="true">${backgroundMarkup}${foregroundMarkup}</span>`;
+  }
+
   const CROWN_GUESS_BUCKETS = ['1', '2', '3', '4', '5', '6'];
 
   function formatGuessBucketLabel(bucketKey) {
@@ -429,10 +455,12 @@
     },
     {
       id: 'always_guessing',
-      icon: () => {
-        // 🎖 with a 🔥 icon behind it to signify the higher participation requirement.
-        return '<span class="badgeIcon--fire">🔥</span><span class="badgeIcon--medal">🎖</span>';
-      },
+      icon: () => buildLayeredBadgeIcon({
+        background: '🔥',
+        foreground: '🎖',
+        backgroundClass: 'badgeIconLayered__background--fire',
+        foregroundClass: 'badgeIconLayered__foreground--medal'
+      }),
       title: 'Always Guessing',
       description: (ctx) => `${ctx.player}'s #wordle-hurdle participation.`,
       requirement: (ctx) => `Play 85% of the time. ${Math.round(getGamesPlayedTarget(ctx) *.85)} games.`,
@@ -987,7 +1015,8 @@
     summarizeBadgeContextForDebug,
     resolvePlayerCardBadges,
     buildPlayerBadgesMarkup,
-    buildRoundBreakdownBadgeMap
+    buildRoundBreakdownBadgeMap,
+    buildLayeredBadgeIcon
   };
 
   if (typeof module !== 'undefined' && module.exports) {
