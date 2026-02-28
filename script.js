@@ -500,7 +500,7 @@ function buildPlayerStatsMarkup(player, metrics, badgeMarkup, roundBreakdownBadg
         <td>
           <span class="playerCard__tableMetric">
             <span class="playerCard__tablePrefix">
-              <span id='playerCardTotalHighlight_${g}' class="playerCard__total--highlight_hidden">🏅</span>
+              <span id='playerCardTotalHighlight_${g}' class="playerCard__total--highlight_hidden">⬆</span>
             </span>
             <span class="playerCard__tableNumber">${total}</span>
             <span class="playerCard__tableSuffix"></span>
@@ -509,7 +509,7 @@ function buildPlayerStatsMarkup(player, metrics, badgeMarkup, roundBreakdownBadg
         <td id='playerCardCrown_${g}'>
           <span class="playerCard__tableMetric">
             <span class="playerCard__tablePrefix">
-              <span id='playerCardCrownHighlight_${g}' class="playerCard__crown--highlight_hidden">👑</span>
+              <span id='playerCardCrownHighlight_${g}' class="playerCard__crown--highlight_hidden">⬆</span>
             </span>
             <span class="playerCard__tableNumber">${crown}</span>
             <span class="playerCard__tableSuffix">${crownBadges}</span>
@@ -521,11 +521,11 @@ function buildPlayerStatsMarkup(player, metrics, badgeMarkup, roundBreakdownBadg
 
   // Determine which guess count has the highest crown wins for potential highlighting
   highestCrownRows.rows.forEach((g) => {
-    rows = rows.replace(`id='playerCardCrownHighlight_${g}' class="playerCard__crown--highlight_hidden"`, `id='playerCardCrownHighlight_${g}' class="playerCard__crown--highlight_visible"`);
+    rows = rows.replace(`id='playerCardCrownHighlight_${g}' class="playerCard__crown--highlight_hidden"`, `id='playerCardCrownHighlight_${g}' class="playerCard__crown--highlight_visible" title="Highest crown wins for this player"`);
   });
 
    highestTotalRows.rows.forEach((g) => {
-    rows = rows.replace(`id='playerCardTotalHighlight_${g}' class="playerCard__total--highlight_hidden"`, `id='playerCardTotalHighlight_${g}' class="playerCard__total--highlight_visible"`);
+    rows = rows.replace(`id='playerCardTotalHighlight_${g}' class="playerCard__total--highlight_hidden"`, `id='playerCardTotalHighlight_${g}' class="playerCard__total--highlight_visible" title="Highest total wins for this player"`);
   });
 
   const badgeBlock = badgeMarkup

@@ -59,9 +59,16 @@ Use `ctx.metric('key')` or `ctx.metricNumber('key')`.
 `derived` keys (always present):
 - `crownRatio` - Exact crown conversion ratio (`crownWins / totalGames`).
 - `failRatio` - Exact fail ratio (`failGames / totalGames`).
-- `gamesPlayedTarget` - Dynamic participation target used by the built-in games-played badge.
+- `gamesPlayedTarget` - Current day-window count (`windowDays`) used by participation badges (`on_the_board`, `always_guessing`).
 - `playerRank` - Same value as core `playerRank`; available in derived namespace for explicit lookup.
 - `maxFailGames` - Highest failed-game total among players in the current leaderboard window.
+
+### Badge ID notes
+- Deprecated IDs removed from the active manifest: `games_played`, `participation_rate`, `crown_ratio`.
+- Current participation/conversion replacements:
+  - `on_the_board` (45% participation threshold based on `gamesPlayedTarget`).
+  - `always_guessing` (85% participation threshold).
+  - `crown_conversion` (30% crown conversion threshold).
 
 `insights` keys (present when supplied via `metricSources.insights`):
 - `activeCrownStreak` - Current consecutive-day crown streak.
@@ -109,12 +116,12 @@ Helpers currently include:
   icon: () => '<span class="badgeIcon--goldBucket">🥫</span>',
   title: 'Bucket Master',
   progress: (ctx) => {
-    const rounds = getBucketMasterRounds(ctx);
+    const rounds = getBucketMasterRounds(ctx).filter((round) => round !== '1/6');
     return rounds.length ? `Leading rounds: ${rounds.join(', ')}` : 'No round leads yet';
   },
   roundBreakdownSlots: (ctx) =>
     getBucketMasterRoundKeys(ctx).map((round) => ({ round, column: 'crownWins' })),
-  predicate: (ctx) => getBucketMasterRounds(ctx).length > 0
+  predicate: (ctx) => getBucketMasterRounds(ctx).some((round) => round !== '1/6')
 }
 ```
 

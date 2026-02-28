@@ -306,14 +306,6 @@
     };
   }
 
-  function computeGamesPlayedTarget(windowDays) {
-    const parsedWindowDays = Number(windowDays) || 0;
-    if (parsedWindowDays > 0) {
-      return Math.max(8, Math.round(parsedWindowDays * 0.6));
-    }
-    return 10;
-  }
-
   function getPlayerRank(metricsMap, player) {
     if (!(metricsMap instanceof Map) || !player) return null;
     const ranked = [...metricsMap.entries()]
@@ -417,15 +409,6 @@
       }
     },
     {
-      id: 'crown_ratio',
-      icon: '💰',
-      title: 'Crown Ratio',
-      description: (ctx) => `${ctx.player}'s crown win percentage.`,
-      requirement: 'At least 30% of all wins are crown wins.',
-      progress: (ctx) => `${formatPercent(getMetricNumber(ctx, 'crownRatio', 0), 1)}`,
-      predicate: (ctx) => getMetricNumber(ctx, 'crownRatio', 0) >= 0.3
-    },
-    {
       id: 'sus_wins',
       icon: () => iconFromCodePoint(0x1f440),
       title: 'Sus Wins',
@@ -436,13 +419,25 @@
       predicate: (ctx) => getMetricNumber(ctx, 'susWins', 0) >= 1
     },
     {
-      id: 'games_played',
-      icon: () => iconFromCodePoint(0x1f4c5),
-      title: 'Games Played',
-      description: (ctx) => `${ctx.player} #wordle-hurdle participation.`,
-      requirement: (ctx) => `Play at least ${getGamesPlayedTarget(ctx)} games.`,
-      progress: (ctx) => `${getMetricNumber(ctx, 'totalGames', 0)} games played.`,
-      predicate: (ctx) => getMetricNumber(ctx, 'totalGames', 0) >= getGamesPlayedTarget(ctx)
+      id: 'on_the_board',
+      icon: () => iconFromCodePoint(0x1F396),
+      title: 'On The Board',
+      description: (ctx) => `${ctx.player}'s #wordle-hurdle participation.`,
+      requirement: (ctx) => `Play 45% of the time. ${Math.round(getGamesPlayedTarget(ctx) *.45)} games.`,
+      progress: (ctx) => `${formatPercent(getMetricNumber(ctx, 'participationRate', 0), 0)} participation. ${getMetricNumber(ctx, 'totalGames', 0)} games played.`,
+      predicate: (ctx) => getMetricNumber(ctx, 'totalGames', 0) >= getGamesPlayedTarget(ctx) *.45
+    },
+    {
+      id: 'always_guessing',
+      icon: () => {
+        // 🎖 with a 🔥 icon behind it to signify the higher participation requirement.
+        return '<span class="badgeIcon--fire">🔥</span><span class="badgeIcon--medal">🎖</span>';
+      },
+      title: 'Always Guessing',
+      description: (ctx) => `${ctx.player}'s #wordle-hurdle participation.`,
+      requirement: (ctx) => `Play 85% of the time. ${Math.round(getGamesPlayedTarget(ctx) *.85)} games.`,
+      progress: (ctx) => `${formatPercent(getMetricNumber(ctx, 'participationRate', 0), 0)} participation. ${getMetricNumber(ctx, 'totalGames', 0)} games played.`,
+      predicate: (ctx) => getMetricNumber(ctx, 'participationRate', 0) >= 0.85
     },
     {
       id: 'most_failed_games',
@@ -512,15 +507,6 @@
         if (raw === null || raw === undefined || raw === '') return false;
         return Number.isFinite(avg) && avg < 4;
       }
-    },
-    {
-      id: 'participation_rate',
-      icon: () => iconFromCodePoint(0x1f4ca),
-      title: 'Participation Rate',
-      description: (ctx) => `${ctx.player}'s #wordle-hurdle participation.`,
-      requirement: 'Participate in at least 85% of days.',
-      progress: (ctx) => `${formatPercent(getMetricNumber(ctx, 'participationRate', 0), 0)} participation`,
-      predicate: (ctx) => getMetricNumber(ctx, 'participationRate', 0) >= 0.85
     },
     {
       id: 'bucket_master',
@@ -721,7 +707,7 @@
       derived: {
         crownRatio: getCrownRatio(metrics),
         failRatio: getFailRatio(metrics),
-        gamesPlayedTarget: computeGamesPlayedTarget(windowDays),
+        gamesPlayedTarget: windowDays,
         playerRank,
         maxFailGames: getMaxFailGames(metricsMap)
       },

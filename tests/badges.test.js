@@ -74,7 +74,7 @@ test('buildBadgeContext exposes metric helpers and merged metric sources', () =>
     }
   });
 
-  assert.equal(badgeCtx.metricNumber('gamesPlayedTarget'), 12);
+  assert.equal(badgeCtx.metricNumber('gamesPlayedTarget'), 20);
   assert.equal(badgeCtx.metricNumber('crownRatio').toFixed(1), '0.5');
   assert.equal(badgeCtx.metric('participationRate'), 0.85);
   assert.equal(badgeCtx.metric('insights.participationRate'), 0.4);
@@ -113,7 +113,7 @@ test('summarizeBadgeContextForDebug returns readable snapshot sections', () => {
 
   assert.equal(summary.player, '@ace');
   assert.equal(summary.metrics.totalGames, 2);
-  assert.equal(summary.derived.gamesPlayedTarget, 8);
+  assert.equal(summary.derived.gamesPlayedTarget, 2);
   assert.equal(summary.sourceKeyCounts.insights, 1);
   assert.equal(summary.dataSummary.leaderboardCount, 2);
   assert.equal(summary.leaderboardPreview.length, 1);
@@ -158,7 +158,7 @@ test('resolvePlayerCardBadges returns all player-card badges by default', () => 
   const badgeCollector = badges.find((badge) => badge.id === 'badge_collector');
   assert.ok(badgeCollector);
   assert.equal(badgeCollector.earned, true);
-  assert.equal(badgeCollector.progress, '9 badges earned');
+  assert.equal(badgeCollector.progress, '8 badges earned');
 });
 
 test('resolvePlayerCardBadges honors maxBadges option', () => {
@@ -222,7 +222,7 @@ test('resolvePlayerCardBadges returns locked badges with progress and requiremen
   assert.ok(badges.some((badge) => badge.earned === false));
   assert.equal(badges.find((badge) => badge.id === 'under_five_games').earned, true);
   assert.equal(badges.find((badge) => badge.id === 'top_ten_rank').progress, 'Current rank: 12th (0 crowns)');
-  assert.equal(badges.find((badge) => badge.id === 'games_played').progress, '1 games played.');
+  assert.equal(badges.find((badge) => badge.id === 'on_the_board').progress, '1 games played.');
   assert.equal(badges.find((badge) => badge.id === 'badge_collector').progress, '1 badges earned');
 });
 
@@ -255,10 +255,47 @@ test('resolvePlayerCardBadges allows custom metric overrides without expanding c
 
   assert.equal(badges.find((badge) => badge.id === 'crown_win_streak').earned, true);
   assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').earned, true);
-  assert.equal(badges.find((badge) => badge.id === 'participation_rate').earned, true);
+  assert.equal(badges.find((badge) => badge.id === 'always_guessing').earned, true);
   assert.equal(badges.find((badge) => badge.id === 'crown_win_streak').progress, '6 days.');
-  assert.equal(badges.find((badge) => badge.id === 'participation_rate').progress, '85% participation');
+  assert.equal(badges.find((badge) => badge.id === 'always_guessing').progress, '85% participation');
   assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').progress, 'Current avg: 3.2 guesses');
+});
+
+test('resolvePlayerCardBadges uses windowDays threshold for on_the_board badge', () => {
+  const dataset = [
+    ...Array.from({ length: 9 }, () => ({ player: '@steady', guesses: 3, solved: true, isCrown: false })),
+    ...Array.from({ length: 8 }, () => ({ player: '@short', guesses: 3, solved: true, isCrown: false }))
+  ];
+  const ctx = createCrownContext();
+  ctx.dataset = dataset;
+  ctx.playerMetrics = buildPlayerMetricsMap(dataset);
+
+  const badgesSteady = resolvePlayerCardBadges(ctx, '@steady', {
+    windowDays: 20,
+    metricSources: {
+      insights: {
+        participationRate: 0.45
+      }
+    }
+  });
+  const badgesShort = resolvePlayerCardBadges(ctx, '@short', {
+    windowDays: 20,
+    metricSources: {
+      insights: {
+        participationRate: 0.4
+      }
+    }
+  });
+
+  const onBoardSteady = badgesSteady.find((badge) => badge.id === 'on_the_board');
+  const onBoardShort = badgesShort.find((badge) => badge.id === 'on_the_board');
+  assert.ok(onBoardSteady);
+  assert.ok(onBoardShort);
+  assert.equal(onBoardSteady.earned, true);
+  assert.equal(onBoardSteady.requirement, 'Play 45% of the time. 9 games.');
+  assert.equal(onBoardSteady.progress, '9 games played.');
+  assert.equal(onBoardShort.earned, false);
+  assert.equal(onBoardShort.progress, '8 games played.');
 });
 
 test('resolvePlayerCardBadges ignores legacy insight option aliases', () => {
@@ -281,7 +318,7 @@ test('resolvePlayerCardBadges ignores legacy insight option aliases', () => {
 
   assert.equal(badges.find((badge) => badge.id === 'crown_win_streak').earned, false);
   assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').earned, false);
-  assert.equal(badges.find((badge) => badge.id === 'participation_rate').earned, false);
+  assert.equal(badges.find((badge) => badge.id === 'always_guessing').earned, false);
 });
 
 test('resolvePlayerCardBadges awards most_failed_games to players tied for top fail count', () => {
@@ -336,7 +373,7 @@ test('resolvePlayerCardBadges uses strict threshold for high_fail_rate badge', (
   assert.equal(edgeFailRate.progress, '30.0% failed');
 });
 
-test('resolvePlayerCardBadges awards bucket_master when player leads any crown round', () => {
+test('resolvePlayerCardBadges awards bucket_master when player leads a non-1/6 crown round', () => {
   const dataset = [
     { player: '@lead', guesses: 1, solved: true, isCrown: true },
     { player: '@lead', guesses: 1, solved: true, isCrown: true },

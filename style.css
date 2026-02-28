@@ -516,6 +516,24 @@ body:not(.developer-mode) .developerPanel {
   filter: sepia(0.75) saturate(1.8) hue-rotate(-8deg) brightness(1.03);
 }
 
+.badgeIcon--fire {
+  /* This is a hack to add a fire emoji behind the medal for the "Always Guessing" badge to signify its higher participation requirement compared to "On The Board". The fire emoji is positioned absolutely behind the medal icon. */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 32px;
+  line-height: 1;
+  filter: hue-rotate(20deg) saturate(150%) brightness(1.2);
+  z-index: -1;
+}
+
+.badgeIcon--fire .badgeIcon--medal {
+  position: relative;
+  z-index: 0;
+
+}
+
 .playerCard__badgeImage {
   max-width: 24px;
   max-height: 24px;
