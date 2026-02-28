@@ -53,8 +53,10 @@ Use `ctx.metric('key')` or `ctx.metricNumber('key')`.
 
 `derived` keys (always present):
 - `crownRatio` - Exact crown conversion ratio (`crownWins / totalGames`).
+- `failRatio` - Exact fail ratio (`failGames / totalGames`).
 - `gamesPlayedTarget` - Dynamic participation target used by the built-in games-played badge.
 - `playerRank` - Same value as core `playerRank`; available in derived namespace for explicit lookup.
+- `maxFailGames` - Highest failed-game total among players in the current leaderboard window.
 
 `insights` keys (present when supplied via `metricSources.insights`):
 - `activeCrownStreak` - Current consecutive-day crown streak.

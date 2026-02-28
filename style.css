@@ -504,6 +504,18 @@ body:not(.developer-mode) .developerPanel {
   line-height: 1;
 }
 
+.badgeIcon--darkBlueCrown {
+  display: inline-block;
+  /* Emoji crown tint toward dark blue (filter approximation). */
+  filter: hue-rotate(185deg) saturate(170%) brightness(0.62);
+}
+
+.badgeIcon--goldBucket {
+  display: inline-block;
+  /* Emoji tint toward a richer gold tone (filter approximation). */
+  filter: sepia(0.75) saturate(1.8) hue-rotate(-8deg) brightness(1.03);
+}
+
 .playerCard__badgeImage {
   max-width: 24px;
   max-height: 24px;

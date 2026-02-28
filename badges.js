@@ -314,6 +314,23 @@
     return metrics.crownWins / metrics.totalGames;
   }
 
+  function getFailRatio(metrics) {
+    if (!metrics || !metrics.totalGames) return 0;
+    return metrics.failGames / metrics.totalGames;
+  }
+
+  function getMaxFailGames(metricsMap) {
+    if (!(metricsMap instanceof Map) || metricsMap.size === 0) return 0;
+    let maxFailGames = 0;
+    metricsMap.forEach((playerMetrics) => {
+      const failGames = Number(playerMetrics && playerMetrics.failGames) || 0;
+      if (failGames > maxFailGames) {
+        maxFailGames = failGames;
+      }
+    });
+    return maxFailGames;
+  }
+
   function getMetricValue(ctx, key, fallback) {
     if (ctx && typeof ctx.metric === 'function') {
       return ctx.metric(key, fallback);
@@ -392,6 +409,28 @@
       predicate: (ctx) => getMetricNumber(ctx, 'totalGames', 0) >= getGamesPlayedTarget(ctx)
     },
     {
+      id: 'most_failed_games',
+      icon: () => '<span class="badgeIcon--darkBlueCrown">👑</span>',
+      title: 'Most Failed Games',
+      description: (ctx) => `${ctx.player}'s failed game count compared to the group.`,
+      requirement: 'Have the most failed games in this window.',
+      progress: (ctx) => `${getMetricNumber(ctx, 'failGames', 0)} fails (group high: ${getMetricNumber(ctx, 'maxFailGames', 0)})`,
+      predicate: (ctx) => {
+        const failGames = getMetricNumber(ctx, 'failGames', 0);
+        const maxFailGames = getMetricNumber(ctx, 'maxFailGames', 0);
+        return failGames > 0 && maxFailGames > 0 && failGames === maxFailGames;
+      }
+    },
+    {
+      id: 'high_fail_rate',
+      icon: () => iconFromCodePoint(0x26a0),
+      title: 'High Fail Rate',
+      description: (ctx) => `${ctx.player}'s failed game percentage.`,
+      requirement: 'Fail more than 30% of games played.',
+      progress: (ctx) => `${formatPercent(getMetricNumber(ctx, 'failRatio', 0), 1)} failed`,
+      predicate: (ctx) => getMetricNumber(ctx, 'failRatio', 0) > 0.3
+    },
+    {
       id: 'crown_conversion',
       icon: () => "🎯",
       title: 'Sharp Shooter',
@@ -449,12 +488,16 @@
     },
     {
       id: 'bucket_master',
-      icon: () => '🥇',
+      icon: () => '<span class="badgeIcon--goldBucket">🥫</span>',
       title: 'Bucket Master',
       description: (ctx) => `${ctx.player}'s #wordle-hurdle bucket mastery.`,
-      requirement: 'Get more than 5 crown wins in a guess round.',
-      progress: (ctx) => `${ctx.metric('buckets')[3]} <= here`,
-      predicate: (ctx) => getBucketMaster(ctx) >= 5
+      requirement: 'Lead the group in crown wins for at least one round.',
+      progress: (ctx) => {
+        const leadingRounds = getBucketMasterRounds(ctx);
+        if (!leadingRounds.length) return 'No round leads yet';
+        return `Leading rounds: ${leadingRounds.join(', ')}`;
+      },
+      predicate: (ctx) => getBucketMasterRounds(ctx).length > 0
     },
     {
       id: 'badge_collector',
@@ -466,15 +509,37 @@
     }
   ];
 
-  function getBucketMaster(ctx) {
-    const buckets = ctx.metric('buckets');
-    if (!buckets) return 0;
-    const bucketKeys = Object.keys(buckets).filter((key) => key !== 'X');
-    let best = 0;
-    for (const key of bucketKeys) {
-      if (Number(buckets[key]) > 5) best = Math.max(best, Number(key));
-    }
-    return best;
+  function getBucketMasterRounds(ctx) {
+    const metricsMap = ctx && ctx.data && ctx.data.metricsMap instanceof Map
+      ? ctx.data.metricsMap
+      : null;
+    const player = ctx && ctx.player ? ctx.player : null;
+    if (!metricsMap || !player || !metricsMap.has(player)) return [];
+
+    const playerMetrics = metricsMap.get(player);
+    const playerCrownBuckets = playerMetrics && playerMetrics.crownBuckets
+      ? playerMetrics.crownBuckets
+      : {};
+    const leadingRounds = [];
+
+    CROWN_GUESS_BUCKETS.forEach((bucketKey) => {
+      const playerRoundWins = Number(playerCrownBuckets[bucketKey]) || 0;
+      if (playerRoundWins <= 0) return;
+
+      let groupMaxRoundWins = 0;
+      metricsMap.forEach((metrics) => {
+        const roundWins = Number(metrics && metrics.crownBuckets ? metrics.crownBuckets[bucketKey] : 0) || 0;
+        if (roundWins > groupMaxRoundWins) {
+          groupMaxRoundWins = roundWins;
+        }
+      });
+
+      if (groupMaxRoundWins > 0 && playerRoundWins === groupMaxRoundWins) {
+        leadingRounds.push(formatGuessBucketLabel(bucketKey));
+      }
+    });
+
+    return leadingRounds;
   }
 
   function buildBadgePayload(entry, ctx, opts = {}) {
@@ -605,8 +670,10 @@
       insights: {},
       derived: {
         crownRatio: getCrownRatio(metrics),
+        failRatio: getFailRatio(metrics),
         gamesPlayedTarget: computeGamesPlayedTarget(windowDays),
-        playerRank
+        playerRank,
+        maxFailGames: getMaxFailGames(metricsMap)
       },
       custom: {}
     };
@@ -690,7 +757,9 @@
       },
       derived: {
         crownRatio: Number(derivedMetrics.crownRatio) || 0,
-        gamesPlayedTarget: Number(derivedMetrics.gamesPlayedTarget) || 0
+        failRatio: Number(derivedMetrics.failRatio) || 0,
+        gamesPlayedTarget: Number(derivedMetrics.gamesPlayedTarget) || 0,
+        maxFailGames: Number(derivedMetrics.maxFailGames) || 0
       },
       sourceKeyCounts: {
         core: Object.keys(coreMetrics).length,

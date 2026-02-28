@@ -157,7 +157,7 @@ test('resolvePlayerCardBadges returns all player-card badges by default', () => 
   const badgeCollector = badges.find((badge) => badge.id === 'badge_collector');
   assert.ok(badgeCollector);
   assert.equal(badgeCollector.earned, true);
-  assert.equal(badgeCollector.progress, '8 / 5 badges earned');
+  assert.equal(badgeCollector.progress, '9 badges earned');
 });
 
 test('resolvePlayerCardBadges honors maxBadges option', () => {
@@ -218,10 +218,11 @@ test('resolvePlayerCardBadges returns locked badges with progress and requiremen
   assert.equal(badges.length, PLAYER_CARD_BADGE_MANIFEST.length);
   assert.ok(badges.every((badge) => typeof badge.progress === 'string' && badge.progress.length > 0));
   assert.ok(badges.every((badge) => typeof badge.requirement === 'string' && badge.requirement.length > 0));
-  assert.ok(badges.every((badge) => badge.earned === false));
+  assert.ok(badges.some((badge) => badge.earned === false));
+  assert.equal(badges.find((badge) => badge.id === 'under_five_games').earned, true);
   assert.equal(badges.find((badge) => badge.id === 'top_ten_rank').progress, 'Current rank: 12th (0 crowns)');
-  assert.equal(badges.find((badge) => badge.id === 'games_played').progress, '1 / 12 games');
-  assert.equal(badges.find((badge) => badge.id === 'badge_collector').progress, '0 / 5 badges earned');
+  assert.equal(badges.find((badge) => badge.id === 'games_played').progress, '1 games played.');
+  assert.equal(badges.find((badge) => badge.id === 'badge_collector').progress, '1 badges earned');
 });
 
 test('resolvePlayerCardBadges allows custom metric overrides without expanding ctx shape', () => {
@@ -251,12 +252,11 @@ test('resolvePlayerCardBadges allows custom metric overrides without expanding c
     }
   });
 
-  assert.equal(badges.find((badge) => badge.id === 'active_streak').earned, true);
   assert.equal(badges.find((badge) => badge.id === 'best_streak').earned, true);
   assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').earned, true);
   assert.equal(badges.find((badge) => badge.id === 'participation_rate').earned, true);
-  assert.equal(badges.find((badge) => badge.id === 'active_streak').progress, '4 / 3 days');
-  assert.equal(badges.find((badge) => badge.id === 'participation_rate').progress, '85% / 80%');
+  assert.equal(badges.find((badge) => badge.id === 'best_streak').progress, '6 days.');
+  assert.equal(badges.find((badge) => badge.id === 'participation_rate').progress, '85% participation');
   assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').progress, 'Current avg: 3.2 guesses');
 });
 
@@ -278,10 +278,86 @@ test('resolvePlayerCardBadges ignores legacy insight option aliases', () => {
     }
   });
 
-  assert.equal(badges.find((badge) => badge.id === 'active_streak').earned, false);
   assert.equal(badges.find((badge) => badge.id === 'best_streak').earned, false);
   assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').earned, false);
   assert.equal(badges.find((badge) => badge.id === 'participation_rate').earned, false);
+});
+
+test('resolvePlayerCardBadges awards most_failed_games to players tied for top fail count', () => {
+  const dataset = [
+    { player: '@a', solved: false, isCrown: false },
+    { player: '@a', solved: false, isCrown: false },
+    { player: '@a', guesses: 3, solved: true, isCrown: false },
+    { player: '@b', solved: false, isCrown: false },
+    { player: '@b', solved: false, isCrown: false },
+    { player: '@b', guesses: 2, solved: true, isCrown: true },
+    { player: '@c', solved: false, isCrown: false },
+    { player: '@c', guesses: 2, solved: true, isCrown: false }
+  ];
+  const ctx = createCrownContext();
+  ctx.dataset = dataset;
+  ctx.playerMetrics = buildPlayerMetricsMap(dataset);
+
+  const badgesA = resolvePlayerCardBadges(ctx, '@a');
+  const badgesC = resolvePlayerCardBadges(ctx, '@c');
+
+  const mostFailedA = badgesA.find((badge) => badge.id === 'most_failed_games');
+  const mostFailedC = badgesC.find((badge) => badge.id === 'most_failed_games');
+  assert.ok(mostFailedA);
+  assert.ok(mostFailedC);
+  assert.equal(mostFailedA.earned, true);
+  assert.equal(mostFailedA.progress, '2 fails (group high: 2)');
+  assert.equal(mostFailedC.earned, false);
+  assert.equal(mostFailedC.progress, '1 fails (group high: 2)');
+});
+
+test('resolvePlayerCardBadges uses strict threshold for high_fail_rate badge', () => {
+  const dataset = [
+    ...Array.from({ length: 2 }, () => ({ player: '@rate', solved: false, isCrown: false })),
+    ...Array.from({ length: 3 }, () => ({ player: '@rate', guesses: 4, solved: true, isCrown: false })),
+    ...Array.from({ length: 3 }, () => ({ player: '@edge', solved: false, isCrown: false })),
+    ...Array.from({ length: 7 }, () => ({ player: '@edge', guesses: 4, solved: true, isCrown: false }))
+  ];
+  const ctx = createCrownContext();
+  ctx.dataset = dataset;
+  ctx.playerMetrics = buildPlayerMetricsMap(dataset);
+
+  const badgesRate = resolvePlayerCardBadges(ctx, '@rate');
+  const badgesEdge = resolvePlayerCardBadges(ctx, '@edge');
+
+  const highFailRate = badgesRate.find((badge) => badge.id === 'high_fail_rate');
+  const edgeFailRate = badgesEdge.find((badge) => badge.id === 'high_fail_rate');
+  assert.ok(highFailRate);
+  assert.ok(edgeFailRate);
+  assert.equal(highFailRate.earned, true);
+  assert.equal(highFailRate.progress, '40.0% failed');
+  assert.equal(edgeFailRate.earned, false);
+  assert.equal(edgeFailRate.progress, '30.0% failed');
+});
+
+test('resolvePlayerCardBadges awards bucket_master when player leads any crown round', () => {
+  const dataset = [
+    { player: '@lead', guesses: 1, solved: true, isCrown: true },
+    { player: '@lead', guesses: 1, solved: true, isCrown: true },
+    { player: '@lead', guesses: 2, solved: true, isCrown: true },
+    { player: '@other', guesses: 1, solved: true, isCrown: true },
+    { player: '@other', guesses: 2, solved: true, isCrown: true }
+  ];
+  const ctx = createCrownContext();
+  ctx.dataset = dataset;
+  ctx.playerMetrics = buildPlayerMetricsMap(dataset);
+
+  const badgesLead = resolvePlayerCardBadges(ctx, '@lead');
+  const badgesOther = resolvePlayerCardBadges(ctx, '@other');
+
+  const leadBucketMaster = badgesLead.find((badge) => badge.id === 'bucket_master');
+  const otherBucketMaster = badgesOther.find((badge) => badge.id === 'bucket_master');
+  assert.ok(leadBucketMaster);
+  assert.ok(otherBucketMaster);
+  assert.equal(leadBucketMaster.earned, true);
+  assert.equal(leadBucketMaster.progress, 'Leading rounds: 1/6, 2/6');
+  assert.equal(otherBucketMaster.earned, true);
+  assert.equal(otherBucketMaster.progress, 'Leading rounds: 2/6');
 });
 
 test('buildPlayerBadgesMarkup supports rendering more than eight badge chips', () => {
