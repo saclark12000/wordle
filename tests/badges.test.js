@@ -69,6 +69,14 @@ test('buildLayeredBadgeIcon builds reusable layered icon markup', () => {
   const zeroMarkup = buildLayeredBadgeIcon({ stars: 0 });
   assert.ok(zeroMarkup.includes('data-stars="0"'));
   assert.ok(!zeroMarkup.includes('badgeIconTier__stars'));
+
+  const customIconMarkup = buildLayeredBadgeIcon({
+    stars: 2,
+    starsIcon: '🎪',
+    medalIcon: '🎱'
+  });
+  assert.ok(customIconMarkup.includes('🎪🎪'));
+  assert.ok(customIconMarkup.includes('🎱'));
 });
 
 test('buildBadgeContext exposes metric helpers and merged metric sources', () => {
@@ -282,7 +290,7 @@ test('resolvePlayerCardBadges allows custom metric overrides without expanding c
   assert.equal(badges.find((badge) => badge.id === 'crown_win_streak').progress, '6 days.');
   assert.equal(badges.find((badge) => badge.id === 'always_guessing').progress, '85% participation. 2 games played.');
   assert.ok(badges.find((badge) => badge.id === 'always_guessing').icon.includes('badgeIconTier'));
-  assert.ok(badges.find((badge) => badge.id === 'always_guessing').icon.includes('data-stars="3"'));
+  assert.ok(badges.find((badge) => badge.id === 'always_guessing').icon.includes('data-stars="2"'));
   assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').progress, 'Current avg: 3.2 guesses');
 });
 

@@ -14,6 +14,7 @@ Single-page web app focused on a single job: ingest the standardized Wordle/Hurd
 - **Badge system** – `badges.js` drives the player-card badge board (`PLAYER_CARD_BADGE_MANIFEST`) from the full manifest. Earned tiles are full-color, locked tiles render as black boxes, and expanding a tile shows current progress plus requirements.
 - **Participation badge update** – manifest now uses `on_the_board` (45% of `windowDays`) and `always_guessing` (85% participation) for participation milestones.
 - **Tiered badge icon helper** – `buildLayeredBadgeIcon(...)` in `badges.js` provides a reusable star-tier medal pattern (`0-3 ⭐` displayed in front of `🏅`, for example `always_guessing`).
+  - Supports icon swaps (for example `starsIcon: '🎪'`, `medalIcon: '🎱'`).
 - **Round Breakdown badge placements** – manifest entries can publish `roundBreakdownSlots` so a selected subset of earned badges render inline beside Round Breakdown values (for example, `bucket_master` icons in the 👑 wins column on awarding rounds).
 - **Badge metric registry** – badge predicates now consume `ctx.metric(...)`/`ctx.metricNumber(...)` against namespaced metric sources (`core`, `derived`, `insights`, `custom`) so new metrics can be added without growing top-level badge context fields.
 

@@ -26,12 +26,17 @@
     const stars = Number.isFinite(rawStars)
       ? Math.max(0, Math.min(3, Math.floor(rawStars)))
       : 0;
-    const starGlyph = typeof opts.starGlyph === 'string' && opts.starGlyph
-      ? opts.starGlyph
-      : '⭐';
-    const medalGlyph = typeof opts.medalGlyph === 'string' && opts.medalGlyph
-      ? opts.medalGlyph
-      : '🏅';
+    const starGlyph = (
+      (typeof opts.starsIcon === 'string' && opts.starsIcon) ||
+      (typeof opts.starIcon === 'string' && opts.starIcon) ||
+      (typeof opts.starGlyph === 'string' && opts.starGlyph) ||
+      '⭐'
+    );
+    const medalGlyph = (
+      (typeof opts.medalIcon === 'string' && opts.medalIcon) ||
+      (typeof opts.medalGlyph === 'string' && opts.medalGlyph) ||
+      '🏅'
+    );
     const wrapperClass = joinClassNames('badgeIconTier', opts.wrapperClass);
     const starsClass = joinClassNames('badgeIconTier__stars', opts.starsClass);
     const medalClass = joinClassNames('badgeIconTier__medal', opts.medalClass);
@@ -446,15 +451,6 @@
       progress: (ctx) => `${getMetricNumber(ctx, 'susWins', 0)} one-guess solves`,
       roundBreakdownSlots: () => ({ round: '1/6', column: 'crownWins' }),
       predicate: (ctx) => getMetricNumber(ctx, 'susWins', 0) >= 1
-    },
-    {
-      id: 'on_the_board',
-      icon: () => buildLayeredBadgeIcon({ stars: 1 }),
-      title: 'On The Board',
-      description: (ctx) => `${ctx.player}'s #wordle-hurdle participation.`,
-      requirement: (ctx) => `Play 45% of the time. ${Math.round(getGamesPlayedTarget(ctx) *.45)} games.`,
-      progress: (ctx) => `${formatPercent(getMetricNumber(ctx, 'participationRate', 0), 0)} participation. ${getMetricNumber(ctx, 'totalGames', 0)} games played.`,
-      predicate: (ctx) => getMetricNumber(ctx, 'totalGames', 0) >= getGamesPlayedTarget(ctx) *.45
     },
     {
       id: 'always_guessing',
