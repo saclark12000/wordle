@@ -393,8 +393,8 @@
     },
     {
       id: 'crown_conversion',
-      icon: () => iconFromCodePoint(0x1f451),
-      title: 'Crown Conversion',
+      icon: () => "🎯",
+      title: 'Sharp Shooter',
       description: (ctx) => `${ctx.player} crown-win percentage.`,
       requirement: 'At least 30% of all wins are crown wins.',
       progress: (ctx) => `${formatPercent(getMetricNumber(ctx, 'crownRatio', 0), 1)}`,
@@ -448,6 +448,15 @@
       predicate: (ctx) => getMetricNumber(ctx, 'participationRate', 0) >= 0.85
     },
     {
+      id: 'bucket_master',
+      icon: () => '🥇',
+      title: 'Bucket Master',
+      description: (ctx) => `${ctx.player}'s #wordle-hurdle bucket mastery.`,
+      requirement: 'Get more than 5 crown wins in a guess round.',
+      progress: (ctx) => `${ctx.metric('buckets')[3]} <= here`,
+      predicate: (ctx) => getBucketMaster(ctx) >= 5
+    },
+    {
       id: 'badge_collector',
       icon: '🎁',
       title: 'Badge Collector',
@@ -456,6 +465,17 @@
       predicate: (ctx) => Number(ctx.badgeState && ctx.badgeState.earnedBadgeCount) >= 5
     }
   ];
+
+  function getBucketMaster(ctx) {
+    const buckets = ctx.metric('buckets');
+    if (!buckets) return 0;
+    const bucketKeys = Object.keys(buckets).filter((key) => key !== 'X');
+    let best = 0;
+    for (const key of bucketKeys) {
+      if (Number(buckets[key]) > 5) best = Math.max(best, Number(key));
+    }
+    return best;
+  }
 
   function buildBadgePayload(entry, ctx, opts = {}) {
     const earned = opts.earned !== false;
