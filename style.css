@@ -516,35 +516,43 @@ body:not(.developer-mode) .developerPanel {
   filter: sepia(0.75) saturate(1.8) hue-rotate(-8deg) brightness(1.03);
 }
 
-.badgeIconLayered {
+.badgeIconTier {
+  position: relative;
   display: inline-grid;
   place-items: center;
-  position: relative;
+  width: 1.35em;
+  height: 1.2em;
   line-height: 1;
+  overflow: visible;
 }
 
-.badgeIconLayered__background {
+.badgeIconTier__stars {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  z-index: 2;
+  left: 52%;
+  top: 70%;
   transform: translate(-50%, -50%);
-  font-size: 1.32em;
-  line-height: 1;
-  z-index: 0;
+  white-space: nowrap;
+  display: inline-block;
+  font-size: 0.48em;
+  letter-spacing: -0.09em;
+  filter: saturate(1.08) drop-shadow(0 1px 0 rgba(0,0,0,.55));
 }
 
-.badgeIconLayered__foreground {
+.badgeIconTier__medal {
+  display: inline-flex;
   position: relative;
-  line-height: 1;
   z-index: 1;
+  line-height: 1;
 }
 
-.badgeIconLayered__background--fire {
-  filter: hue-rotate(20deg) saturate(150%) brightness(1.2);
+.badgeIconTier[data-stars="2"] .badgeIconTier__stars {
+  font-size: 0.43em;
 }
 
-.badgeIconLayered__foreground--medal {
-  filter: saturate(1.05);
+.badgeIconTier[data-stars="3"] .badgeIconTier__stars {
+  font-size: 0.38em;
+  letter-spacing: -0.12em;
 }
 
 .playerCard__badgeImage {

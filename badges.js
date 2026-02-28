@@ -22,20 +22,23 @@
   }
 
   function buildLayeredBadgeIcon(opts = {}) {
-    const foreground = opts.foreground || opts.front || '';
-    const background = opts.background || opts.back || '';
-    if (!foreground && !background) return '';
-
-    const wrapperClass = joinClassNames('badgeIconLayered', opts.wrapperClass);
-    const backgroundClass = joinClassNames('badgeIconLayered__background', opts.backgroundClass);
-    const foregroundClass = joinClassNames('badgeIconLayered__foreground', opts.foregroundClass);
-    const backgroundMarkup = background
-      ? `<span class="${escapeHtml(backgroundClass)}" aria-hidden="true">${escapeHtml(background)}</span>`
+    const rawStars = Number(opts.stars);
+    const stars = Number.isFinite(rawStars)
+      ? Math.max(0, Math.min(3, Math.floor(rawStars)))
+      : 0;
+    const starGlyph = typeof opts.starGlyph === 'string' && opts.starGlyph
+      ? opts.starGlyph
+      : '⭐';
+    const medalGlyph = typeof opts.medalGlyph === 'string' && opts.medalGlyph
+      ? opts.medalGlyph
+      : '🏅';
+    const wrapperClass = joinClassNames('badgeIconTier', opts.wrapperClass);
+    const starsClass = joinClassNames('badgeIconTier__stars', opts.starsClass);
+    const medalClass = joinClassNames('badgeIconTier__medal', opts.medalClass);
+    const starsMarkup = stars > 0
+      ? `<span class="${escapeHtml(starsClass)}" aria-hidden="true">${escapeHtml(starGlyph.repeat(stars))}</span>`
       : '';
-    const foregroundMarkup = foreground
-      ? `<span class="${escapeHtml(foregroundClass)}" aria-hidden="true">${escapeHtml(foreground)}</span>`
-      : '';
-    return `<span class="${escapeHtml(wrapperClass)}" aria-hidden="true">${backgroundMarkup}${foregroundMarkup}</span>`;
+    return `<span class="${escapeHtml(wrapperClass)}" data-stars="${stars}" aria-hidden="true"><span class="${escapeHtml(medalClass)}" aria-hidden="true">${escapeHtml(medalGlyph)}</span>${starsMarkup}</span>`;
   }
 
   const CROWN_GUESS_BUCKETS = ['1', '2', '3', '4', '5', '6'];
@@ -446,7 +449,7 @@
     },
     {
       id: 'on_the_board',
-      icon: () => iconFromCodePoint(0x1F396),
+      icon: () => buildLayeredBadgeIcon({ stars: 1 }),
       title: 'On The Board',
       description: (ctx) => `${ctx.player}'s #wordle-hurdle participation.`,
       requirement: (ctx) => `Play 45% of the time. ${Math.round(getGamesPlayedTarget(ctx) *.45)} games.`,
@@ -456,10 +459,7 @@
     {
       id: 'always_guessing',
       icon: () => buildLayeredBadgeIcon({
-        background: '🔥',
-        foreground: '🎖',
-        backgroundClass: 'badgeIconLayered__background--fire',
-        foregroundClass: 'badgeIconLayered__foreground--medal'
+        stars: 2
       }),
       title: 'Always Guessing',
       description: (ctx) => `${ctx.player}'s #wordle-hurdle participation.`,

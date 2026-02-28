@@ -51,19 +51,24 @@ test('createBadgeMetricRegistry resolves precedence and namespaced lookup', () =
 
 test('buildLayeredBadgeIcon builds reusable layered icon markup', () => {
   const iconMarkup = buildLayeredBadgeIcon({
-    background: '🔥',
-    foreground: '🎖',
-    backgroundClass: 'badgeIconLayered__background--fire',
-    foregroundClass: 'badgeIconLayered__foreground--medal'
+    stars: 2
   });
 
-  assert.ok(iconMarkup.includes('badgeIconLayered'));
-  assert.ok(iconMarkup.includes('badgeIconLayered__background'));
-  assert.ok(iconMarkup.includes('badgeIconLayered__foreground'));
-  assert.ok(iconMarkup.includes('badgeIconLayered__background--fire'));
-  assert.ok(iconMarkup.includes('badgeIconLayered__foreground--medal'));
-  assert.ok(iconMarkup.includes('🔥'));
-  assert.ok(iconMarkup.includes('🎖'));
+  assert.ok(iconMarkup.includes('badgeIconTier'));
+  assert.ok(iconMarkup.includes('badgeIconTier__stars'));
+  assert.ok(iconMarkup.includes('badgeIconTier__medal'));
+  assert.ok(iconMarkup.includes('data-stars="2"'));
+  assert.ok(iconMarkup.includes('⭐⭐'));
+  assert.ok(iconMarkup.includes('🏅'));
+  assert.ok(iconMarkup.indexOf('badgeIconTier__medal') < iconMarkup.indexOf('badgeIconTier__stars'));
+
+  const clampedMarkup = buildLayeredBadgeIcon({ stars: 9 });
+  assert.ok(clampedMarkup.includes('data-stars="3"'));
+  assert.ok(clampedMarkup.includes('⭐⭐⭐'));
+
+  const zeroMarkup = buildLayeredBadgeIcon({ stars: 0 });
+  assert.ok(zeroMarkup.includes('data-stars="0"'));
+  assert.ok(!zeroMarkup.includes('badgeIconTier__stars'));
 });
 
 test('buildBadgeContext exposes metric helpers and merged metric sources', () => {
@@ -276,7 +281,8 @@ test('resolvePlayerCardBadges allows custom metric overrides without expanding c
   assert.equal(badges.find((badge) => badge.id === 'always_guessing').earned, true);
   assert.equal(badges.find((badge) => badge.id === 'crown_win_streak').progress, '6 days.');
   assert.equal(badges.find((badge) => badge.id === 'always_guessing').progress, '85% participation. 2 games played.');
-  assert.ok(badges.find((badge) => badge.id === 'always_guessing').icon.includes('badgeIconLayered'));
+  assert.ok(badges.find((badge) => badge.id === 'always_guessing').icon.includes('badgeIconTier'));
+  assert.ok(badges.find((badge) => badge.id === 'always_guessing').icon.includes('data-stars="3"'));
   assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').progress, 'Current avg: 3.2 guesses');
 });
 
@@ -313,6 +319,7 @@ test('resolvePlayerCardBadges uses windowDays threshold for on_the_board badge',
   assert.equal(onBoardSteady.earned, true);
   assert.equal(onBoardSteady.requirement, 'Play 45% of the time. 9 games.');
   assert.equal(onBoardSteady.progress, '45% participation. 9 games played.');
+  assert.ok(onBoardSteady.icon.includes('data-stars="1"'));
   assert.equal(onBoardShort.earned, false);
   assert.equal(onBoardShort.progress, '40% participation. 8 games played.');
 });
