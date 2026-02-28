@@ -433,15 +433,40 @@ function buildRoundBreakdownCellBadgeMarkup(roundBreakdownBadges, column, round)
       if (!badge || !badge.icon) return '';
       const tooltip = [badge.text, badge.progress, badge.requirement, badge.description].filter(Boolean).join(' - ');
       const label = badge.ariaLabel || [badge.text, badge.progress, badge.requirement].filter(Boolean).join('. ');
+      const actionLabel = badge.text
+        ? `Open ${badge.text} badge details`
+        : label
+          ? `Open badge details: ${label}`
+          : 'Open badge details';
       const titleAttr = tooltip ? ` title="${escapeHtml(tooltip)}"` : '';
-      const labelAttr = label ? ` role="img" aria-label="${escapeHtml(label)}"` : ' aria-hidden="true"';
+      const labelAttr = ` aria-label="${escapeHtml(actionLabel)}"`;
       const idAttr = badge.id ? ` data-round-badge-id="${escapeHtml(badge.id)}"` : '';
-      return `<span class="playerCard__tableBadge"${titleAttr}${labelAttr}${idAttr}>${badge.icon}</span>`;
+      return `<button type="button" class="playerCard__tableBadge"${titleAttr}${labelAttr}${idAttr}>${badge.icon}</button>`;
     })
     .filter(Boolean)
     .join('');
   if (!items) return '';
   return `<span class="playerCard__tableBadgeWrap">${items}</span>`;
+}
+
+function expandEarnedBadgeById(badgeId, root = document) {
+  if (!badgeId || !root || typeof root.querySelectorAll !== 'function') return false;
+  const allBadges = Array.from(root.querySelectorAll('[data-player-badge][data-badge-id]'));
+  if (!allBadges.length) return false;
+  const earnedBadge = allBadges.find((badge) => (
+    badge.dataset.badgeId === badgeId && badge.dataset.badgeEarned === 'true'
+  ));
+  const targetBadge = earnedBadge || allBadges.find((badge) => badge.dataset.badgeId === badgeId);
+  if (!targetBadge) return false;
+  if (!targetBadge.classList.contains('playerCard__badge--expanded')) {
+    toggleBadgeExpansion(targetBadge);
+  } else {
+    targetBadge.setAttribute('aria-expanded', 'true');
+  }
+  if (typeof targetBadge.focus === 'function') {
+    targetBadge.focus();
+  }
+  return true;
 }
 
 function buildPlayerStatsMarkup(player, metrics, badgeMarkup, roundBreakdownBadges = null) {
@@ -469,7 +494,29 @@ function buildPlayerStatsMarkup(player, metrics, badgeMarkup, roundBreakdownBadg
       highestTotalRows.rows.push(g);
     }
 
-    return `<tr id='playerCardRow_${g}'><td>${label}</td><td><span id='playerCardTotalHighlight_${g}' class="playerCard__total--highlight_hidden">🏅</span>${total}</td><td id='playerCardCrown_${g}'><span class="playerCard__tableValue"><span id='playerCardCrownHighlight_${g}' class="playerCard__crown--highlight_hidden">👑</span>${crown}${crownBadges}</span></td></tr>`;
+    return `
+      <tr id='playerCardRow_${g}'>
+        <td>${label}</td>
+        <td>
+          <span class="playerCard__tableMetric">
+            <span class="playerCard__tablePrefix">
+              <span id='playerCardTotalHighlight_${g}' class="playerCard__total--highlight_hidden">🏅</span>
+            </span>
+            <span class="playerCard__tableNumber">${total}</span>
+            <span class="playerCard__tableSuffix"></span>
+          </span>
+        </td>
+        <td id='playerCardCrown_${g}'>
+          <span class="playerCard__tableMetric">
+            <span class="playerCard__tablePrefix">
+              <span id='playerCardCrownHighlight_${g}' class="playerCard__crown--highlight_hidden">👑</span>
+            </span>
+            <span class="playerCard__tableNumber">${crown}</span>
+            <span class="playerCard__tableSuffix">${crownBadges}</span>
+          </span>
+        </td>
+      </tr>
+    `;
   }).join('');
 
   // Determine which guess count has the highest crown wins for potential highlighting
@@ -937,6 +984,13 @@ $('crownTable').addEventListener('click', (event) => {
     event.preventDefault();
     const badge = badgeClose.closest('[data-player-badge]');
     collapseBadgeExpansion(badge);
+    return;
+  }
+  const roundBadge = event.target.closest('[data-round-badge-id]');
+  if (roundBadge) {
+    event.preventDefault();
+    const badgeId = roundBadge.dataset.roundBadgeId || '';
+    expandEarnedBadgeById(badgeId, $('crownTable'));
     return;
   }
   const link = event.target.closest('[data-crown-player]');

@@ -30,7 +30,7 @@ If any required column is missing the app leaves the controls disabled and surfa
 1. **Load** – `parseCsvText()` (script.js) runs PapaParse with `header: true` and stamps each raw row with a hidden `__rowIndex`.
 2. **Detect** – `onCsvLoaded()` validates the schema, normalizes rows via `normalizeWordle()`, and populates the "Last N days" input with the total day count.
 3. **Render** – `render()` builds the day subset, feeds it to `wordleCrownWins()`, renders the leaderboard, and syncs the preview table to the same subset.
-4. **Interact** – clicking rows in the crown-table updates the player card, converts non-table stats into badge tiles, and keeps the Crown Wins table visible. Clicking/Enter/Space on a badge expands it to show metrics + requirements; clicking "Close" returns to group stats. Round Breakdown values can also show inline badge icons when a manifest entry declares matching `roundBreakdownSlots`.
+4. **Interact** – clicking rows in the crown-table updates the player card, converts non-table stats into badge tiles, and keeps the Crown Wins table visible. Clicking/Enter/Space on a badge expands it to show metrics + requirements; clicking "Close" returns to group stats. Round Breakdown values can also show inline badge icons when a manifest entry declares matching `roundBreakdownSlots`; clicking one of those inline icons expands the matching badge tile in the Earned/Locked board.
 
 ## Project Layout
 ```
@@ -65,6 +65,7 @@ Only PapaParse is loaded at runtime. Chart.js has been removed entirely.
 - Change **Last N days** -> leaderboard, preview table, and status copy reflect the new window.
 - Toggle player badges -> player cards render all available manifest badges; earned badges are full-color, locked badges are black, and expanding a tile reveals title + current metric + requirement.
 - Bucket Master smoke check -> when a player leads one or more crown rounds, the 🥫 icon appears next to the corresponding 👑 wins values in Round Breakdown.
+- Round Breakdown icon click check -> clicking a Round Breakdown badge icon expands the corresponding badge tile in the badge board.
 - Export normalized CSV -> downloaded file opens in Excel with crowns rendered correctly.
 
 ## Tests

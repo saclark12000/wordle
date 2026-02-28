@@ -693,11 +693,24 @@ body:not(.developer-mode) .developerPanel {
   background-color: var(--accent-background);
 }
 
-.playerCard__tableValue {
+.playerCard__tableMetric {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  flex-wrap: wrap;
+  min-width: 12ch;
+}
+
+.playerCard__tablePrefix {
+  width: 1.25em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.playerCard__tableNumber {
+  min-width: 3ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .playerCard__tableBadgeWrap {
@@ -706,20 +719,38 @@ body:not(.developer-mode) .developerPanel {
   gap: 4px;
 }
 
+.playerCard__tableSuffix {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 1px;
+}
+
 .playerCard__tableBadge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
   line-height: 1;
   font-size: 13px;
+  cursor: pointer;
+}
+
+.playerCard__tableBadge:focus-visible {
+  outline: none;
 }
 
 .playerCard__crown--highlight_hidden, .playerCard__total--highlight_hidden {
-  display: none;
+  visibility: hidden;
 }
 
 .playerCard__crown--highlight_visible, .playerCard__total--highlight_visible {
-  display: inline;
+  visibility: visible;
 }
 
 .crownTable__panelBtn {

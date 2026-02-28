@@ -432,6 +432,7 @@
       description: (ctx) => `${ctx.player}'s one-guess #wordle-hurdle solves.`,
       requirement: 'Get at least a single one-guess solve.',
       progress: (ctx) => `${getMetricNumber(ctx, 'susWins', 0)} one-guess solves`,
+      roundBreakdownSlots: () => ({ round: '1/6', column: 'crownWins' }),
       predicate: (ctx) => getMetricNumber(ctx, 'susWins', 0) >= 1
     },
     {
@@ -526,9 +527,9 @@
       icon: () => '<span class="badgeIcon--goldBucket">🥫</span>',
       title: 'Bucket Master',
       description: (ctx) => `${ctx.player}'s #wordle-hurdle bucket mastery.`,
-      requirement: 'Lead the group in crown wins for at least one round.',
+      requirement: 'Lead the group in 👑 wins for at least one round.',
       progress: (ctx) => {
-        const leadingRounds = getBucketMasterRounds(ctx);
+        const leadingRounds = getBucketMasterRounds(ctx).filter((round) => round !== '1/6');
         if (!leadingRounds.length) return 'No round leads yet';
         return `Leading rounds: ${leadingRounds.join(', ')}`;
       },
@@ -536,7 +537,9 @@
         round,
         column: 'crownWins'
       })),
-      predicate: (ctx) => getBucketMasterRounds(ctx).length > 0
+      predicate: (ctx) => { 
+        return getBucketMasterRounds(ctx).filter((round) => round !== '1/6').length > 0;
+      }
     },
     {
       id: 'badge_collector',

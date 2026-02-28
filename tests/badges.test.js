@@ -356,7 +356,7 @@ test('resolvePlayerCardBadges awards bucket_master when player leads any crown r
   assert.ok(leadBucketMaster);
   assert.ok(otherBucketMaster);
   assert.equal(leadBucketMaster.earned, true);
-  assert.equal(leadBucketMaster.progress, 'Leading rounds: 1/6, 2/6');
+  assert.equal(leadBucketMaster.progress, 'Leading rounds: 2/6');
   assert.deepEqual(leadBucketMaster.roundBreakdownSlots, [
     { round: '1', column: 'crownWins' },
     { round: '2', column: 'crownWins' }
