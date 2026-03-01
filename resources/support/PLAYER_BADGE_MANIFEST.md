@@ -74,7 +74,7 @@ Use `ctx.metric('key')` or `ctx.metricNumber('key')`.
   - `always_guessing` (earned at 15% participation, with icon tiers by participation: `15-44%=0`, `45-64%=1`, `65-84%=2`, `85%+=3`).
   - `crown_conversion` (30% crown conversion threshold).
 - Current round-lead tiered badge:
-  - `bucket_master` (earned when leading at least one non-`1/6` crown round; tier map: `1 lead=0⚙`, `2=1⚙`, `3=2⚙`, `4+=3⚙`; icon uses `starsIcon: '⚙'` and `medalIcon: '🥫'`).
+  - `bucket_master` (earned when leading at least one non-`1/6` crown round; tier map: `1 lead=0⚙`, `2=1⚙`, `3=2⚙`, `4+=3⚙`; icon uses `medalIcon: '🥫'` with tier count from qualified round leads).
 
 `insights` keys (present when supplied via `metricSources.insights`):
 - `activeCrownStreak` - Current consecutive-day crown streak.
@@ -141,17 +141,72 @@ icon: () => buildLayeredBadgeIcon({
 {
   id: 'bucket_master',
   icon: (ctx) => buildLayeredBadgeIcon({
-    stars: getBucketMasterTierStars(ctx),
-    starsIcon: '⚙',
+    stars: getThresholdTierStars(
+      CROWN_GUESS_BUCKETS.filter((bucketKey) => {
+        if (bucketKey === '1') return false;
+        const playerBuckets = ctx.data.metricsMap.get(ctx.player)?.crownBuckets || {};
+        const playerRoundWins = Number(playerBuckets[bucketKey]) || 0;
+        if (playerRoundWins <= 0) return false;
+        let groupMax = 0;
+        ctx.data.metricsMap.forEach((metrics) => {
+          const roundWins = Number(metrics?.crownBuckets?.[bucketKey]) || 0;
+          if (roundWins > groupMax) groupMax = roundWins;
+        });
+        return groupMax > 0 && playerRoundWins === groupMax;
+      }).length,
+      [2, 3, 4],
+      3
+    ),
     medalIcon: '🥫',
     medalClass: 'badgeIcon--goldBucket'
   }),
   title: 'Bucket Master',
-  requirement: 'Lead the group in 👑 wins for at least one non-1/6 round. Tier ladder: 0⚙ 1 lead, 1⚙ 2 leads, 2⚙ 3 leads, 3⚙ 4+ leads.',
-  progress: (ctx) => getBucketMasterTierProgress(ctx),
-  roundBreakdownSlots: (ctx) =>
-    getBucketMasterRoundKeys(ctx).map((round) => ({ round, column: 'crownWins' })),
-  predicate: (ctx) => getBucketMasterQualifiedRoundKeys(ctx).length > 0
+  requirement: 'Lead the group in 👑 wins for at least one non-1/6 round.',
+  tierInfo: '0⭐ 1 lead, 1⭐ 2 leads, 2⭐ 3 leads, 3⭐ 4+ leads.',
+  progress: (ctx) => {
+    const playerBuckets = ctx.data.metricsMap.get(ctx.player)?.crownBuckets || {};
+    const qualifiedRounds = CROWN_GUESS_BUCKETS.filter((bucketKey) => {
+      if (bucketKey === '1') return false;
+      const playerRoundWins = Number(playerBuckets[bucketKey]) || 0;
+      if (playerRoundWins <= 0) return false;
+      let groupMax = 0;
+      ctx.data.metricsMap.forEach((metrics) => {
+        const roundWins = Number(metrics?.crownBuckets?.[bucketKey]) || 0;
+        if (roundWins > groupMax) groupMax = roundWins;
+      });
+      return groupMax > 0 && playerRoundWins === groupMax;
+    });
+    if (!qualifiedRounds.length) return 'No non-1/6 round leads yet';
+    const tierCount = getThresholdTierStars(qualifiedRounds.length, [2, 3, 4], 3);
+    return `Leading rounds: ${qualifiedRounds.map((key) => `${key}/6`).join(', ')}. Tier: ${tierCount}⚙`;
+  },
+  roundBreakdownSlots: (ctx) => {
+    const playerBuckets = ctx.data.metricsMap.get(ctx.player)?.crownBuckets || {};
+    return CROWN_GUESS_BUCKETS.filter((bucketKey) => {
+      const playerRoundWins = Number(playerBuckets[bucketKey]) || 0;
+      if (playerRoundWins <= 0) return false;
+      let groupMax = 0;
+      ctx.data.metricsMap.forEach((metrics) => {
+        const roundWins = Number(metrics?.crownBuckets?.[bucketKey]) || 0;
+        if (roundWins > groupMax) groupMax = roundWins;
+      });
+      return groupMax > 0 && playerRoundWins === groupMax;
+    }).map((round) => ({ round, column: 'crownWins' }));
+  },
+  predicate: (ctx) => {
+    const playerBuckets = ctx.data.metricsMap.get(ctx.player)?.crownBuckets || {};
+    return CROWN_GUESS_BUCKETS.some((bucketKey) => {
+      if (bucketKey === '1') return false;
+      const playerRoundWins = Number(playerBuckets[bucketKey]) || 0;
+      if (playerRoundWins <= 0) return false;
+      let groupMax = 0;
+      ctx.data.metricsMap.forEach((metrics) => {
+        const roundWins = Number(metrics?.crownBuckets?.[bucketKey]) || 0;
+        if (roundWins > groupMax) groupMax = roundWins;
+      });
+      return groupMax > 0 && playerRoundWins === groupMax;
+    });
+  }
 }
 ```
 
@@ -178,10 +233,11 @@ const badges = resolvePlayerCardBadges(context, '@ace', {
 
 ## Workflow for Adding/Updating a Badge
 1. Add or update the entry in `PLAYER_CARD_BADGE_MANIFEST` inside `badges.js`, keeping manifest order intentional.
-2. Update `tests/badges.test.js` for predicate behavior and ordering.
-3. Run `npm test`.
-4. Smoke test in browser: row selection, earned/locked visuals, and expand/collapse details.
-5. If `roundBreakdownSlots` changed, verify inline table badges appear beside the targeted Round Breakdown values and that clicking the table icon opens the corresponding badge tile.
-6. Update `README.md` if user-facing terminology changes.
+2. Keep entry-specific logic in the entry itself; only extract helpers when reused by multiple entries.
+3. Update `tests/badges.test.js` for predicate behavior and ordering.
+4. Run `npm test`.
+5. Smoke test in browser: row selection, earned/locked visuals, and expand/collapse details.
+6. If `roundBreakdownSlots` changed, verify inline table badges appear beside the targeted Round Breakdown values and that clicking the table icon opens the corresponding badge tile.
+7. Update `README.md` if user-facing terminology changes.
 
 Keep badge updates atomic: manifest change + tests + docs in one commit.

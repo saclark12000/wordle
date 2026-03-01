@@ -362,14 +362,6 @@
     return value;
   }
 
-  function getGamesPlayedTarget(ctx) {
-    const metricValue = getMetricNumber(ctx, 'gamesPlayedTarget', NaN);
-    if (Number.isFinite(metricValue) && metricValue > 0) {
-      return Math.round(metricValue);
-    }
-    return 10;
-  }
-
   function getThresholdTierStars(value, thresholds = [1, 2, 3], maxStars = 3) {
     const parsedValue = Number(value);
     if (!Number.isFinite(parsedValue) || parsedValue <= 0) return 0;
@@ -388,47 +380,9 @@
     return Math.max(0, Math.min(Number(maxStars) || 0, stars));
   }
 
-  function getPercentTierStars(percent, thresholds = [0.45, 0.65, 0.85], maxStars = 3) {
-    return getThresholdTierStars(percent, thresholds, maxStars);
-  }
-
   const ALWAYS_GUESSING_UNLOCK_THRESHOLD = 0.15;
   const ALWAYS_GUESSING_STAR_THRESHOLDS = [0.45, 0.65, 0.85];
   const BUCKET_MASTER_STAR_THRESHOLDS = [2, 3, 4];
-
-  function getAlwaysGuessingTierStars(ctx) {
-    return getPercentTierStars(
-      getMetricNumber(ctx, 'participationRate', 0),
-      ALWAYS_GUESSING_STAR_THRESHOLDS,
-      3
-    );
-  }
-
-  function getBucketMasterQualifiedRoundKeys(ctx) {
-    return getBucketMasterRoundKeys(ctx).filter((bucketKey) => bucketKey !== '1');
-  }
-
-  function getBucketMasterQualifiedRounds(ctx) {
-    return getBucketMasterQualifiedRoundKeys(ctx).map((bucketKey) => formatGuessBucketLabel(bucketKey));
-  }
-
-  function getBucketMasterTierStars(ctx) {
-    return getThresholdTierStars(
-      getBucketMasterQualifiedRoundKeys(ctx).length,
-      BUCKET_MASTER_STAR_THRESHOLDS,
-      3
-    );
-  }
-
-  function getBucketMasterTierRequirement() {
-    return 'Lead the group in 👑 wins for at least one non-1/6 round. Tier ladder: 0⭐ 1 lead, 1⭐ 2 leads, 2⭐ 3 leads, 3⭐ 4+ leads.';
-  }
-
-  function getBucketMasterTierProgress(ctx) {
-    const leadingRounds = getBucketMasterQualifiedRounds(ctx);
-    if (!leadingRounds.length) return 'No non-1/6 round leads yet';
-    return `Leading rounds: ${leadingRounds.join(', ')}. Tier: ${getBucketMasterTierStars(ctx)}⚙`;
-  }
 
   function getCrownRatio(metrics) {
     if (!metrics || !metrics.totalGames) return 0;
@@ -515,16 +469,29 @@
     {
       id: 'always_guessing',
       icon: (ctx) => buildLayeredBadgeIcon({
-        stars: getAlwaysGuessingTierStars(ctx)
+        stars: getThresholdTierStars(
+          getMetricNumber(ctx, 'participationRate', 0),
+          ALWAYS_GUESSING_STAR_THRESHOLDS,
+          3
+        )
       }),
       title: 'Always Guessing',
       description: (ctx) => `${ctx.player}'s #wordle-hurdle participation.`,
       requirement: (ctx) => {
-        const gamesTarget = Math.round(getGamesPlayedTarget(ctx) * ALWAYS_GUESSING_UNLOCK_THRESHOLD);
+        const gamesPlayedTarget = getMetricNumber(ctx, 'gamesPlayedTarget', 10);
+        const windowDays = gamesPlayedTarget > 0 ? Math.round(gamesPlayedTarget) : 10;
+        const gamesTarget = Math.round(windowDays * ALWAYS_GUESSING_UNLOCK_THRESHOLD);
         return `Earn at least 15% participation (${gamesTarget} games).`;
       },
       tierInfo: '0⭐ 15-44%, 1⭐ 45-64%, 2⭐ 65-84%, 3⭐ 85%+.',
-      progress: (ctx) => `${formatPercent(getMetricNumber(ctx, 'participationRate', 0), 0)} participation. ${getMetricNumber(ctx, 'totalGames', 0)} games played. Tier: ${getAlwaysGuessingTierStars(ctx)}⭐`,
+      progress: (ctx) => {
+        const tierStars = getThresholdTierStars(
+          getMetricNumber(ctx, 'participationRate', 0),
+          ALWAYS_GUESSING_STAR_THRESHOLDS,
+          3
+        );
+        return `${formatPercent(getMetricNumber(ctx, 'participationRate', 0), 0)} participation. ${getMetricNumber(ctx, 'totalGames', 0)} games played. Tier: ${tierStars}⭐`;
+      },
       predicate: (ctx) => getMetricNumber(ctx, 'participationRate', 0) >= ALWAYS_GUESSING_UNLOCK_THRESHOLD
     },
     {
@@ -536,6 +503,7 @@
       progress: (ctx) => `${getMetricNumber(ctx, 'failGames', 0)} fails (group high: ${getMetricNumber(ctx, 'maxFailGames', 0)})`,
       predicate: (ctx) => {
         const failGames = getMetricNumber(ctx, 'failGames', 0);
+        // maxFailGames represents the highest number of failed games recorded among all players in the current window. To earn this badge, a player must have a failGames count that is greater than 0 and equal to the maxFailGames, indicating that they are tied for the most failed games in the group.
         const maxFailGames = getMetricNumber(ctx, 'maxFailGames', 0);
         return failGames > 0 && maxFailGames > 0 && failGames === maxFailGames;
       }
@@ -598,21 +566,121 @@
     },
     {
       id: 'bucket_master',
-      icon: (ctx) => buildLayeredBadgeIcon({
-        stars: getBucketMasterTierStars(ctx),
-        medalIcon: '🥫',
-        medalClass: 'badgeIcon--goldBucket'
-      }),
+      icon: (ctx) => {
+        const metricsMap = ctx && ctx.data && ctx.data.metricsMap instanceof Map
+          ? ctx.data.metricsMap
+          : null;
+        const player = ctx && ctx.player ? ctx.player : null;
+        let qualifiedLeadCount = 0;
+        if (metricsMap && player && metricsMap.has(player)) {
+          const playerMetrics = metricsMap.get(player);
+          const playerCrownBuckets = playerMetrics && playerMetrics.crownBuckets
+            ? playerMetrics.crownBuckets
+            : {};
+          const leadingRoundKeys = CROWN_GUESS_BUCKETS.filter((bucketKey) => {
+            const playerRoundWins = Number(playerCrownBuckets[bucketKey]) || 0;
+            if (playerRoundWins <= 0) return false;
+            let groupMaxRoundWins = 0;
+            metricsMap.forEach((metrics) => {
+              const roundWins = Number(metrics && metrics.crownBuckets ? metrics.crownBuckets[bucketKey] : 0) || 0;
+              if (roundWins > groupMaxRoundWins) {
+                groupMaxRoundWins = roundWins;
+              }
+            });
+            return groupMaxRoundWins > 0 && playerRoundWins === groupMaxRoundWins;
+          });
+          qualifiedLeadCount = leadingRoundKeys.filter((bucketKey) => bucketKey !== '1').length;
+        }
+        return buildLayeredBadgeIcon({
+          stars: getThresholdTierStars(qualifiedLeadCount, BUCKET_MASTER_STAR_THRESHOLDS, 3),
+          medalIcon: '🥫',
+          medalClass: 'badgeIcon--goldBucket'
+        });
+      },
       title: 'Bucket Master',
       description: (ctx) => `${ctx.player}'s #wordle-hurdle bucket mastery.`,
       requirement: 'Lead the group in 👑 wins for at least one non-1/6 round.',
       tierInfo: '0⭐ 1 lead, 1⭐ 2 leads, 2⭐ 3 leads, 3⭐ 4+ leads.',
-      progress: (ctx) => getBucketMasterTierProgress(ctx),
-      roundBreakdownSlots: (ctx) => getBucketMasterRoundKeys(ctx).map((round) => ({
-        round,
-        column: 'crownWins'
-      })),
-      predicate: (ctx) => getBucketMasterQualifiedRoundKeys(ctx).length > 0
+      progress: (ctx) => {
+        const metricsMap = ctx && ctx.data && ctx.data.metricsMap instanceof Map
+          ? ctx.data.metricsMap
+          : null;
+        const player = ctx && ctx.player ? ctx.player : null;
+        if (!metricsMap || !player || !metricsMap.has(player)) return 'No non-1/6 round leads yet';
+        const playerMetrics = metricsMap.get(player);
+        const playerCrownBuckets = playerMetrics && playerMetrics.crownBuckets
+          ? playerMetrics.crownBuckets
+          : {};
+        const leadingRoundKeys = CROWN_GUESS_BUCKETS.filter((bucketKey) => {
+          const playerRoundWins = Number(playerCrownBuckets[bucketKey]) || 0;
+          if (playerRoundWins <= 0) return false;
+          let groupMaxRoundWins = 0;
+          metricsMap.forEach((metrics) => {
+            const roundWins = Number(metrics && metrics.crownBuckets ? metrics.crownBuckets[bucketKey] : 0) || 0;
+            if (roundWins > groupMaxRoundWins) {
+              groupMaxRoundWins = roundWins;
+            }
+          });
+          return groupMaxRoundWins > 0 && playerRoundWins === groupMaxRoundWins;
+        });
+        const qualifiedRoundKeys = leadingRoundKeys.filter((bucketKey) => bucketKey !== '1');
+        if (!qualifiedRoundKeys.length) return 'No non-1/6 round leads yet';
+        const leadingRounds = qualifiedRoundKeys.map((bucketKey) => formatGuessBucketLabel(bucketKey));
+        const tierStars = getThresholdTierStars(qualifiedRoundKeys.length, BUCKET_MASTER_STAR_THRESHOLDS, 3);
+        return `Leading rounds: ${leadingRounds.join(', ')}. Tier: ${tierStars}⚙`;
+      },
+      roundBreakdownSlots: (ctx) => {
+        const metricsMap = ctx && ctx.data && ctx.data.metricsMap instanceof Map
+          ? ctx.data.metricsMap
+          : null;
+        const player = ctx && ctx.player ? ctx.player : null;
+        if (!metricsMap || !player || !metricsMap.has(player)) return [];
+        const playerMetrics = metricsMap.get(player);
+        const playerCrownBuckets = playerMetrics && playerMetrics.crownBuckets
+          ? playerMetrics.crownBuckets
+          : {};
+        const leadingRoundKeys = CROWN_GUESS_BUCKETS.filter((bucketKey) => {
+          const playerRoundWins = Number(playerCrownBuckets[bucketKey]) || 0;
+          if (playerRoundWins <= 0) return false;
+          let groupMaxRoundWins = 0;
+          metricsMap.forEach((metrics) => {
+            const roundWins = Number(metrics && metrics.crownBuckets ? metrics.crownBuckets[bucketKey] : 0) || 0;
+            if (roundWins > groupMaxRoundWins) {
+              groupMaxRoundWins = roundWins;
+            }
+          });
+          return groupMaxRoundWins > 0 && playerRoundWins === groupMaxRoundWins;
+        });
+        return leadingRoundKeys.map((round) => ({
+          round,
+          column: 'crownWins'
+        }));
+      },
+      predicate: (ctx) => {
+        const metricsMap = ctx && ctx.data && ctx.data.metricsMap instanceof Map
+          ? ctx.data.metricsMap
+          : null;
+        const player = ctx && ctx.player ? ctx.player : null;
+        if (!metricsMap || !player || !metricsMap.has(player)) return false;
+        const playerMetrics = metricsMap.get(player);
+        const playerCrownBuckets = playerMetrics && playerMetrics.crownBuckets
+          ? playerMetrics.crownBuckets
+          : {};
+        const qualifiedLeadCount = CROWN_GUESS_BUCKETS.filter((bucketKey) => {
+          if (bucketKey === '1') return false;
+          const playerRoundWins = Number(playerCrownBuckets[bucketKey]) || 0;
+          if (playerRoundWins <= 0) return false;
+          let groupMaxRoundWins = 0;
+          metricsMap.forEach((metrics) => {
+            const roundWins = Number(metrics && metrics.crownBuckets ? metrics.crownBuckets[bucketKey] : 0) || 0;
+            if (roundWins > groupMaxRoundWins) {
+              groupMaxRoundWins = roundWins;
+            }
+          });
+          return groupMaxRoundWins > 0 && playerRoundWins === groupMaxRoundWins;
+        }).length;
+        return qualifiedLeadCount > 0;
+      }
     },
     {
       id: 'badge_collector',
@@ -623,43 +691,6 @@
       predicate: (ctx) => Number(ctx.badgeState && ctx.badgeState.earnedBadgeCount) >= 5
     }
   ];
-
-  function getBucketMasterRoundKeys(ctx) {
-    const metricsMap = ctx && ctx.data && ctx.data.metricsMap instanceof Map
-      ? ctx.data.metricsMap
-      : null;
-    const player = ctx && ctx.player ? ctx.player : null;
-    if (!metricsMap || !player || !metricsMap.has(player)) return [];
-
-    const playerMetrics = metricsMap.get(player);
-    const playerCrownBuckets = playerMetrics && playerMetrics.crownBuckets
-      ? playerMetrics.crownBuckets
-      : {};
-    const leadingRounds = [];
-
-    CROWN_GUESS_BUCKETS.forEach((bucketKey) => {
-      const playerRoundWins = Number(playerCrownBuckets[bucketKey]) || 0;
-      if (playerRoundWins <= 0) return;
-
-      let groupMaxRoundWins = 0;
-      metricsMap.forEach((metrics) => {
-        const roundWins = Number(metrics && metrics.crownBuckets ? metrics.crownBuckets[bucketKey] : 0) || 0;
-        if (roundWins > groupMaxRoundWins) {
-          groupMaxRoundWins = roundWins;
-        }
-      });
-
-      if (groupMaxRoundWins > 0 && playerRoundWins === groupMaxRoundWins) {
-        leadingRounds.push(bucketKey);
-      }
-    });
-
-    return leadingRounds;
-  }
-
-  function getBucketMasterRounds(ctx) {
-    return getBucketMasterRoundKeys(ctx).map((bucketKey) => formatGuessBucketLabel(bucketKey));
-  }
 
   function buildBadgePayload(entry, ctx, opts = {}) {
     const earned = opts.earned !== false;
