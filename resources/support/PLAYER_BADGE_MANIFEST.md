@@ -23,6 +23,7 @@ Primary manifest in active use:
 Use these for `PLAYER_CARD_BADGE_MANIFEST` entries so locked badges still communicate progress.
 - `progress` - String or function; shown on collapsed card and in expanded details.
 - `requirement` - String or function; shown in expanded details.
+- `tierInfo` - Optional string/function for tiered badges; when present it renders as a `Tier Ladder` detail row under `Requirement`.
 - `description` - Optional explanatory copy.
 - `roundBreakdownSlots` - Optional string/object/array or function returning slots for inline Round Breakdown rendering.
   - Supported slot keys: `round` (or `bucket`) and optional `column` (`crownWins` default, `wins` supported).

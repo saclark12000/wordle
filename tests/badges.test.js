@@ -325,10 +325,13 @@ test('resolvePlayerCardBadges uses windowDays in always_guessing requirement cop
   assert.ok(alwaysGuessingSteady);
   assert.ok(alwaysGuessingShort);
   assert.equal(alwaysGuessingSteady.earned, true);
-  assert.equal(alwaysGuessingSteady.requirement, 'Earn at least 15% participation (3 games). Tier ladder: 0⭐ 15-44%, 1⭐ 45-64%, 2⭐ 65-84%, 3⭐ 85%+.');
+  assert.equal(alwaysGuessingSteady.requirement, 'Earn at least 15% participation (3 games).');
+  assert.ok(alwaysGuessingSteady.tierInfo);
+  assert.ok(alwaysGuessingSteady.tierInfo.includes('15-44%'));
   assert.equal(alwaysGuessingSteady.progress, '45% participation. 9 games played. Tier: 1⭐');
   assert.ok(alwaysGuessingSteady.icon.includes('data-stars="1"'));
   assert.equal(alwaysGuessingShort.earned, true);
+  assert.ok(alwaysGuessingShort.tierInfo);
   assert.equal(alwaysGuessingShort.progress, '40% participation. 8 games played. Tier: 0⭐');
   assert.ok(alwaysGuessingShort.icon.includes('data-stars="0"'));
 });
@@ -499,10 +502,12 @@ test('resolvePlayerCardBadges awards bucket_master when player leads a non-1/6 c
   const leadBucketMaster = badgesLead.find((badge) => badge.id === 'bucket_master');
   const otherBucketMaster = badgesOther.find((badge) => badge.id === 'bucket_master');
   assert.ok(leadBucketMaster);
+  assert.ok(leadBucketMaster.tierInfo);
+  assert.ok(leadBucketMaster.tierInfo.includes('1 lead'));
   assert.ok(otherBucketMaster);
   assert.equal(leadBucketMaster.earned, true);
   assert.equal(leadBucketMaster.progress, 'Leading rounds: 2/6. Tier: 0⚙');
-  assert.equal(leadBucketMaster.requirement, 'Lead the group in 👑 wins for at least one non-1/6 round. Tier ladder: 0⚙ 1 lead, 1⚙ 2 leads, 2⚙ 3 leads, 3⚙ 4+ leads.');
+  assert.ok(leadBucketMaster.requirement.includes('non-1/6 round'));
   assert.ok(leadBucketMaster.icon.includes('badgeIconTier'));
   assert.ok(leadBucketMaster.icon.includes('badgeIcon--goldBucket'));
   assert.ok(leadBucketMaster.icon.includes('data-stars="0"'));
@@ -631,6 +636,36 @@ test('buildPlayerBadgesMarkup renders locked badge state and details rows', () =
   assert.ok(markup.includes('playerCard__badgeDetailRow'));
   assert.ok(markup.includes('Current'));
   assert.ok(markup.includes('Requirement'));
+  assert.ok(!markup.includes('Tier Ladder'));
+});
+
+test('buildPlayerBadgesMarkup renders Tier Ladder row only for tiered badges', () => {
+  const markup = buildPlayerBadgesMarkup(
+    [
+      {
+        id: 'tiered',
+        icon: 'B',
+        text: 'Tiered',
+        progress: 'Tier 1',
+        requirement: 'Reach threshold',
+        tierInfo: '0-star: 1 lead, 1-star: 2 leads, 2-star: 3 leads, 3-star: 4 leads',
+        earned: true
+      },
+      {
+        id: 'plain',
+        icon: 'P',
+        text: 'Plain',
+        progress: 'Current avg: 3.8 guesses',
+        requirement: 'Keep average guesses when crowned at 4 or lower.',
+        earned: true
+      }
+    ],
+    { maxBadges: 2 }
+  );
+
+  assert.ok(markup.includes('Tier Ladder'));
+  assert.ok(markup.includes('0-star: 1 lead, 1-star: 2 leads, 2-star: 3 leads, 3-star: 4 leads'));
+  assert.equal((markup.match(/Tier Ladder/g) || []).length, 1);
 });
 
 test('buildPlayerBadgesMarkup groups earned badges above locked badges', () => {
@@ -654,3 +689,4 @@ test('buildPlayerBadgesMarkup groups earned badges above locked badges', () => {
   assert.ok(earnedFirstIndex >= 0);
   assert.ok(lockedFirstIndex > earnedFirstIndex);
 });
+

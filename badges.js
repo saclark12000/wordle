@@ -404,11 +404,6 @@
     );
   }
 
-  function getAlwaysGuessingTierRequirement(ctx) {
-    const gamesTarget = Math.round(getGamesPlayedTarget(ctx) * ALWAYS_GUESSING_UNLOCK_THRESHOLD);
-    return `Earn at least 15% participation (${gamesTarget} games). Tier ladder: 0⭐ 15-44%, 1⭐ 45-64%, 2⭐ 65-84%, 3⭐ 85%+.`;
-  }
-
   function getBucketMasterQualifiedRoundKeys(ctx) {
     return getBucketMasterRoundKeys(ctx).filter((bucketKey) => bucketKey !== '1');
   }
@@ -524,7 +519,11 @@
       }),
       title: 'Always Guessing',
       description: (ctx) => `${ctx.player}'s #wordle-hurdle participation.`,
-      requirement: (ctx) => getAlwaysGuessingTierRequirement(ctx),
+      requirement: (ctx) => {
+        const gamesTarget = Math.round(getGamesPlayedTarget(ctx) * ALWAYS_GUESSING_UNLOCK_THRESHOLD);
+        return `Earn at least 15% participation (${gamesTarget} games).`;
+      },
+      tierInfo: '0⭐ 15-44%, 1⭐ 45-64%, 2⭐ 65-84%, 3⭐ 85%+.',
       progress: (ctx) => `${formatPercent(getMetricNumber(ctx, 'participationRate', 0), 0)} participation. ${getMetricNumber(ctx, 'totalGames', 0)} games played. Tier: ${getAlwaysGuessingTierStars(ctx)}⭐`,
       predicate: (ctx) => getMetricNumber(ctx, 'participationRate', 0) >= ALWAYS_GUESSING_UNLOCK_THRESHOLD
     },
@@ -606,7 +605,8 @@
       }),
       title: 'Bucket Master',
       description: (ctx) => `${ctx.player}'s #wordle-hurdle bucket mastery.`,
-      requirement: () => getBucketMasterTierRequirement(),
+      requirement: 'Lead the group in 👑 wins for at least one non-1/6 round.',
+      tierInfo: '0⭐ 1 lead, 1⭐ 2 leads, 2⭐ 3 leads, 3⭐ 4+ leads.',
       progress: (ctx) => getBucketMasterTierProgress(ctx),
       roundBreakdownSlots: (ctx) => getBucketMasterRoundKeys(ctx).map((round) => ({
         round,
@@ -667,6 +667,7 @@
     const title = resolveBadgeField(entry.title, fieldCtx);
     const description = resolveBadgeField(entry.description, fieldCtx);
     const requirement = resolveBadgeField(entry.requirement, fieldCtx);
+    const tierInfo = resolveBadgeField(entry.tierInfo, fieldCtx);
     const progress = resolveBadgeField(entry.progress, fieldCtx);
     const image = resolveBadgeField(
       !earned && entry.lockedImage !== undefined ? entry.lockedImage : entry.image,
@@ -687,6 +688,7 @@
       text: title,
       description,
       requirement,
+      tierInfo,
       progress,
       alt: resolveBadgeField(entry.alt, fieldCtx),
       ariaLabel: resolveBadgeField(entry.ariaLabel, fieldCtx),
@@ -942,10 +944,11 @@
     const hasTitle = !!badge.text;
     const hasProgress = !!badge.progress;
     const hasRequirement = !!badge.requirement;
+    const hasTierInfo = !!badge.tierInfo;
     const hasDescription = !!badge.description;
     const hasIcon = earned && !!badge.icon;
     const hasImage = earned && !!badge.image;
-    const hasDetails = hasTitle || hasProgress || hasRequirement || hasDescription;
+    const hasDetails = hasTitle || hasProgress || hasRequirement || hasTierInfo || hasDescription;
     if (!hasTitle && !hasIcon && !hasImage && !hasProgress) return '';
 
     const contentParts = [];
@@ -958,8 +961,8 @@
       contentParts.push(`<div class="playerCard__badgeLock" aria-hidden="true">${badge.icon}</div>`);
     }
 
-    const label = badge.ariaLabel || [badge.text, badge.progress, badge.requirement].filter(Boolean).join('. ');
-    const tooltip = [badge.text, badge.progress, badge.requirement, badge.description].filter(Boolean).join(' - ');
+    const label = badge.ariaLabel || [badge.text, badge.progress, badge.requirement, badge.tierInfo].filter(Boolean).join('. ');
+    const tooltip = [badge.text, badge.progress, badge.requirement, badge.tierInfo, badge.description].filter(Boolean).join(' - ');
     const titleAttr = tooltip ? ` title="${escapeHtml(tooltip)}"` : '';
     const ariaAttr = label ? ` aria-label="${escapeHtml(label)}"` : '';
     const dataAttr = badge.id ? ` data-badge-id="${escapeHtml(badge.id)}"` : '';
@@ -979,6 +982,7 @@
           ${hasTitle ? `<div class="playerCard__badgeTitle">${escapeHtml(badge.text)}</div>` : ''}
           ${hasProgress ? `<div class="playerCard__badgeDetailRow"><span>Current</span><strong>${escapeHtml(badge.progress)}</strong></div>` : ''}
           ${hasRequirement ? `<div class="playerCard__badgeDetailRow"><span>Requirement</span><strong>${escapeHtml(badge.requirement)}</strong></div>` : ''}
+          ${hasTierInfo ? `<div class="playerCard__badgeDetailRow"><span>Tier Ladder</span><strong>${escapeHtml(badge.tierInfo)}</strong></div>` : ''}
           ${hasDescription ? `<div class="playerCard__badgeDescription">${escapeHtml(badge.description)}</div>` : ''}
         </div>
       `
