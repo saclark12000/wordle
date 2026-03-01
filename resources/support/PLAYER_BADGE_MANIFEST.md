@@ -72,6 +72,8 @@ Use `ctx.metric('key')` or `ctx.metricNumber('key')`.
 - Current participation/conversion badges:
   - `always_guessing` (earned at 15% participation, with icon tiers by participation: `15-44%=0`, `45-64%=1`, `65-84%=2`, `85%+=3`).
   - `crown_conversion` (30% crown conversion threshold).
+- Current round-lead tiered badge:
+  - `bucket_master` (earned when leading at least one non-`1/6` crown round; tier map: `1 lead=0⚙`, `2=1⚙`, `3=2⚙`, `4+=3⚙`; icon uses `starsIcon: '⚙'` and `medalIcon: '🥫'`).
 
 `insights` keys (present when supplied via `metricSources.insights`):
 - `activeCrownStreak` - Current consecutive-day crown streak.
@@ -137,15 +139,18 @@ icon: () => buildLayeredBadgeIcon({
 ```js
 {
   id: 'bucket_master',
-  icon: () => '<span class="badgeIcon--goldBucket">🥫</span>',
+  icon: (ctx) => buildLayeredBadgeIcon({
+    stars: getBucketMasterTierStars(ctx),
+    starsIcon: '⚙',
+    medalIcon: '🥫',
+    medalClass: 'badgeIcon--goldBucket'
+  }),
   title: 'Bucket Master',
-  progress: (ctx) => {
-    const rounds = getBucketMasterRounds(ctx).filter((round) => round !== '1/6');
-    return rounds.length ? `Leading rounds: ${rounds.join(', ')}` : 'No round leads yet';
-  },
+  requirement: 'Lead the group in 👑 wins for at least one non-1/6 round. Tier ladder: 0⚙ 1 lead, 1⚙ 2 leads, 2⚙ 3 leads, 3⚙ 4+ leads.',
+  progress: (ctx) => getBucketMasterTierProgress(ctx),
   roundBreakdownSlots: (ctx) =>
     getBucketMasterRoundKeys(ctx).map((round) => ({ round, column: 'crownWins' })),
-  predicate: (ctx) => getBucketMasterRounds(ctx).some((round) => round !== '1/6')
+  predicate: (ctx) => getBucketMasterQualifiedRoundKeys(ctx).length > 0
 }
 ```
 

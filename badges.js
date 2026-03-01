@@ -370,9 +370,9 @@
     return 10;
   }
 
-  function getPercentTierStars(percent, thresholds = [0.45, 0.65, 0.85], maxStars = 3) {
-    const parsedPercent = Number(percent);
-    if (!Number.isFinite(parsedPercent) || parsedPercent <= 0) return 0;
+  function getThresholdTierStars(value, thresholds = [1, 2, 3], maxStars = 3) {
+    const parsedValue = Number(value);
+    if (!Number.isFinite(parsedValue) || parsedValue <= 0) return 0;
     const parsedThresholds = Array.isArray(thresholds)
       ? thresholds
           .map((value) => Number(value))
@@ -381,15 +381,20 @@
       : [];
     let stars = 0;
     parsedThresholds.forEach((threshold) => {
-      if (parsedPercent >= threshold) {
+      if (parsedValue >= threshold) {
         stars += 1;
       }
     });
     return Math.max(0, Math.min(Number(maxStars) || 0, stars));
   }
 
+  function getPercentTierStars(percent, thresholds = [0.45, 0.65, 0.85], maxStars = 3) {
+    return getThresholdTierStars(percent, thresholds, maxStars);
+  }
+
   const ALWAYS_GUESSING_UNLOCK_THRESHOLD = 0.15;
   const ALWAYS_GUESSING_STAR_THRESHOLDS = [0.45, 0.65, 0.85];
+  const BUCKET_MASTER_STAR_THRESHOLDS = [2, 3, 4];
 
   function getAlwaysGuessingTierStars(ctx) {
     return getPercentTierStars(
@@ -402,6 +407,32 @@
   function getAlwaysGuessingTierRequirement(ctx) {
     const gamesTarget = Math.round(getGamesPlayedTarget(ctx) * ALWAYS_GUESSING_UNLOCK_THRESHOLD);
     return `Earn at least 15% participation (${gamesTarget} games). Tier ladder: 0⭐ 15-44%, 1⭐ 45-64%, 2⭐ 65-84%, 3⭐ 85%+.`;
+  }
+
+  function getBucketMasterQualifiedRoundKeys(ctx) {
+    return getBucketMasterRoundKeys(ctx).filter((bucketKey) => bucketKey !== '1');
+  }
+
+  function getBucketMasterQualifiedRounds(ctx) {
+    return getBucketMasterQualifiedRoundKeys(ctx).map((bucketKey) => formatGuessBucketLabel(bucketKey));
+  }
+
+  function getBucketMasterTierStars(ctx) {
+    return getThresholdTierStars(
+      getBucketMasterQualifiedRoundKeys(ctx).length,
+      BUCKET_MASTER_STAR_THRESHOLDS,
+      3
+    );
+  }
+
+  function getBucketMasterTierRequirement() {
+    return 'Lead the group in 👑 wins for at least one non-1/6 round. Tier ladder: 0⭐ 1 lead, 1⭐ 2 leads, 2⭐ 3 leads, 3⭐ 4+ leads.';
+  }
+
+  function getBucketMasterTierProgress(ctx) {
+    const leadingRounds = getBucketMasterQualifiedRounds(ctx);
+    if (!leadingRounds.length) return 'No non-1/6 round leads yet';
+    return `Leading rounds: ${leadingRounds.join(', ')}. Tier: ${getBucketMasterTierStars(ctx)}⚙`;
   }
 
   function getCrownRatio(metrics) {
@@ -568,22 +599,20 @@
     },
     {
       id: 'bucket_master',
-      icon: () => '<span class="badgeIcon--goldBucket">🥫</span>',
+      icon: (ctx) => buildLayeredBadgeIcon({
+        stars: getBucketMasterTierStars(ctx),
+        medalIcon: '🥫',
+        medalClass: 'badgeIcon--goldBucket'
+      }),
       title: 'Bucket Master',
       description: (ctx) => `${ctx.player}'s #wordle-hurdle bucket mastery.`,
-      requirement: 'Lead the group in 👑 wins for at least one round.',
-      progress: (ctx) => {
-        const leadingRounds = getBucketMasterRounds(ctx).filter((round) => round !== '1/6');
-        if (!leadingRounds.length) return 'No round leads yet';
-        return `Leading rounds: ${leadingRounds.join(', ')}`;
-      },
+      requirement: () => getBucketMasterTierRequirement(),
+      progress: (ctx) => getBucketMasterTierProgress(ctx),
       roundBreakdownSlots: (ctx) => getBucketMasterRoundKeys(ctx).map((round) => ({
         round,
         column: 'crownWins'
       })),
-      predicate: (ctx) => { 
-        return getBucketMasterRounds(ctx).filter((round) => round !== '1/6').length > 0;
-      }
+      predicate: (ctx) => getBucketMasterQualifiedRoundKeys(ctx).length > 0
     },
     {
       id: 'badge_collector',

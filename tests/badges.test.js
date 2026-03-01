@@ -501,16 +501,50 @@ test('resolvePlayerCardBadges awards bucket_master when player leads a non-1/6 c
   assert.ok(leadBucketMaster);
   assert.ok(otherBucketMaster);
   assert.equal(leadBucketMaster.earned, true);
-  assert.equal(leadBucketMaster.progress, 'Leading rounds: 2/6');
+  assert.equal(leadBucketMaster.progress, 'Leading rounds: 2/6. Tier: 0⚙');
+  assert.equal(leadBucketMaster.requirement, 'Lead the group in 👑 wins for at least one non-1/6 round. Tier ladder: 0⚙ 1 lead, 1⚙ 2 leads, 2⚙ 3 leads, 3⚙ 4+ leads.');
+  assert.ok(leadBucketMaster.icon.includes('badgeIconTier'));
+  assert.ok(leadBucketMaster.icon.includes('badgeIcon--goldBucket'));
+  assert.ok(leadBucketMaster.icon.includes('data-stars="0"'));
   assert.deepEqual(leadBucketMaster.roundBreakdownSlots, [
     { round: '1', column: 'crownWins' },
     { round: '2', column: 'crownWins' }
   ]);
   assert.equal(otherBucketMaster.earned, true);
-  assert.equal(otherBucketMaster.progress, 'Leading rounds: 2/6');
+  assert.equal(otherBucketMaster.progress, 'Leading rounds: 2/6. Tier: 0⚙');
+  assert.ok(otherBucketMaster.icon.includes('data-stars="0"'));
   assert.deepEqual(otherBucketMaster.roundBreakdownSlots, [
     { round: '2', column: 'crownWins' }
   ]);
+});
+
+test('bucket_master icon stars follow leading-round tiers (0-3)', () => {
+  const scenarios = [
+    { rounds: [2], stars: 0 },
+    { rounds: [2, 3], stars: 1 },
+    { rounds: [2, 3, 4], stars: 2 },
+    { rounds: [2, 3, 4, 5], stars: 3 }
+  ];
+
+  scenarios.forEach(({ rounds, stars }) => {
+    const dataset = [];
+    rounds.forEach((guessBucket) => {
+      dataset.push({ player: '@tier', guesses: guessBucket, solved: true, isCrown: true });
+      dataset.push({ player: '@tier', guesses: guessBucket, solved: true, isCrown: true });
+      dataset.push({ player: '@other', guesses: guessBucket, solved: true, isCrown: true });
+    });
+    const ctx = createCrownContext();
+    ctx.dataset = dataset;
+    ctx.playerMetrics = buildPlayerMetricsMap(dataset);
+
+    const bucketMaster = resolvePlayerCardBadges(ctx, '@tier').find((badge) => badge.id === 'bucket_master');
+    assert.ok(bucketMaster);
+    assert.equal(bucketMaster.earned, true);
+    assert.ok(bucketMaster.icon.includes('badgeIconTier'));
+    assert.ok(bucketMaster.icon.includes('badgeIcon--goldBucket'));
+    assert.ok(bucketMaster.icon.includes(`data-stars="${stars}"`));
+    assert.ok(bucketMaster.progress.includes(`Tier: ${stars}⚙`));
+  });
 });
 
 test('buildRoundBreakdownBadgeMap indexes manifest-provided round slots', () => {

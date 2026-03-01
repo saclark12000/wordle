@@ -17,6 +17,7 @@ Single-page web app focused on a single job: ingest the standardized Wordle/Hurd
   - Supports icon swaps (for example `starsIcon: '🎪'`, `medalIcon: '🎱'`).
   - `always_guessing` unlocks at `15%` participation and uses tier mapping: `15-44% = 0`, `45-64% = 1`, `65-84% = 2`, `85%+ = 3`.
 - **Round Breakdown badge placements** – manifest entries can publish `roundBreakdownSlots` so a selected subset of earned badges render inline beside Round Breakdown values (for example, `bucket_master` icons in the 👑 wins column on awarding rounds).
+  - `bucket_master` now uses tier mapping by non-`1/6` leading rounds: `1 lead = 0⚙`, `2 = 1⚙`, `3 = 2⚙`, `4+ = 3⚙`, with a gold `🥫` medal icon.
 - **Badge metric registry** – badge predicates now consume `ctx.metric(...)`/`ctx.metricNumber(...)` against namespaced metric sources (`core`, `derived`, `insights`, `custom`) so new metrics can be added without growing top-level badge context fields.
 
 ## Expected CSV Shape
@@ -68,7 +69,7 @@ Only PapaParse is loaded at runtime. Chart.js has been removed entirely.
 - Load the built-in sample -> leaderboard populates, selecting rows updates the detail pane.
 - Change **Last N days** -> leaderboard, preview table, and status copy reflect the new window.
 - Toggle player badges -> player cards render all available manifest badges; earned badges are full-color, locked badges are black, and expanding a tile reveals title + current metric + requirement.
-- Bucket Master smoke check -> when a player leads a non-`1/6` crown round, the 🥫 icon appears next to the corresponding 👑 wins values in Round Breakdown.
+- Bucket Master smoke check -> when a player leads a non-`1/6` crown round, the layered gold-🥫 + ⚙ tier icon appears next to corresponding 👑 wins values in Round Breakdown, and tier changes at 1/2/3/4+ qualifying leads.
 - Round Breakdown icon click check -> clicking a Round Breakdown badge icon expands the corresponding badge tile in the badge board.
 - Export normalized CSV -> downloaded file opens in Excel with crowns rendered correctly.
 
