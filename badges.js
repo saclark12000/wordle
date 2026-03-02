@@ -621,11 +621,23 @@
     },
     {
       id: 'crown_win_ratio',
-      icon: () => "🎯",
+      icon: (ctx) => buildLayeredBadgeIcon({
+        stars: getThresholdTierStars(
+          getMetricNumber(ctx, 'crownRatio', 0),
+          [0.45, 0.6, 0.75],
+          3
+        ),
+        medalIcon: '🎯'
+      }),
       title: 'Sharp Shooter',
       description: (ctx) => `${ctx.player} crown-win percentage.`,
       requirement: 'At least 30% of all wins are crown wins.',
-      progress: (ctx) => `${formatPercent(getMetricNumber(ctx, 'crownRatio', 0), 1)}`,
+      tierInfo: '30-44% = 0⭐, 45-59% = 1⭐, 60-74% = 2⭐, 75%+ = 3⭐.',
+      progress: (ctx) => {
+        const crownRatio = getMetricNumber(ctx, 'crownRatio', 0);
+        const tierStars = getThresholdTierStars(crownRatio, [0.45, 0.6, 0.75], 3);
+        return `${formatPercent(crownRatio, 1)}. Tier: ${tierStars}⭐`;
+      },
       predicate: (ctx) => getMetricNumber(ctx, 'crownRatio', 0) >= 0.3
     },
     {
