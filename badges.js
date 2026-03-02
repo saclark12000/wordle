@@ -585,9 +585,9 @@
     {
       id: 'most_failed_games',
       icon: () => '<span class="badgeIcon--darkBlueCrown">👑</span>',
-      title: 'Most Failed Games',
+      title: 'L Crown',
       description: (ctx) => `${ctx.player}'s failed game count compared to the group.`,
-      requirement: 'Have the most failed games in this window.',
+      requirement: 'Have the most failed #wordle-hurdle games.',
       progress: (ctx) => `${getMetricNumber(ctx, 'failGames', 0)} fails (group high: ${getMetricNumber(ctx, 'maxFailGames', 0)})`,
       predicate: (ctx) => {
         const failGames = getMetricNumber(ctx, 'failGames', 0);
@@ -597,16 +597,30 @@
       }
     },
     {
-      id: 'high_fail_rate',
-      icon: () => iconFromCodePoint(0x26a0),
-      title: 'High Fail Rate',
-      description: (ctx) => `${ctx.player}'s failed game percentage.`,
-      requirement: 'Fail more than 30% of games played.',
-      progress: (ctx) => `${formatPercent(getMetricNumber(ctx, 'failRatio', 0), 1)} failed`,
-      predicate: (ctx) => getMetricNumber(ctx, 'failRatio', 0) > 0.3
+      id: 'failed_games',
+      icon: (ctx) => buildLayeredBadgeIcon({
+        stars: getThresholdTierStars(
+          getMetricNumber(ctx, 'failGames', 0),
+          [4, 8, 16],
+          3
+        ),
+        medalIcon: '💀'
+      }),
+      title: 'L Collector',
+      description: (ctx) => `${ctx.player}'s failed game count.`,
+      requirement: 'Have some failed games.',
+      tierInfo: '1 fail = 0⭐, 4 fails = 1⭐, 8 fails = 2⭐, 16+ fails = 3⭐.',
+      progress: (ctx) => {
+        const failGames = getMetricNumber(ctx, 'failGames', 0);
+        const tierStars = getThresholdTierStars(failGames, [4, 8, 16], 3);
+        return `${failGames} fails (group high: ${getMetricNumber(ctx, 'maxFailGames', 0)}). Tier: ${tierStars}⭐`;
+      },
+      predicate: (ctx) => { // this needs to be updated to match tne recent updates to the 'most_failed_games' badge, since they share the same underlying metric and will often be earned together. The main difference is that 'most_failed_games' is only earned by the player(s) with the highest failGames count, while 'failed_games' can be earned by any player with at least one failed game, with tiered recognition for higher counts.
+        return getMetricNumber(ctx, 'failGames', 0) > 0;
+      }
     },
     {
-      id: 'crown_conversion',
+      id: 'crown_win_ratio',
       icon: () => "🎯",
       title: 'Sharp Shooter',
       description: (ctx) => `${ctx.player} crown-win percentage.`,

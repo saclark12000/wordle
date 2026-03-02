@@ -79,6 +79,8 @@ Use `ctx.metric('key')` or `ctx.metricNumber('key')`.
 - Current participation/conversion badges:
   - `always_guessing` (earned at 15% participation, with icon tiers by participation: `15-44%=0`, `45-64%=1`, `65-84%=2`, `85%+=3`).
   - `crown_conversion` (30% crown conversion threshold).
+- Current fail-based tiered badge:
+  - `failed_games` (earned only when tied for group-high fails; tier map by fail count: `1=0⭐`, `2=1⭐`, `3=2⭐`, `4+=3⭐`).
 - Current round-lead tiered badge:
   - `bucket_master` (earned when leading at least one non-`1/6` crown round; tier map: `1 lead=0⚙`, `2=1⚙`, `3=2⚙`, `4+=3⚙`; icon uses `medalIcon: '🥫'` with tier count from qualified round leads).
 

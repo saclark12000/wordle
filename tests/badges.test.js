@@ -575,8 +575,47 @@ test('resolvePlayerCardBadges awards most_failed_games to players tied for top f
   assert.ok(mostFailedC);
   assert.equal(mostFailedA.earned, true);
   assert.equal(mostFailedA.progress, '2 fails (group high: 2)');
+  assert.equal(mostFailedA.tierInfo, undefined);
+  assert.ok(!mostFailedA.icon.includes('data-stars="'));
   assert.equal(mostFailedC.earned, false);
   assert.equal(mostFailedC.progress, '1 fails (group high: 2)');
+  assert.ok(!mostFailedC.icon.includes('data-stars="'));
+});
+
+test('failed_games icon stars follow fail-count tiers (0-3) when player is group high', () => {
+  function failedGamesBadgeForTopFailCount(topFailCount) {
+    const dataset = [
+      ...Array.from({ length: topFailCount }, () => ({ player: '@top', solved: false, isCrown: false })),
+      ...Array.from({ length: Math.max(0, topFailCount - 1) }, () => ({ player: '@other', solved: false, isCrown: false })),
+      { player: '@top', guesses: 3, solved: true, isCrown: false },
+      { player: '@other', guesses: 3, solved: true, isCrown: false }
+    ];
+    const ctx = createCrownContext();
+    ctx.dataset = dataset;
+    ctx.playerMetrics = buildPlayerMetricsMap(dataset);
+    return resolvePlayerCardBadges(ctx, '@top').find((badge) => badge.id === 'failed_games');
+  }
+
+  const one = failedGamesBadgeForTopFailCount(1);
+  const two = failedGamesBadgeForTopFailCount(2);
+  const three = failedGamesBadgeForTopFailCount(3);
+  const four = failedGamesBadgeForTopFailCount(4);
+
+  assert.ok(one);
+  assert.equal(one.earned, true);
+  assert.ok(one.tierInfo);
+  assert.ok(one.tierInfo.includes('4+'));
+  assert.ok(one.icon.includes('data-stars="0"'));
+  assert.ok(one.progress.includes('Tier: 0'));
+
+  assert.ok(two.icon.includes('data-stars="1"'));
+  assert.ok(two.progress.includes('Tier: 1'));
+
+  assert.ok(three.icon.includes('data-stars="2"'));
+  assert.ok(three.progress.includes('Tier: 2'));
+
+  assert.ok(four.icon.includes('data-stars="3"'));
+  assert.ok(four.progress.includes('Tier: 3'));
 });
 
 test('resolvePlayerCardBadges uses strict threshold for high_fail_rate badge', () => {
