@@ -438,23 +438,86 @@
 
   const PLAYER_CARD_BADGE_MANIFEST = [
     {
-      id: 'top_ten_rank',
-      icon: () => iconFromCodePoint(0x1f3c5),
-      title: (ctx) => {
-        const playerRank = getMetricNumber(ctx, 'playerRank', 0);
-        return playerRank ? `${getOrdinal(playerRank)} Place` : 'Top 10 Rank';
-      },
-      description: (ctx) => `${ctx.player} has ${getMetricNumber(ctx, 'crownWins', 0)} crowns this window.`,
-      requirement: 'Finish in the top 10 for crown wins in this window.',
+      id: 'crown_wins_1_place',
+      icon: () => '👑',
+      title: '1st Place',
+      description: (ctx) => `${ctx.player} is leading crown wins this window.`,
+      requirement: 'Finish 1st in crown wins in this window.',
       progress: (ctx) => {
         const playerRank = getMetricNumber(ctx, 'playerRank', 0);
         if (!playerRank) return 'Current rank: --';
         return `Current rank: ${getOrdinal(playerRank)} (${getMetricNumber(ctx, 'crownWins', 0)} crowns)`;
       },
+      predicate: (ctx) => getMetricNumber(ctx, 'playerRank', 0) === 1
+    },
+    {
+      id: 'crown_wins_2-5_place',
+      icon: (ctx) => {
+        const playerRank = getMetricNumber(ctx, 'playerRank', 0);
+        const stars = playerRank >= 2 && playerRank <= 5
+          ? Math.max(0, 5 - playerRank)
+          : 0;
+        return buildLayeredBadgeIcon({
+          stars,
+          medalIcon: '🥈'
+        });
+      },
+      title: (ctx) => `${getOrdinal(getMetricNumber(ctx, 'playerRank', 0))} Place`,
+      description: (ctx) => `${ctx.player}'s crown-win position inside the top five.`,
+      requirement: 'Finish between 2nd and 5th in crown wins in this window.',
+      tierInfo: '2nd = 3⭐, 3rd = 2⭐, 4th = 1⭐, 5th = 0⭐.',
+      progress: (ctx) => {
+        const playerRank = getMetricNumber(ctx, 'playerRank', 0);
+        if (!playerRank) return 'Current rank: --';
+        const progress = `Current rank: ${getOrdinal(playerRank)} (${getMetricNumber(ctx, 'crownWins', 0)} crowns)`;
+        if (playerRank < 2 || playerRank > 5) return progress;
+        return `${progress}. Tier: ${Math.max(0, 5 - playerRank)}⭐`;
+      },
       predicate: (ctx) => {
         const playerRank = getMetricNumber(ctx, 'playerRank', 0);
-        return playerRank > 0 && playerRank <= 10;
+        return playerRank >= 2 && playerRank <= 5;
       }
+    },
+    {
+      id: 'crown_wins_6-9_place',
+      icon: (ctx) => {
+        const playerRank = getMetricNumber(ctx, 'playerRank', 0);
+        const stars = playerRank >= 6 && playerRank <= 9
+          ? Math.max(0, 9 - playerRank)
+          : 0;
+        return buildLayeredBadgeIcon({
+          stars,
+          medalIcon: '🥉'
+        });
+      },
+      title: (ctx) => `${getOrdinal(getMetricNumber(ctx, 'playerRank', 0))} Place`,
+      description: (ctx) => `${ctx.player}'s crown-win position inside places 6 through 9.`,
+      requirement: 'Finish between 6th and 9th in crown wins in this window.',
+      tierInfo: '6th = 3⭐, 7th = 2⭐, 8th = 1⭐, 9th = 0⭐.',
+      progress: (ctx) => {
+        const playerRank = getMetricNumber(ctx, 'playerRank', 0);
+        if (!playerRank) return 'Current rank: --';
+        const progress = `Current rank: ${getOrdinal(playerRank)} (${getMetricNumber(ctx, 'crownWins', 0)} crowns)`;
+        if (playerRank < 6 || playerRank > 9) return progress;
+        return `${progress}. Tier: ${Math.max(0, 9 - playerRank)}⭐`;
+      },
+      predicate: (ctx) => {
+        const playerRank = getMetricNumber(ctx, 'playerRank', 0);
+        return playerRank >= 6 && playerRank <= 9;
+      }
+    },
+    {
+      id: 'crown_wins_10_place',
+      icon: () => '🔟',
+      title: '10th Place Sticker',
+      description: (ctx) => `${ctx.player} lands exactly 10th for crown wins this window.`,
+      requirement: 'Finish exactly 10th in crown wins in this window.',
+      progress: (ctx) => {
+        const playerRank = getMetricNumber(ctx, 'playerRank', 0);
+        if (!playerRank) return 'Current rank: --';
+        return `Current rank: ${getOrdinal(playerRank)} (${getMetricNumber(ctx, 'crownWins', 0)} crowns)`;
+      },
+      predicate: (ctx) => getMetricNumber(ctx, 'playerRank', 0) === 10
     },
     {
       id: 'sus_wins',
@@ -473,7 +536,8 @@
           getMetricNumber(ctx, 'participationRate', 0),
           ALWAYS_GUESSING_STAR_THRESHOLDS,
           3
-        )
+        ),
+        medalIcon: '📅'
       }),
       title: 'Always Guessing',
       description: (ctx) => `${ctx.player}'s #wordle-hurdle participation.`,

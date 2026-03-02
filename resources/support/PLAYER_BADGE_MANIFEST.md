@@ -70,6 +70,11 @@ Use `ctx.metric('key')` or `ctx.metricNumber('key')`.
 
 ### Badge ID notes
 - Deprecated IDs removed from the active manifest: `games_played`, `participation_rate`, `crown_ratio`.
+- Current crown-rank series replacing `top_ten_rank`:
+  - `crown_wins_1_place` (exactly 1st place).
+  - `crown_wins_2-5_place` (2nd through 5th, tiered `3⭐ -> 0⭐` by place).
+  - `crown_wins_6-9_place` (6th through 9th, tiered `3⭐ -> 0⭐` by place).
+  - `crown_wins_10_place` (exactly 10th place).
 - Current participation/conversion badges:
   - `always_guessing` (earned at 15% participation, with icon tiers by participation: `15-44%=0`, `45-64%=1`, `65-84%=2`, `85%+=3`).
   - `crown_conversion` (30% crown conversion threshold).

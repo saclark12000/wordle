@@ -252,9 +252,72 @@ test('resolvePlayerCardBadges returns locked badges with progress and requiremen
   assert.ok(badges.every((badge) => typeof badge.requirement === 'string' && badge.requirement.length > 0));
   assert.ok(badges.some((badge) => badge.earned === false));
   assert.equal(badges.find((badge) => badge.id === 'under_five_games').earned, true);
-  assert.equal(badges.find((badge) => badge.id === 'top_ten_rank').progress, 'Current rank: 12th (0 crowns)');
+  assert.equal(badges.find((badge) => badge.id === 'crown_wins_10_place').progress, 'Current rank: 12th (0 crowns)');
+  assert.ok(badges.find((badge) => badge.id === 'crown_wins_2-5_place').tierInfo);
+  assert.ok(badges.find((badge) => badge.id === 'crown_wins_6-9_place').tierInfo);
   assert.equal(badges.find((badge) => badge.id === 'always_guessing').progress, '5% participation. 1 games played. Tier: 0⭐');
   assert.equal(badges.find((badge) => badge.id === 'badge_collector').progress, '1 badges earned');
+});
+
+test('rank badge series replaces top_ten_rank with place-specific tiers', () => {
+  const dataset = [];
+  const crownCounts = [
+    ['@r1', 10],
+    ['@r2', 9],
+    ['@r3', 8],
+    ['@r4', 7],
+    ['@r5', 6],
+    ['@r6', 5],
+    ['@r7', 4],
+    ['@r8', 3],
+    ['@r9', 2],
+    ['@r10', 1],
+    ['@r11', 0]
+  ];
+  crownCounts.forEach(([player, crowns]) => {
+    for (let i = 0; i < crowns; i += 1) {
+      dataset.push({ player, guesses: 2, solved: true, isCrown: true });
+    }
+  });
+  const ctx = createCrownContext();
+  ctx.dataset = dataset;
+  ctx.playerMetrics = buildPlayerMetricsMap(dataset);
+
+  const rank1 = resolvePlayerCardBadges(ctx, '@r1');
+  const rank2 = resolvePlayerCardBadges(ctx, '@r2');
+  const rank5 = resolvePlayerCardBadges(ctx, '@r5');
+  const rank6 = resolvePlayerCardBadges(ctx, '@r6');
+  const rank9 = resolvePlayerCardBadges(ctx, '@r9');
+  const rank10 = resolvePlayerCardBadges(ctx, '@r10');
+  const rank11 = resolvePlayerCardBadges(ctx, '@r11');
+
+  assert.equal(rank1.find((badge) => badge.id === 'crown_wins_1_place').earned, true);
+  assert.equal(rank1.find((badge) => badge.id === 'crown_wins_2-5_place').earned, false);
+  assert.equal(rank1.find((badge) => badge.id === 'crown_wins_6-9_place').earned, false);
+  assert.equal(rank1.find((badge) => badge.id === 'crown_wins_10_place').earned, false);
+
+  assert.equal(rank2.find((badge) => badge.id === 'crown_wins_2-5_place').earned, true);
+  assert.ok(rank2.find((badge) => badge.id === 'crown_wins_2-5_place').icon.includes('data-stars="3"'));
+  assert.ok(rank2.find((badge) => badge.id === 'crown_wins_2-5_place').progress.includes('Tier: 3'));
+
+  assert.equal(rank5.find((badge) => badge.id === 'crown_wins_2-5_place').earned, true);
+  assert.ok(rank5.find((badge) => badge.id === 'crown_wins_2-5_place').icon.includes('data-stars="0"'));
+
+  assert.equal(rank6.find((badge) => badge.id === 'crown_wins_6-9_place').earned, true);
+  assert.ok(rank6.find((badge) => badge.id === 'crown_wins_6-9_place').icon.includes('data-stars="3"'));
+  assert.ok(rank6.find((badge) => badge.id === 'crown_wins_6-9_place').progress.includes('Tier: 3'));
+
+  assert.equal(rank9.find((badge) => badge.id === 'crown_wins_6-9_place').earned, true);
+  assert.ok(rank9.find((badge) => badge.id === 'crown_wins_6-9_place').icon.includes('data-stars="0"'));
+
+  assert.equal(rank10.find((badge) => badge.id === 'crown_wins_10_place').earned, true);
+  assert.equal(rank10.find((badge) => badge.id === 'crown_wins_2-5_place').earned, false);
+  assert.equal(rank10.find((badge) => badge.id === 'crown_wins_6-9_place').earned, false);
+
+  assert.equal(rank11.find((badge) => badge.id === 'crown_wins_1_place').earned, false);
+  assert.equal(rank11.find((badge) => badge.id === 'crown_wins_2-5_place').earned, false);
+  assert.equal(rank11.find((badge) => badge.id === 'crown_wins_6-9_place').earned, false);
+  assert.equal(rank11.find((badge) => badge.id === 'crown_wins_10_place').earned, false);
 });
 
 test('resolvePlayerCardBadges allows custom metric overrides without expanding ctx shape', () => {

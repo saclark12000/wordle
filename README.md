@@ -12,6 +12,7 @@ Single-page web app focused on a single job: ingest the standardized Wordle/Hurd
 - **Leaderboard view** – `renderCrownTable()` replaces the old Chart.js canvas with the dedicated crown-table layout, including player detail panes and multi-badge toggles.
 - **Preview + export** – the data preview only shows the rows backing the current "Last N days" window, and you can download the normalized rows with **Export normalized CSV**.
 - **Badge system** – `badges.js` drives the player-card badge board (`PLAYER_CARD_BADGE_MANIFEST`) from the full manifest. Earned tiles are full-color, locked tiles render as black boxes, and expanding a tile shows current progress plus requirements.
+- **Rank badge series update** – `top_ten_rank` was replaced by place-specific badges: `crown_wins_1_place`, `crown_wins_2-5_place` (tiered), `crown_wins_6-9_place` (tiered), and `crown_wins_10_place`.
 - **Participation badge update** – manifest uses `always_guessing` (85% participation) with icon tiers for rising participation percentages.
 - **Tiered badge icon helper** – `buildLayeredBadgeIcon(...)` in `badges.js` provides a reusable star-tier medal pattern (`0-3 ⭐` displayed in front of `🏅`, for example `always_guessing`).
   - Supports icon swaps (for example `starsIcon: '🎪'`, `medalIcon: '🎱'`).
