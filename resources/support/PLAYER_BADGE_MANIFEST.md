@@ -17,6 +17,7 @@ Primary manifest in active use:
 - For tiered medal icon compositions, use `buildLayeredBadgeIcon(...)` from `badges.js` instead of hand-built HTML strings.
   - Primary option: `stars` (`0..3`) to render `⭐` count in front of a `🏅`.
   - Optional icon overrides: `starsIcon` / `starIcon` / `starGlyph`, `medalIcon` / `medalGlyph`.
+  - Optional position override: `starsPosition` (`default`, `over`, or `under`).
   - Optional class overrides: `wrapperClass`, `starsClass`, `medalClass`.
 
 ## Player Card Fields
@@ -137,7 +138,8 @@ Helpers currently include:
 icon: () => buildLayeredBadgeIcon({
   stars: 2,
   starsIcon: '🎪',
-  medalIcon: '🎱'
+  medalIcon: '🎱',
+  starsPosition: 'over'
 })
 ```
 

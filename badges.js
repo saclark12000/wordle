@@ -37,13 +37,23 @@
       (typeof opts.medalGlyph === 'string' && opts.medalGlyph) ||
       '🏅'
     );
-    const wrapperClass = joinClassNames('badgeIconTier', opts.wrapperClass);
+    const starsPositionRaw = typeof opts.starsPosition === 'string'
+      ? opts.starsPosition.trim().toLowerCase()
+      : '';
+    const starsPosition = starsPositionRaw === 'over' || starsPositionRaw === 'under'
+      ? starsPositionRaw
+      : 'default';
+    const wrapperClass = joinClassNames(
+      'badgeIconTier',
+      starsPosition !== 'default' ? `badgeIconTier--stars-${starsPosition}` : null,
+      opts.wrapperClass
+    );
     const starsClass = joinClassNames('badgeIconTier__stars', opts.starsClass);
     const medalClass = joinClassNames('badgeIconTier__medal', opts.medalClass);
     const starsMarkup = stars > 0
       ? `<span class="${escapeHtml(starsClass)}" aria-hidden="true">${escapeHtml(starGlyph.repeat(stars))}</span>`
       : '';
-    return `<span class="${escapeHtml(wrapperClass)}" data-stars="${stars}" aria-hidden="true"><span class="${escapeHtml(medalClass)}" aria-hidden="true">${escapeHtml(medalGlyph)}</span>${starsMarkup}</span>`;
+    return `<span class="${escapeHtml(wrapperClass)}" data-stars="${stars}" data-stars-position="${escapeHtml(starsPosition)}" aria-hidden="true"><span class="${escapeHtml(medalClass)}" aria-hidden="true">${escapeHtml(medalGlyph)}</span>${starsMarkup}</span>`;
   }
 
   const CROWN_GUESS_BUCKETS = ['1', '2', '3', '4', '5', '6'];
@@ -521,11 +531,25 @@
     },
     {
       id: 'sus_wins',
-      icon: () => iconFromCodePoint(0x1f440),
+      icon: (ctx) => buildLayeredBadgeIcon({
+        stars: getThresholdTierStars(
+          getMetricNumber(ctx, 'susWins', 0),
+          [2, 3, 4],
+          3
+        ),
+        starsIcon: ' 👀 ',
+        medalIcon: '👀',
+        starsPosition: 'under'
+      }),
       title: 'Sus Wins',
       description: (ctx) => `${ctx.player}'s one-guess #wordle-hurdle solves.`,
       requirement: 'Get at least a single one-guess solve.',
-      progress: (ctx) => `${getMetricNumber(ctx, 'susWins', 0)} one-guess solves`,
+      tierInfo: '1 solve = 0👀, 2 solves = 1👀, 3 solves = 2👀, 4+ solves = 3👀.',
+      progress: (ctx) => {
+        const susWins = getMetricNumber(ctx, 'susWins', 0);
+        const tierEyes = getThresholdTierStars(susWins, [2, 3, 4], 3);
+        return `${susWins} one-guess solves. Tier: ${tierEyes}👀`;
+      },
       roundBreakdownSlots: () => ({ round: '1/6', column: 'crownWins' }),
       predicate: (ctx) => getMetricNumber(ctx, 'susWins', 0) >= 1
     },

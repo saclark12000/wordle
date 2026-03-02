@@ -58,6 +58,7 @@ test('buildLayeredBadgeIcon builds reusable layered icon markup', () => {
   assert.ok(iconMarkup.includes('badgeIconTier__stars'));
   assert.ok(iconMarkup.includes('badgeIconTier__medal'));
   assert.ok(iconMarkup.includes('data-stars="2"'));
+  assert.ok(iconMarkup.includes('data-stars-position="default"'));
   assert.ok(iconMarkup.includes('⭐⭐'));
   assert.ok(iconMarkup.includes('🏅'));
   assert.ok(iconMarkup.indexOf('badgeIconTier__medal') < iconMarkup.indexOf('badgeIconTier__stars'));
@@ -73,10 +74,20 @@ test('buildLayeredBadgeIcon builds reusable layered icon markup', () => {
   const customIconMarkup = buildLayeredBadgeIcon({
     stars: 2,
     starsIcon: '🎪',
-    medalIcon: '🎱'
+    medalIcon: '🎱',
+    starsPosition: 'over'
   });
   assert.ok(customIconMarkup.includes('🎪🎪'));
   assert.ok(customIconMarkup.includes('🎱'));
+  assert.ok(customIconMarkup.includes('badgeIconTier--stars-over'));
+  assert.ok(customIconMarkup.includes('data-stars-position="over"'));
+
+  const customUnderMarkup = buildLayeredBadgeIcon({
+    stars: 1,
+    starsPosition: 'under'
+  });
+  assert.ok(customUnderMarkup.includes('badgeIconTier--stars-under'));
+  assert.ok(customUnderMarkup.includes('data-stars-position="under"'));
 });
 
 test('buildBadgeContext exposes metric helpers and merged metric sources', () => {
@@ -493,6 +504,51 @@ test('always_guessing remains locked below 15% participation', () => {
   assert.ok(badge);
   assert.equal(badge.earned, false);
   assert.ok(badge.icon.includes('data-stars="0"'));
+});
+
+test('sus_wins icon eyes follow one-guess solve tiers (0-3)', () => {
+  function susBadgeForCount(count) {
+    const dataset = Array.from({ length: count }, () => ({
+      player: '@sus',
+      guesses: 1,
+      solved: true,
+      isCrown: false
+    }));
+    const ctx = createCrownContext();
+    ctx.dataset = dataset;
+    ctx.playerMetrics = buildPlayerMetricsMap(dataset);
+    return resolvePlayerCardBadges(ctx, '@sus').find((badge) => badge.id === 'sus_wins');
+  }
+
+  const zero = susBadgeForCount(0);
+  const one = susBadgeForCount(1);
+  const two = susBadgeForCount(2);
+  const three = susBadgeForCount(3);
+  const four = susBadgeForCount(4);
+
+  assert.ok(zero);
+  assert.equal(zero.earned, false);
+  assert.ok(zero.icon.includes('data-stars="0"'));
+  assert.ok(zero.icon.includes('data-stars-position="under"'));
+  assert.ok(zero.icon.includes('badgeIconTier--stars-under'));
+  assert.ok(zero.progress.includes('Tier: 0'));
+
+  assert.ok(one);
+  assert.equal(one.earned, true);
+  assert.ok(one.tierInfo);
+  assert.ok(one.tierInfo.includes('4+'));
+  assert.ok(one.icon.includes('data-stars="0"'));
+  assert.ok(one.icon.includes('data-stars-position="under"'));
+  assert.ok(one.progress.includes('Tier: 0'));
+
+  assert.ok(two.icon.includes('data-stars="1"'));
+  assert.ok(two.progress.includes('Tier: 1'));
+
+  assert.ok(three.icon.includes('data-stars="2"'));
+  assert.ok(three.progress.includes('Tier: 2'));
+
+  assert.ok(four.icon.includes('data-stars="3"'));
+  assert.ok(four.progress.includes('Tier: 3'));
 });
 
 test('resolvePlayerCardBadges awards most_failed_games to players tied for top fail count', () => {

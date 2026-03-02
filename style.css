@@ -539,6 +539,19 @@ body:not(.developer-mode) .developerPanel {
   filter: saturate(1.08) drop-shadow(0 1px 0 rgba(0,0,0,.55));
 }
 
+.badgeIconTier--stars-over .badgeIconTier__stars {
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, -100%);
+}
+
+.badgeIconTier--stars-under .badgeIconTier__stars {
+  left: 50%;
+  top: 100%;
+  transform: translate(-50%, 0);
+  z-index: 0;
+}
+
 .badgeIconTier__medal {
   display: inline-flex;
   position: relative;

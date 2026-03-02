@@ -16,6 +16,7 @@ Single-page web app focused on a single job: ingest the standardized Wordle/Hurd
 - **Participation badge update** – manifest uses `always_guessing` (85% participation) with icon tiers for rising participation percentages.
 - **Tiered badge icon helper** – `buildLayeredBadgeIcon(...)` in `badges.js` provides a reusable star-tier medal pattern (`0-3 ⭐` displayed in front of `🏅`, for example `always_guessing`).
   - Supports icon swaps (for example `starsIcon: '🎪'`, `medalIcon: '🎱'`).
+  - Supports star placement config with `starsPosition: 'default' | 'over' | 'under'` (for example `sus_wins` uses `under`).
   - `always_guessing` unlocks at `15%` participation and uses tier mapping: `15-44% = 0`, `45-64% = 1`, `65-84% = 2`, `85%+ = 3`.
 - **Round Breakdown badge placements** – manifest entries can publish `roundBreakdownSlots` so a selected subset of earned badges render inline beside Round Breakdown values (for example, `bucket_master` icons in the 👑 wins column on awarding rounds).
   - `bucket_master` now uses tier mapping by non-`1/6` leading rounds: `1 lead = 0⚙`, `2 = 1⚙`, `3 = 2⚙`, `4+ = 3⚙`, with a gold `🥫` medal icon.
