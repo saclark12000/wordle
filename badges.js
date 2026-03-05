@@ -242,6 +242,15 @@
     return `${(value * 100).toFixed(digits)}%`;
   }
 
+  function formatCountLabel(value, singular, plural) {
+    const parsed = Number(value);
+    const count = Number.isFinite(parsed) ? Math.round(parsed) : 0;
+    const singularLabel = String(singular || '').trim();
+    const pluralLabel = String((plural || `${singularLabel}s`) || '').trim();
+    const label = Math.abs(count) === 1 ? singularLabel : pluralLabel;
+    return `${count} ${label}`.trim();
+  }
+
   const BADGE_METRIC_NAMESPACE_ORDER = ['custom', 'insights', 'derived', 'core'];
 
   function isPlainObject(value) {
@@ -438,6 +447,7 @@
       return `${((wins / total) * 100).toFixed(0)}%`;
     },
     percent: formatPercent,
+    count: formatCountLabel,
     metricNumber: (value) => {
       if (!Number.isFinite(value)) return '0';
       return `${Math.round(value)}`;
@@ -451,12 +461,12 @@
       id: 'crown_wins_1_place',
       icon: () => '👑',
       title: '1st Place',
-      description: (ctx) => `${ctx.player} is leading crown wins this window.`,
-      requirement: 'Finish 1st in crown wins in this window.',
+      description: (ctx) => `${ctx.player} is holding the # wordle-hurdle crown-win lead.`,
+      requirement: 'Hold 1st place in # wordle-hurdle crown wins.',
       progress: (ctx) => {
         const playerRank = getMetricNumber(ctx, 'playerRank', 0);
         if (!playerRank) return 'Current rank: --';
-        return `Current rank: ${getOrdinal(playerRank)} (${getMetricNumber(ctx, 'crownWins', 0)} crowns)`;
+        return `Current rank: ${getOrdinal(playerRank)} (${formatCountLabel(getMetricNumber(ctx, 'crownWins', 0), 'crown')})`;
       },
       predicate: (ctx) => getMetricNumber(ctx, 'playerRank', 0) === 1
     },
@@ -473,13 +483,13 @@
         });
       },
       title: (ctx) => `${getOrdinal(getMetricNumber(ctx, 'playerRank', 0))} Place`,
-      description: (ctx) => `${ctx.player}'s crown-win position inside the top five.`,
-      requirement: 'Finish between 2nd and 5th in crown wins in this window.',
+      description: (ctx) => `${ctx.player} is battling inside the top five for crown wins.`,
+      requirement: 'Top 5 in # wordle-hurdle crown wins.',
       tierInfo: '2nd = 3⭐, 3rd = 2⭐, 4th = 1⭐, 5th = 0⭐.',
       progress: (ctx) => {
         const playerRank = getMetricNumber(ctx, 'playerRank', 0);
         if (!playerRank) return 'Current rank: --';
-        const progress = `Current rank: ${getOrdinal(playerRank)} (${getMetricNumber(ctx, 'crownWins', 0)} crowns)`;
+        const progress = `Current rank: ${getOrdinal(playerRank)} (${formatCountLabel(getMetricNumber(ctx, 'crownWins', 0), 'crown')})`;
         if (playerRank < 2 || playerRank > 5) return progress;
         return `${progress}. Tier: ${Math.max(0, 5 - playerRank)}⭐`;
       },
@@ -501,13 +511,13 @@
         });
       },
       title: (ctx) => `${getOrdinal(getMetricNumber(ctx, 'playerRank', 0))} Place`,
-      description: (ctx) => `${ctx.player}'s crown-win position inside places 6 through 9.`,
-      requirement: 'Finish between 6th and 9th in crown wins in this window.',
+      description: (ctx) => `${ctx.player} is hanging in the crown-win top ten.`,
+      requirement: 'Top 9 in # wordle-hurdle crown wins.',
       tierInfo: '6th = 3⭐, 7th = 2⭐, 8th = 1⭐, 9th = 0⭐.',
       progress: (ctx) => {
         const playerRank = getMetricNumber(ctx, 'playerRank', 0);
         if (!playerRank) return 'Current rank: --';
-        const progress = `Current rank: ${getOrdinal(playerRank)} (${getMetricNumber(ctx, 'crownWins', 0)} crowns)`;
+        const progress = `Current rank: ${getOrdinal(playerRank)} (${formatCountLabel(getMetricNumber(ctx, 'crownWins', 0), 'crown')})`;
         if (playerRank < 6 || playerRank > 9) return progress;
         return `${progress}. Tier: ${Math.max(0, 9 - playerRank)}⭐`;
       },
@@ -520,12 +530,12 @@
       id: 'crown_wins_10_place',
       icon: () => '🔟',
       title: '10th Place Sticker',
-      description: (ctx) => `${ctx.player} lands exactly 10th for crown wins this window.`,
-      requirement: 'Finish exactly 10th in crown wins in this window.',
+      description: (ctx) => `${ctx.player} is in the 10th place in # wordle-hurdle crown wins.`,
+      requirement: 'Top 10 in # wordle-hurdle crown wins.',
       progress: (ctx) => {
         const playerRank = getMetricNumber(ctx, 'playerRank', 0);
         if (!playerRank) return 'Current rank: --';
-        return `Current rank: ${getOrdinal(playerRank)} (${getMetricNumber(ctx, 'crownWins', 0)} crowns)`;
+        return `Current rank: ${getOrdinal(playerRank)} (${formatCountLabel(getMetricNumber(ctx, 'crownWins', 0), 'crown')})`;
       },
       predicate: (ctx) => getMetricNumber(ctx, 'playerRank', 0) === 10
     },
@@ -542,13 +552,13 @@
         starsPosition: 'under'
       }),
       title: 'Sus Wins',
-      description: (ctx) => `${ctx.player}'s one-guess #wordle-hurdle solves.`,
-      requirement: 'Get at least a single one-guess solve.',
+      description: (ctx) => `${ctx.player}'s 1/6 sniper solves.`,
+      requirement: 'Land at least one 1/6 solve.',
       tierInfo: '1 solve = 0👀, 2 solves = 1👀, 3 solves = 2👀, 4+ solves = 3👀.',
       progress: (ctx) => {
         const susWins = getMetricNumber(ctx, 'susWins', 0);
         const tierEyes = getThresholdTierStars(susWins, [2, 3, 4], 3);
-        return `${susWins} one-guess solves. Tier: ${tierEyes}👀`;
+        return `${formatCountLabel(susWins, 'one-guess solve')}. Tier: ${tierEyes}👀`;
       },
       roundBreakdownSlots: () => ({ round: '1/6', column: 'crownWins' }),
       predicate: (ctx) => getMetricNumber(ctx, 'susWins', 0) >= 1
@@ -564,12 +574,12 @@
         medalIcon: '📅'
       }),
       title: 'Always Guessing',
-      description: (ctx) => `${ctx.player}'s #wordle-hurdle participation.`,
+      description: (ctx) => `How often ${ctx.player} shows up in # wordle-hurdle.`,
       requirement: (ctx) => {
         const gamesPlayedTarget = getMetricNumber(ctx, 'gamesPlayedTarget', 10);
         const windowDays = gamesPlayedTarget > 0 ? Math.round(gamesPlayedTarget) : 10;
         const gamesTarget = Math.round(windowDays * ALWAYS_GUESSING_UNLOCK_THRESHOLD);
-        return `Earn at least 15% participation (${gamesTarget} games).`;
+        return `Reach at least 15% participation (${formatCountLabel(gamesTarget, 'game')}).`;
       },
       tierInfo: '0⭐ 15-44%, 1⭐ 45-64%, 2⭐ 65-84%, 3⭐ 85%+.',
       progress: (ctx) => {
@@ -578,7 +588,7 @@
           ALWAYS_GUESSING_STAR_THRESHOLDS,
           3
         );
-        return `${formatPercent(getMetricNumber(ctx, 'participationRate', 0), 0)} participation. ${getMetricNumber(ctx, 'totalGames', 0)} games played. Tier: ${tierStars}⭐`;
+        return `${formatPercent(getMetricNumber(ctx, 'participationRate', 0), 0)} participation. ${formatCountLabel(getMetricNumber(ctx, 'totalGames', 0), 'game')} played. Tier: ${tierStars}⭐`;
       },
       predicate: (ctx) => getMetricNumber(ctx, 'participationRate', 0) >= ALWAYS_GUESSING_UNLOCK_THRESHOLD
     },
@@ -587,11 +597,10 @@
       icon: () => '<span class="badgeIcon--darkBlueCrown">👑</span>',
       title: 'L Crown',
       description: (ctx) => `${ctx.player}'s failed game count compared to the group.`,
-      requirement: 'Have the most failed #wordle-hurdle games.',
-      progress: (ctx) => `${getMetricNumber(ctx, 'failGames', 0)} fails (group high: ${getMetricNumber(ctx, 'maxFailGames', 0)})`,
+      requirement: 'Tie for the most failed # wordle-hurdle games.',
+      progress: (ctx) => `${formatCountLabel(getMetricNumber(ctx, 'failGames', 0), 'fail')} (group high: ${getMetricNumber(ctx, 'maxFailGames', 0)})`,
       predicate: (ctx) => {
         const failGames = getMetricNumber(ctx, 'failGames', 0);
-        // maxFailGames represents the highest number of failed games recorded among all players in the current window. To earn this badge, a player must have a failGames count that is greater than 0 and equal to the maxFailGames, indicating that they are tied for the most failed games in the group.
         const maxFailGames = getMetricNumber(ctx, 'maxFailGames', 0);
         return failGames > 0 && maxFailGames > 0 && failGames === maxFailGames;
       }
@@ -607,17 +616,15 @@
         medalIcon: '💀'
       }),
       title: 'L Collector',
-      description: (ctx) => `${ctx.player}'s failed game count.`,
-      requirement: 'Have some failed games.',
+      description: (ctx) => `${ctx.player}'s running total of failed games.`,
+      requirement: 'Record at least one failed game.',
       tierInfo: '1 fail = 0⭐, 4 fails = 1⭐, 8 fails = 2⭐, 16+ fails = 3⭐.',
       progress: (ctx) => {
         const failGames = getMetricNumber(ctx, 'failGames', 0);
         const tierStars = getThresholdTierStars(failGames, [4, 8, 16], 3);
-        return `${failGames} fails (group high: ${getMetricNumber(ctx, 'maxFailGames', 0)}). Tier: ${tierStars}⭐`;
+        return `${formatCountLabel(failGames, 'fail')} (group high: ${getMetricNumber(ctx, 'maxFailGames', 0)}). Tier: ${tierStars}⭐`;
       },
-      predicate: (ctx) => { // this needs to be updated to match tne recent updates to the 'most_failed_games' badge, since they share the same underlying metric and will often be earned together. The main difference is that 'most_failed_games' is only earned by the player(s) with the highest failGames count, while 'failed_games' can be earned by any player with at least one failed game, with tiered recognition for higher counts.
-        return getMetricNumber(ctx, 'failGames', 0) > 0;
-      }
+      predicate: (ctx) => getMetricNumber(ctx, 'failGames', 0) > 0
     },
     {
       id: 'crown_win_ratio',
@@ -630,13 +637,13 @@
         medalIcon: '🎯'
       }),
       title: 'Sharp Shooter',
-      description: (ctx) => `${ctx.player} crown-win percentage.`,
-      requirement: 'At least 30% of all wins are crown wins.',
+      description: (ctx) => `${ctx.player}'s crown conversion rate.`,
+      requirement: 'Keep crown wins at 30% or higher of games played.',
       tierInfo: '30-44% = 0⭐, 45-59% = 1⭐, 60-74% = 2⭐, 75%+ = 3⭐.',
       progress: (ctx) => {
         const crownRatio = getMetricNumber(ctx, 'crownRatio', 0);
         const tierStars = getThresholdTierStars(crownRatio, [0.45, 0.6, 0.75], 3);
-        return `${formatPercent(crownRatio, 1)}. Tier: ${tierStars}⭐`;
+        return `Crown conversion: ${formatPercent(crownRatio, 1)}. Tier: ${tierStars}⭐`;
       },
       predicate: (ctx) => getMetricNumber(ctx, 'crownRatio', 0) >= 0.3
     },
@@ -644,31 +651,31 @@
       id: 'crown_win_streak',
       icon: () => '🍆',
       title: 'Long Streak',
-      description: (ctx) => `${ctx.player}'s best crown streak.`,
+      description: (ctx) => `${ctx.player}'s best crown-win streak.`,
       requirement: 'Gain crown wins for at least 5 days in a row.',
-      progress: (ctx) => `${getMetricNumber(ctx, 'bestCrownStreak', 0)} days.`,
+      progress: (ctx) => `${formatCountLabel(getMetricNumber(ctx, 'bestCrownStreak', 0), 'day')}.`,
       predicate: (ctx) => getMetricNumber(ctx, 'bestCrownStreak', 0) >= 5
     },
     {
       id: 'under_five_games',
       icon: () => iconFromCodePoint(0x1f331),
       title: 'Fresh Player',
-      description: (ctx) => `${ctx.player} has fewer than 5 #wordle-hurdle games.`,
+      description: (ctx) => `${ctx.player} has fewer than 5 # wordle-hurdle games.`,
       requirement: 'Play fewer than 5 games.',
-      progress: (ctx) => `${ctx.metricNumber('totalGames', 0)} games played.`,
+      progress: (ctx) => `${formatCountLabel(ctx.metricNumber('totalGames', 0), 'game')} played.`,
       predicate: (ctx) => ctx.metricNumber('totalGames', 0) < 5
     },
     {
       id: 'efficient_crowns',
       icon: '🗄',
       title: 'Crown Efficiency',
-      description: (ctx) => `${ctx.player}'s average guesses on crowned wins.`,
-      requirement: 'Keep average guesses when crowned at 4 or lower.',
+      description: (ctx) => `${ctx.player}'s average guess count on crowned wins.`,
+      requirement: 'Keep crowned-win average guesses at 4.0 or lower.',
       progress: (ctx) => {
         const raw = getMetricValue(ctx, 'avgGuessWhenCrowned', null);
         const avg = Number(raw);
-        if (raw === null || raw === undefined || raw === '') return 'No crowned solves yet';
-        if (!Number.isFinite(avg)) return 'No crowned solves yet';
+        if (raw === null || raw === undefined || raw === '') return 'No crowned wins yet.';
+        if (!Number.isFinite(avg)) return 'No crowned wins yet.';
         return `Current avg: ${avg.toFixed(1)} guesses`;
       },
       predicate: (ctx) => {
@@ -712,7 +719,7 @@
         });
       },
       title: 'Bucket Master',
-      description: (ctx) => `${ctx.player}'s #wordle-hurdle bucket mastery.`,
+      description: (ctx) => `${ctx.player}'s non-1/6 crown-round lead game.`,
       requirement: 'Lead the group in 👑 wins for at least one non-1/6 round.',
       tierInfo: '0⭐ 1 lead, 1⭐ 2 leads, 2⭐ 3 leads, 3⭐ 4+ leads.',
       progress: (ctx) => {
@@ -720,7 +727,7 @@
           ? ctx.data.metricsMap
           : null;
         const player = ctx && ctx.player ? ctx.player : null;
-        if (!metricsMap || !player || !metricsMap.has(player)) return 'No non-1/6 round leads yet';
+        if (!metricsMap || !player || !metricsMap.has(player)) return 'No non-1/6 round leads yet.';
         const playerMetrics = metricsMap.get(player);
         const playerCrownBuckets = playerMetrics && playerMetrics.crownBuckets
           ? playerMetrics.crownBuckets
@@ -738,7 +745,7 @@
           return groupMaxRoundWins > 0 && playerRoundWins === groupMaxRoundWins;
         });
         const qualifiedRoundKeys = leadingRoundKeys.filter((bucketKey) => bucketKey !== '1');
-        if (!qualifiedRoundKeys.length) return 'No non-1/6 round leads yet';
+        if (!qualifiedRoundKeys.length) return 'No non-1/6 round leads yet.';
         const leadingRounds = qualifiedRoundKeys.map((bucketKey) => formatGuessBucketLabel(bucketKey));
         const tierStars = getThresholdTierStars(qualifiedRoundKeys.length, BUCKET_MASTER_STAR_THRESHOLDS, 3);
         return `Leading rounds: ${leadingRounds.join(', ')}. Tier: ${tierStars}⚙`;
@@ -800,8 +807,9 @@
       id: 'badge_collector',
       icon: '🎁',
       title: 'Badge Collector',
+      description: (ctx) => `${ctx.player}'s badge shelf is filling up.`,
       requirement: 'Earn at least 5 badges.',
-      progress: (ctx, helpers) => `${helpers.metricNumber(ctx.badgeState && ctx.badgeState.earnedBadgeCount)} badges earned`,
+      progress: (ctx, helpers) => `${helpers.count(ctx.badgeState && ctx.badgeState.earnedBadgeCount, 'badge')} earned`,
       predicate: (ctx) => Number(ctx.badgeState && ctx.badgeState.earnedBadgeCount) >= 5
     }
   ];

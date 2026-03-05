@@ -266,8 +266,8 @@ test('resolvePlayerCardBadges returns locked badges with progress and requiremen
   assert.equal(badges.find((badge) => badge.id === 'crown_wins_10_place').progress, 'Current rank: 12th (0 crowns)');
   assert.ok(badges.find((badge) => badge.id === 'crown_wins_2-5_place').tierInfo);
   assert.ok(badges.find((badge) => badge.id === 'crown_wins_6-9_place').tierInfo);
-  assert.equal(badges.find((badge) => badge.id === 'always_guessing').progress, '5% participation. 1 games played. Tier: 0⭐');
-  assert.equal(badges.find((badge) => badge.id === 'badge_collector').progress, '1 badges earned');
+  assert.equal(badges.find((badge) => badge.id === 'always_guessing').progress, '5% participation. 1 game played. Tier: 0⭐');
+  assert.equal(badges.find((badge) => badge.id === 'badge_collector').progress, '1 badge earned');
 });
 
 test('rank badge series replaces top_ten_rank with place-specific tiers', () => {
@@ -399,7 +399,7 @@ test('resolvePlayerCardBadges uses windowDays in always_guessing requirement cop
   assert.ok(alwaysGuessingSteady);
   assert.ok(alwaysGuessingShort);
   assert.equal(alwaysGuessingSteady.earned, true);
-  assert.equal(alwaysGuessingSteady.requirement, 'Earn at least 15% participation (3 games).');
+  assert.equal(alwaysGuessingSteady.requirement, 'Reach at least 15% participation (3 games).');
   assert.ok(alwaysGuessingSteady.tierInfo);
   assert.ok(alwaysGuessingSteady.tierInfo.includes('15-44%'));
   assert.equal(alwaysGuessingSteady.progress, '45% participation. 9 games played. Tier: 1⭐');
@@ -637,7 +637,7 @@ test('resolvePlayerCardBadges awards most_failed_games to players tied for top f
   assert.equal(mostFailedA.tierInfo, undefined);
   assert.ok(!mostFailedA.icon.includes('data-stars="'));
   assert.equal(mostFailedC.earned, false);
-  assert.equal(mostFailedC.progress, '1 fails (group high: 2)');
+  assert.equal(mostFailedC.progress, '1 fail (group high: 2)');
   assert.ok(!mostFailedC.icon.includes('data-stars="'));
 });
 

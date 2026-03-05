@@ -80,7 +80,7 @@ Use `ctx.metric('key')` or `ctx.metricNumber('key')`.
   - `always_guessing` (earned at 15% participation, with icon tiers by participation: `15-44%=0`, `45-64%=1`, `65-84%=2`, `85%+=3`).
   - `crown_win_ratio` (earned at 30% crown ratio, with icon tiers by crown ratio: `30-44%=0`, `45-59%=1`, `60-74%=2`, `75%+=3`).
 - Current fail-based tiered badge:
-  - `failed_games` (earned only when tied for group-high fails; tier map by fail count: `1=0⭐`, `2=1⭐`, `3=2⭐`, `4+=3⭐`).
+  - `failed_games` (earned when a player has at least one fail; tier map by fail count: `1=0⭐`, `4=1⭐`, `8=2⭐`, `16+=3⭐`).
 - Current round-lead tiered badge:
   - `bucket_master` (earned when leading at least one non-`1/6` crown round; tier map: `1 lead=0⚙`, `2=1⚙`, `3=2⚙`, `4+=3⚙`; icon uses `medalIcon: '🥫'` with tier count from qualified round leads).
 
@@ -107,6 +107,7 @@ Helpers currently include:
 - `ordinal(n)`
 - `ratioPercent(wins, total)`
 - `percent(value, digits?)`
+- `count(value, singular, plural?)`
 - `metricNumber(value)`
 - `metric(ctx, key, fallback?)`
 - `metricNumberFrom(ctx, key, fallback?)`
@@ -120,9 +121,9 @@ Helpers currently include:
     medalIcon: '🎯'
   }),
   title: 'Sharp Shooter',
-  requirement: 'At least 30% of all wins are crown wins.',
+  requirement: 'Keep crown wins at 30% or higher of games played.',
   tierInfo: '30-44% = 0⭐, 45-59% = 1⭐, 60-74% = 2⭐, 75%+ = 3⭐.',
-  progress: (ctx, helpers) => `${helpers.percent(ctx.metricNumber('crownRatio', 0), 1)}. Tier: ${getThresholdTierStars(ctx.metricNumber('crownRatio', 0), [0.45, 0.6, 0.75], 3)}⭐`,
+  progress: (ctx, helpers) => `Crown conversion: ${helpers.percent(ctx.metricNumber('crownRatio', 0), 1)}. Tier: ${getThresholdTierStars(ctx.metricNumber('crownRatio', 0), [0.45, 0.6, 0.75], 3)}⭐`,
   predicate: (ctx) => ctx.metricNumber('crownRatio', 0) >= 0.3
 }
 ```
