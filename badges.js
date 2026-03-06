@@ -408,6 +408,12 @@
     { min: 6, max: 11, tier: 2 },
     { min: 12, max: Infinity, tier: 3 }
   ];
+  const SOLO_CROWN_WINS_LADDER = [
+    { min: 1, max: 1, tier: 0 },
+    { min: 3, max: 5, tier: 1 },
+    { min: 6, max: 11, tier: 2 },
+    { min: 12, max: Infinity, tier: 3 }
+  ];
 
   function getTierFromLadder(value, ladder = []) {
     const parsedValue = Number(value);
@@ -440,6 +446,9 @@
         if (!Number.isFinite(min)) return '';
         const minLabel = unit ? `${min} ${unit}${min === 1 ? '' : 's'}` : String(min);
         if (max === Infinity) {
+          if (unit) {
+            return `${min}+ ${unit}${min === 1 ? '' : 's'} = ${tier}${suffix}`;
+          }
           return `${minLabel}+ = ${tier}${suffix}`;
         }
         if (!Number.isFinite(max)) return '';
@@ -470,6 +479,47 @@
       }
     });
     return maxFailGames;
+  }
+
+  function getSoloCrownDayKey(row) {
+    if (!row) return null;
+    if (row.dayKey !== undefined && row.dayKey !== null && String(row.dayKey).trim()) {
+      return `key:${String(row.dayKey).trim()}`;
+    }
+    if (row.dayLabel !== undefined && row.dayLabel !== null && String(row.dayLabel).trim()) {
+      return `label:${String(row.dayLabel).trim()}`;
+    }
+    const timestamp = Number(row.dayTimestamp);
+    if (Number.isFinite(timestamp)) {
+      return `ts:${timestamp}`;
+    }
+    const dayIndex = Number(row.dayIndex);
+    if (Number.isFinite(dayIndex) && dayIndex > 0) {
+      return `idx:${dayIndex}`;
+    }
+    return null;
+  }
+
+  function getSoloCrownWins(dataset, player) {
+    if (!Array.isArray(dataset) || !dataset.length || !player) return 0;
+    const winnersByDay = new Map();
+    dataset.forEach((row) => {
+      if (!row || !row.isCrown || !row.player) return;
+      const dayKey = getSoloCrownDayKey(row);
+      if (!dayKey) return;
+      if (!winnersByDay.has(dayKey)) {
+        winnersByDay.set(dayKey, new Set());
+      }
+      winnersByDay.get(dayKey).add(row.player);
+    });
+    let total = 0;
+    winnersByDay.forEach((winners) => {
+      if (!(winners instanceof Set)) return;
+      if (winners.size === 1 && winners.has(player)) {
+        total += 1;
+      }
+    });
+    return total;
   }
 
   function getMetricValue(ctx, key, fallback) {
@@ -714,6 +764,24 @@
         return `${formatCountLabel(bestCrownStreak, 'day')}. Tier: ${tierStars}🔥`;
       },
       predicate: (ctx) => getMetricNumber(ctx, 'bestCrownStreak', 0) >= getLadderUnlockThreshold(CROWN_WIN_STREAK_LADDER)
+    },
+    {
+      id: 'solo_crown_wins',
+      icon: (ctx) => buildLayeredBadgeIcon({
+        stars: getTierFromLadder(getMetricNumber(ctx, 'soloCrownWins', 0), SOLO_CROWN_WINS_LADDER),
+        medalIcon: '👤',
+        starIcon: ' 🏅 '
+      }),
+      title: 'Solo Crown',
+      description: (ctx) => `${ctx.player}'s uncontested crown wins.`,
+      requirement: `Be the only crown winner in at least ${getLadderUnlockThreshold(SOLO_CROWN_WINS_LADDER)} game.`,
+      tierInfo: `${formatLadderInfo(SOLO_CROWN_WINS_LADDER, '🏅', 'solo crown')}.`,
+      progress: (ctx) => {
+        const soloCrownWins = getMetricNumber(ctx, 'soloCrownWins', 0);
+        const tierStars = getTierFromLadder(soloCrownWins, SOLO_CROWN_WINS_LADDER);
+        return `${formatCountLabel(soloCrownWins, 'solo crown')}. Tier: ${tierStars}🏅`;
+      },
+      predicate: (ctx) => getMetricNumber(ctx, 'soloCrownWins', 0) >= getLadderUnlockThreshold(SOLO_CROWN_WINS_LADDER)
     },
     {
       id: 'under_five_games',
@@ -1010,7 +1078,8 @@
         failRatio: getFailRatio(metrics),
         gamesPlayedTarget: windowDays,
         playerRank,
-        maxFailGames: getMaxFailGames(metricsMap)
+        maxFailGames: getMaxFailGames(metricsMap),
+        soloCrownWins: getSoloCrownWins(dataset, player)
       },
       custom: {}
     };

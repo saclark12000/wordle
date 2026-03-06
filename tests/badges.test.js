@@ -92,8 +92,8 @@ test('buildLayeredBadgeIcon builds reusable layered icon markup', () => {
 
 test('buildBadgeContext exposes metric helpers and merged metric sources', () => {
   const dataset = [
-    { player: '@ace', guesses: 2, solved: true, isCrown: true },
-    { player: '@ace', guesses: 4, solved: true, isCrown: false }
+    { player: '@ace', guesses: 2, solved: true, isCrown: true, dayKey: '2025-01-01', dayIndex: 1, dayTimestamp: 1735689600000 },
+    { player: '@ace', guesses: 4, solved: true, isCrown: false, dayKey: '2025-01-02', dayIndex: 2, dayTimestamp: 1735776000000 }
   ];
   const context = createCrownContext();
   context.dataset = dataset;
@@ -122,11 +122,32 @@ test('buildBadgeContext exposes metric helpers and merged metric sources', () =>
   assert.equal(badgeCtx.metric('insights.participationRate'), 0.4);
   assert.equal(badgeCtx.metric('bonusMetric'), 42);
   assert.equal(badgeCtx.metricNumber('playerRank'), 1);
+  assert.equal(badgeCtx.metricNumber('soloCrownWins'), 1);
   assert.equal(badgeCtx.metric('totalGames'), 2);
   assert.equal('metrics' in badgeCtx, false);
   assert.equal('insights' in badgeCtx, false);
   assert.equal('rows' in badgeCtx, false);
   assert.equal('leaderboard' in badgeCtx, false);
+});
+
+test('buildBadgeContext derives soloCrownWins from solo-winner days only', () => {
+  const dataset = [
+    { player: '@ace', guesses: 2, solved: true, isCrown: true, dayKey: '2025-01-01', dayIndex: 1, dayTimestamp: 1735689600000 },
+    { player: '@buck', guesses: 3, solved: true, isCrown: false, dayKey: '2025-01-01', dayIndex: 1, dayTimestamp: 1735689600000 },
+    { player: '@ace', guesses: 3, solved: true, isCrown: true, dayKey: '2025-01-02', dayIndex: 2, dayTimestamp: 1735776000000 },
+    { player: '@buck', guesses: 2, solved: true, isCrown: true, dayKey: '2025-01-02', dayIndex: 2, dayTimestamp: 1735776000000 },
+    { player: '@ace', guesses: 4, solved: true, isCrown: true, dayKey: '2025-01-03', dayIndex: 3, dayTimestamp: 1735862400000 },
+    { player: '@cara', guesses: 2, solved: true, isCrown: false, dayKey: '2025-01-03', dayIndex: 3, dayTimestamp: 1735862400000 }
+  ];
+  const context = createCrownContext();
+  context.dataset = dataset;
+  context.playerMetrics = buildPlayerMetricsMap(dataset);
+
+  const aceCtx = buildBadgeContext(context, '@ace');
+  const buckCtx = buildBadgeContext(context, '@buck');
+
+  assert.equal(aceCtx.metricNumber('soloCrownWins'), 2);
+  assert.equal(buckCtx.metricNumber('soloCrownWins'), 0);
 });
 
 test('summarizeBadgeContextForDebug returns readable snapshot sections', () => {
@@ -362,9 +383,9 @@ test('resolvePlayerCardBadges allows custom metric overrides without expanding c
   assert.equal(badges.find((badge) => badge.id === 'crown_win_streak').earned, true);
   assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').earned, true);
   assert.equal(badges.find((badge) => badge.id === 'always_guessing').earned, true);
-  assert.equal(badges.find((badge) => badge.id === 'crown_win_streak').progress, '6 days. Tier: 0🔥');
+  assert.equal(badges.find((badge) => badge.id === 'crown_win_streak').progress, '6 days. Tier: 2🔥');
   assert.ok(badges.find((badge) => badge.id === 'crown_win_streak').icon.includes('badgeIconTier'));
-  assert.ok(badges.find((badge) => badge.id === 'crown_win_streak').icon.includes('data-stars="0"'));
+  assert.ok(badges.find((badge) => badge.id === 'crown_win_streak').icon.includes('data-stars="2"'));
   assert.ok(badges.find((badge) => badge.id === 'crown_win_streak').icon.includes('🍆'));
   assert.equal(badges.find((badge) => badge.id === 'always_guessing').progress, '85% participation. 2 games played. Tier: 3⭐');
   assert.ok(badges.find((badge) => badge.id === 'always_guessing').icon.includes('badgeIconTier'));
@@ -381,29 +402,73 @@ test('crown_win_streak icon tiers follow streak ladder (0-3)', () => {
   ctx.playerMetrics = buildPlayerMetricsMap(dataset);
 
   const tier0 = resolvePlayerCardBadges(ctx, '@tier', {
-    metricSources: { custom: { bestCrownStreak: 6 } }
+    metricSources: { custom: { bestCrownStreak: 2 } }
   }).find((badge) => badge.id === 'crown_win_streak');
 
   const tier1 = resolvePlayerCardBadges(ctx, '@tier', {
-    metricSources: { custom: { bestCrownStreak: 7 } }
+    metricSources: { custom: { bestCrownStreak: 3 } }
   }).find((badge) => badge.id === 'crown_win_streak');
 
   const tier2 = resolvePlayerCardBadges(ctx, '@tier', {
-    metricSources: { custom: { bestCrownStreak: 10 } }
+    metricSources: { custom: { bestCrownStreak: 6 } }
   }).find((badge) => badge.id === 'crown_win_streak');
 
   const tier3 = resolvePlayerCardBadges(ctx, '@tier', {
-    metricSources: { custom: { bestCrownStreak: 15 } }
+    metricSources: { custom: { bestCrownStreak: 12 } }
   }).find((badge) => badge.id === 'crown_win_streak');
 
   assert.ok(tier0);
   assert.ok(tier1);
   assert.ok(tier2);
   assert.ok(tier3);
-  assert.equal(tier0.progress, '6 days. Tier: 0🔥');
-  assert.equal(tier1.progress, '7 days. Tier: 1🔥');
-  assert.equal(tier2.progress, '10 days. Tier: 2🔥');
-  assert.equal(tier3.progress, '15 days. Tier: 3🔥');
+  assert.equal(tier0.progress, '2 days. Tier: 0🔥');
+  assert.equal(tier1.progress, '3 days. Tier: 1🔥');
+  assert.equal(tier2.progress, '6 days. Tier: 2🔥');
+  assert.equal(tier3.progress, '12 days. Tier: 3🔥');
+  assert.ok(tier0.icon.includes('data-stars="0"'));
+  assert.ok(tier1.icon.includes('data-stars="1"'));
+  assert.ok(tier2.icon.includes('data-stars="2"'));
+  assert.ok(tier3.icon.includes('data-stars="3"'));
+});
+
+test('solo_crown_wins badge follows solo crown tiers (0-3)', () => {
+  const dataset = [
+    { player: '@solo', guesses: 2, solved: true, isCrown: true, dayKey: '2025-01-01', dayIndex: 1, dayTimestamp: 1735689600000 }
+  ];
+  const ctx = createCrownContext();
+  ctx.dataset = dataset;
+  ctx.playerMetrics = buildPlayerMetricsMap(dataset);
+
+  const tier0 = resolvePlayerCardBadges(ctx, '@solo', {
+    metricSources: { custom: { soloCrownWins: 1 } }
+  }).find((badge) => badge.id === 'solo_crown_wins');
+
+  const tier1 = resolvePlayerCardBadges(ctx, '@solo', {
+    metricSources: { custom: { soloCrownWins: 2 } }
+  }).find((badge) => badge.id === 'solo_crown_wins');
+
+  const tier2 = resolvePlayerCardBadges(ctx, '@solo', {
+    metricSources: { custom: { soloCrownWins: 3 } }
+  }).find((badge) => badge.id === 'solo_crown_wins');
+
+  const tier3 = resolvePlayerCardBadges(ctx, '@solo', {
+    metricSources: { custom: { soloCrownWins: 4 } }
+  }).find((badge) => badge.id === 'solo_crown_wins');
+
+  const locked = resolvePlayerCardBadges(ctx, '@solo', {
+    metricSources: { custom: { soloCrownWins: 0 } }
+  }).find((badge) => badge.id === 'solo_crown_wins');
+
+  assert.ok(tier0);
+  assert.ok(tier1);
+  assert.ok(tier2);
+  assert.ok(tier3);
+  assert.ok(locked);
+  assert.equal(tier0.progress, '1 solo crown. Tier: 0⭐');
+  assert.equal(tier1.progress, '2 solo crowns. Tier: 1⭐');
+  assert.equal(tier2.progress, '3 solo crowns. Tier: 2⭐');
+  assert.equal(tier3.progress, '4 solo crowns. Tier: 3⭐');
+  assert.equal(locked.earned, false);
   assert.ok(tier0.icon.includes('data-stars="0"'));
   assert.ok(tier1.icon.includes('data-stars="1"'));
   assert.ok(tier2.icon.includes('data-stars="2"'));

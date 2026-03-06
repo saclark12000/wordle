@@ -68,6 +68,7 @@ Use `ctx.metric('key')` or `ctx.metricNumber('key')`.
 - `gamesPlayedTarget` - Current day-window count (`windowDays`) used by participation requirement copy (for example `always_guessing`).
 - `playerRank` - Same value as core `playerRank`; available in derived namespace for explicit lookup.
 - `maxFailGames` - Highest failed-game total among players in the current leaderboard window.
+- `soloCrownWins` - Count of days where the player was the only crown winner in the active window.
 
 ### Badge ID notes
 - Deprecated IDs removed from the active manifest: `games_played`, `participation_rate`, `crown_ratio`.
@@ -79,8 +80,10 @@ Use `ctx.metric('key')` or `ctx.metricNumber('key')`.
 - Current participation/conversion badges:
   - `always_guessing` (earned at 15% participation, with icon tiers by participation: `15-44%=0`, `45-64%=1`, `65-84%=2`, `85%+=3`).
   - `crown_win_ratio` (earned at 30% crown ratio, with icon tiers by crown ratio: `30-44%=0`, `45-59%=1`, `60-74%=2`, `75%+=3`).
+- Current solo crown badge:
+  - `solo_crown_wins` (earned at 1 uncontested crown, with icon tiers by solo-crown count: `1=0⭐`, `2=1⭐`, `3=2⭐`, `4+=3⭐`).
 - Current streak-based tiered badge:
-  - `crown_win_streak` (earned at 5 consecutive crown-win days, with `🔥` tiers over `🍆`: `5-6 days=0🔥`, `7-9=1🔥`, `10-14=2🔥`, `15+=3🔥`).
+  - `crown_win_streak` (earned at 2 consecutive crown-win days, with `🔥` tiers over `🍆`: `2 days=0🔥`, `3-5=1🔥`, `6-11=2🔥`, `12+=3🔥`).
 - Current fail-based tiered badge:
   - `failed_games` (earned when a player has at least one fail; tier map by fail count: `1=0⭐`, `4=1⭐`, `8=2⭐`, `16+=3⭐`).
 - Current round-lead tiered badge:
