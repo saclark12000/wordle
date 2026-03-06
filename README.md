@@ -19,6 +19,7 @@ Single-page web app focused on a single job: ingest the standardized Wordle/Hurd
   - Supports star placement config with `starsPosition: 'default' | 'over' | 'under'` (for example `sus_wins` uses `under`).
   - `always_guessing` unlocks at `15%` participation and uses tier mapping: `15-44% = 0`, `45-64% = 1`, `65-84% = 2`, `85%+ = 3`.
   - `crown_win_ratio` unlocks at `30%` crown ratio and uses tier mapping: `30-44% = 0`, `45-59% = 1`, `60-74% = 2`, `75%+ = 3`.
+  - `crown_win_streak` unlocks at `5` consecutive crown-win days and uses `🔥` tiers over `🍆`: `5-6 = 0`, `7-9 = 1`, `10-14 = 2`, `15+ = 3`.
   - `failed_games` uses fail-count tiers for any player with at least one fail: `1 fail = 0`, `4 = 1`, `8 = 2`, `16+ = 3`.
 - **Round Breakdown badge placements** – manifest entries can publish `roundBreakdownSlots` so a selected subset of earned badges render inline beside Round Breakdown values (for example, `bucket_master` icons in the 👑 wins column on awarding rounds).
   - `bucket_master` now uses tier mapping by non-`1/6` leading rounds: `1 lead = 0⚙`, `2 = 1⚙`, `3 = 2⚙`, `4+ = 3⚙`, with a gold `🥫` medal icon.

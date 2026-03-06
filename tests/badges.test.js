@@ -266,6 +266,7 @@ test('resolvePlayerCardBadges returns locked badges with progress and requiremen
   assert.equal(badges.find((badge) => badge.id === 'crown_wins_10_place').progress, 'Current rank: 12th (0 crowns)');
   assert.ok(badges.find((badge) => badge.id === 'crown_wins_2-5_place').tierInfo);
   assert.ok(badges.find((badge) => badge.id === 'crown_wins_6-9_place').tierInfo);
+  assert.ok(badges.find((badge) => badge.id === 'crown_win_streak').tierInfo);
   assert.equal(badges.find((badge) => badge.id === 'always_guessing').progress, '5% participation. 1 game played. Tier: 0⭐');
   assert.equal(badges.find((badge) => badge.id === 'badge_collector').progress, '1 badge earned');
 });
@@ -361,11 +362,52 @@ test('resolvePlayerCardBadges allows custom metric overrides without expanding c
   assert.equal(badges.find((badge) => badge.id === 'crown_win_streak').earned, true);
   assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').earned, true);
   assert.equal(badges.find((badge) => badge.id === 'always_guessing').earned, true);
-  assert.equal(badges.find((badge) => badge.id === 'crown_win_streak').progress, '6 days.');
+  assert.equal(badges.find((badge) => badge.id === 'crown_win_streak').progress, '6 days. Tier: 0🔥');
+  assert.ok(badges.find((badge) => badge.id === 'crown_win_streak').icon.includes('badgeIconTier'));
+  assert.ok(badges.find((badge) => badge.id === 'crown_win_streak').icon.includes('data-stars="0"'));
+  assert.ok(badges.find((badge) => badge.id === 'crown_win_streak').icon.includes('🍆'));
   assert.equal(badges.find((badge) => badge.id === 'always_guessing').progress, '85% participation. 2 games played. Tier: 3⭐');
   assert.ok(badges.find((badge) => badge.id === 'always_guessing').icon.includes('badgeIconTier'));
   assert.ok(badges.find((badge) => badge.id === 'always_guessing').icon.includes('data-stars="3"'));
   assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').progress, 'Current avg: 3.2 guesses');
+});
+
+test('crown_win_streak icon tiers follow streak ladder (0-3)', () => {
+  const dataset = [
+    { player: '@tier', guesses: 2, solved: true, isCrown: true }
+  ];
+  const ctx = createCrownContext();
+  ctx.dataset = dataset;
+  ctx.playerMetrics = buildPlayerMetricsMap(dataset);
+
+  const tier0 = resolvePlayerCardBadges(ctx, '@tier', {
+    metricSources: { custom: { bestCrownStreak: 6 } }
+  }).find((badge) => badge.id === 'crown_win_streak');
+
+  const tier1 = resolvePlayerCardBadges(ctx, '@tier', {
+    metricSources: { custom: { bestCrownStreak: 7 } }
+  }).find((badge) => badge.id === 'crown_win_streak');
+
+  const tier2 = resolvePlayerCardBadges(ctx, '@tier', {
+    metricSources: { custom: { bestCrownStreak: 10 } }
+  }).find((badge) => badge.id === 'crown_win_streak');
+
+  const tier3 = resolvePlayerCardBadges(ctx, '@tier', {
+    metricSources: { custom: { bestCrownStreak: 15 } }
+  }).find((badge) => badge.id === 'crown_win_streak');
+
+  assert.ok(tier0);
+  assert.ok(tier1);
+  assert.ok(tier2);
+  assert.ok(tier3);
+  assert.equal(tier0.progress, '6 days. Tier: 0🔥');
+  assert.equal(tier1.progress, '7 days. Tier: 1🔥');
+  assert.equal(tier2.progress, '10 days. Tier: 2🔥');
+  assert.equal(tier3.progress, '15 days. Tier: 3🔥');
+  assert.ok(tier0.icon.includes('data-stars="0"'));
+  assert.ok(tier1.icon.includes('data-stars="1"'));
+  assert.ok(tier2.icon.includes('data-stars="2"'));
+  assert.ok(tier3.icon.includes('data-stars="3"'));
 });
 
 test('resolvePlayerCardBadges uses windowDays in always_guessing requirement copy', () => {

@@ -402,6 +402,53 @@
   const ALWAYS_GUESSING_UNLOCK_THRESHOLD = 0.15;
   const ALWAYS_GUESSING_STAR_THRESHOLDS = [0.45, 0.65, 0.85];
   const BUCKET_MASTER_STAR_THRESHOLDS = [2, 3, 4];
+  const CROWN_WIN_STREAK_LADDER = [
+    { min: 2, max: 2, tier: 0 },
+    { min: 3, max: 5, tier: 1 },
+    { min: 6, max: 11, tier: 2 },
+    { min: 12, max: Infinity, tier: 3 }
+  ];
+
+  function getTierFromLadder(value, ladder = []) {
+    const parsedValue = Number(value);
+    if (!Number.isFinite(parsedValue) || parsedValue <= 0) return 0;
+    const match = (Array.isArray(ladder) ? ladder : []).find((entry) => {
+      if (!entry) return false;
+      const min = Number(entry.min);
+      const max = entry.max === Infinity ? Infinity : Number(entry.max);
+      if (!Number.isFinite(min)) return false;
+      if (max !== Infinity && !Number.isFinite(max)) return false;
+      return parsedValue >= min && parsedValue <= max;
+    });
+    return match ? Math.max(0, Math.min(3, Number(match.tier) || 0)) : 0;
+  }
+
+  function getLadderUnlockThreshold(ladder = []) {
+    const mins = (Array.isArray(ladder) ? ladder : [])
+      .map((entry) => Number(entry && entry.min))
+      .filter((value) => Number.isFinite(value) && value > 0);
+    return mins.length ? Math.min(...mins) : 0;
+  }
+
+  function formatLadderInfo(ladder = [], suffix = '⭐', unit = '') {
+    return (Array.isArray(ladder) ? ladder : [])
+      .map((entry) => {
+        if (!entry) return '';
+        const min = Number(entry.min);
+        const max = entry.max === Infinity ? Infinity : Number(entry.max);
+        const tier = Number(entry.tier) || 0;
+        if (!Number.isFinite(min)) return '';
+        const minLabel = unit ? `${min} ${unit}${min === 1 ? '' : 's'}` : String(min);
+        if (max === Infinity) {
+          return `${minLabel}+ = ${tier}${suffix}`;
+        }
+        if (!Number.isFinite(max)) return '';
+        const maxLabel = unit ? `${max} ${unit}${max === 1 ? '' : 's'}` : String(max);
+        return `${minLabel}${min === max ? '' : `-${maxLabel}`} = ${tier}${suffix}`;
+      })
+      .filter(Boolean)
+      .join(', ');
+  }
 
   function getCrownRatio(metrics) {
     if (!metrics || !metrics.totalGames) return 0;
@@ -637,24 +684,36 @@
         medalIcon: '🎯'
       }),
       title: 'Sharp Shooter',
-      description: (ctx) => `${ctx.player}'s crown conversion rate.`,
+      description: (ctx) => `${ctx.player}'s crown win rate.`,
       requirement: 'Keep crown wins at 30% or higher of games played.',
       tierInfo: '30-44% = 0⭐, 45-59% = 1⭐, 60-74% = 2⭐, 75%+ = 3⭐.',
       progress: (ctx) => {
         const crownRatio = getMetricNumber(ctx, 'crownRatio', 0);
         const tierStars = getThresholdTierStars(crownRatio, [0.45, 0.6, 0.75], 3);
-        return `Crown conversion: ${formatPercent(crownRatio, 1)}. Tier: ${tierStars}⭐`;
+        return `Crown win rate: ${formatPercent(crownRatio, 1)}. Tier: ${tierStars}⭐`;
       },
       predicate: (ctx) => getMetricNumber(ctx, 'crownRatio', 0) >= 0.3
     },
     {
       id: 'crown_win_streak',
-      icon: () => '🍆',
+      icon: (ctx) => {
+        const bestCrownStreak = getMetricNumber(ctx, 'bestCrownStreak', 0);
+        return buildLayeredBadgeIcon({
+          stars: getTierFromLadder(bestCrownStreak, CROWN_WIN_STREAK_LADDER),
+          starIcon: '🔥',
+          medalIcon: '🍆'
+        });
+      },
       title: 'Long Streak',
       description: (ctx) => `${ctx.player}'s best crown-win streak.`,
-      requirement: 'Gain crown wins for at least 5 days in a row.',
-      progress: (ctx) => `${formatCountLabel(getMetricNumber(ctx, 'bestCrownStreak', 0), 'day')}.`,
-      predicate: (ctx) => getMetricNumber(ctx, 'bestCrownStreak', 0) >= 5
+      requirement: `Gain crown wins for at least ${getLadderUnlockThreshold(CROWN_WIN_STREAK_LADDER)} days in a row.`,
+      tierInfo: `${formatLadderInfo(CROWN_WIN_STREAK_LADDER, '🔥', 'day')}.`,
+      progress: (ctx) => {
+        const bestCrownStreak = getMetricNumber(ctx, 'bestCrownStreak', 0);
+        const tierStars = getTierFromLadder(bestCrownStreak, CROWN_WIN_STREAK_LADDER);
+        return `${formatCountLabel(bestCrownStreak, 'day')}. Tier: ${tierStars}🔥`;
+      },
+      predicate: (ctx) => getMetricNumber(ctx, 'bestCrownStreak', 0) >= getLadderUnlockThreshold(CROWN_WIN_STREAK_LADDER)
     },
     {
       id: 'under_five_games',
@@ -667,8 +726,8 @@
     },
     {
       id: 'efficient_crowns',
-      icon: '🗄',
-      title: 'Crown Efficiency',
+      icon: '💎',
+      title: 'Less is More',
       description: (ctx) => `${ctx.player}'s average guess count on crowned wins.`,
       requirement: 'Keep crowned-win average guesses at 4.0 or lower.',
       progress: (ctx) => {
