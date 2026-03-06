@@ -622,6 +622,15 @@ body:not(.developer-mode) .developerPanel {
   line-height: 1;
   filter: grayscale(100%);
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  isolation: isolate;
+}
+
+.playerCard__badgeLock > * {
+  position: relative;
+  z-index: 1;
 }
 
 .playerCard__badgeLock::after {
@@ -630,6 +639,8 @@ body:not(.developer-mode) .developerPanel {
   position: absolute;
   bottom: 0;
   right: 0;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .playerCard__badgeDetails {
