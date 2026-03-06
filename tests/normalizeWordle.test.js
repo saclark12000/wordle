@@ -38,12 +38,13 @@ test('normalizeWordle flattens Wordle CSV rows', () => {
 });
 
 test('normalizeWordle supports emoji crown column names', () => {
-  const columns = ['date posted', '👑', '👑 Round', '1/6', '2/6', '3/6', '4/6', '5/6', '6/6', 'X/6'];
+  const crownColumn = '\u{1F451}';
+  const columns = ['date posted', crownColumn, `${crownColumn} Round`, '1/6', '2/6', '3/6', '4/6', '5/6', '6/6', 'X/6'];
   const rows = [
     {
       'date posted': '2025-06-06',
-      '👑': '@ace',
-      '👑 Round': '2/6',
+      [crownColumn]: '@ace',
+      [`${crownColumn} Round`]: '2/6',
       '1/6': '--',
       '2/6': '@ace',
       '3/6': '--',

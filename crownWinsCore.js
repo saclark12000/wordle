@@ -1,6 +1,7 @@
 (function (global) {
-  const CROWN_COL_NAMES = ['👑', 'crown'];
-  const CROWN_ROUND_COL_NAMES = ['👑 Round', 'crown round'];
+  const CROWN_ICON = '\u{1F451}';
+  const CROWN_COL_NAMES = [CROWN_ICON, 'crown'];
+  const CROWN_ROUND_COL_NAMES = [`${CROWN_ICON} Round`, 'crown round'];
 
   function normalizeHandle(handle) {
     if (!handle) return null;

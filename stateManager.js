@@ -212,7 +212,13 @@
     };
   }
 
-  global.CrownState = {
+  const api = {
     createStateStore
   };
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = api;
+  }
+
+  global.CrownState = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -10,9 +10,9 @@
 ## AI Reccomendations 
 ## AI edits entered below this line only
 ### Architecture & Performance
-- Extract a lightweight state manager (days, players, filters) so render steps can consume memoized slices instead of recalculating from globals.
 - Cache `wordleCrownWins()` results per day window and per leaderboard limit to make "Last N days" tweaks instant on multi-thousand-row datasets.
 - Explore moving normalization + badge metric work to a Web Worker so the UI thread stays responsive on large CSVs.
+- Split `script.js` into smaller view/controller modules so leaderboard rendering, CSV loading, and developer tooling are no longer coupled in one file.
 
 ### UX & Accessibility
 - Make crown-table rows fully keyboard navigable (arrow keys for focus, Enter/Space to open, Esc to close) and announce context via ARIA live regions.
@@ -21,8 +21,9 @@
 - Ship a compact layout for narrow screens so the leaderboard and preview can stack without overflowing the viewport.
 
 ### Badges & Insights
-- Surface richer player insights (streaks, average guesses when crowned, participation rate) inside the detail pane.
+- Surface richer player insights (streaks, average guesses when crowned, participation rate) as first-class card stats instead of badge-only metrics.
 - Experiment with group-level callouts (e.g., "Newcomer surge" when new players earn crowns) to add narrative context.
+- Break the badge manifest and badge helper logic into smaller modules to keep future badge additions reviewable.
 
 ### Data Handling
 - Harden schema validation with clearer error copy when required columns are missing or mislabeled, and offer quick tips for fixing exports.
@@ -32,6 +33,7 @@
 ### Tooling & Quality
 - Add ESLint/Prettier plus a git hook or CI job so formatting and lint checks run automatically.
 - Extend the Node test suite to cover additional date parsing edge cases and projected badge combinations.
+- Add a browser smoke test path for CSV load/render/export flows so DOM regressions are caught alongside the Node tests.
 - Wire the test script into CI (e.g., GitHub Actions) and publish run badges in the README.
 
 

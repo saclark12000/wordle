@@ -13,11 +13,10 @@ const {
   looksLikeWordleSummary,
   normalizeWordle,
   detectDateField,
-  wordleCrownWins,
-  getDayValueFromRow
+  wordleCrownWins
 } = CrownWinsCore;
 
-if (!looksLikeWordleSummary || !normalizeWordle || !wordleCrownWins || !getDayValueFromRow) {
+if (!looksLikeWordleSummary || !normalizeWordle || !detectDateField || !wordleCrownWins) {
   throw new Error('CrownWinsCore module failed to load.');
 }
 
@@ -28,6 +27,7 @@ if (typeof createStateStore !== 'function') {
 
 const stateStore = createStateStore();
 const UTF8_DECODER = typeof TextDecoder !== 'undefined' ? new TextDecoder('utf-8') : null;
+const GUESS_ORDER = ['1', '2', '3', '4', '5', '6', 'X'];
 
 function uniq(arr) {
   return [...new Set(arr)];
@@ -77,6 +77,27 @@ if (!createCrownContext || !resolvePlayerCardBadges || !buildPlayerBadgesMarkup 
 let crownContext = createCrownContext();
 const autoRenderConfig = { limit: 25, done: false };
 stateStore.setLeaderboardLimit(autoRenderConfig.limit);
+
+function resetCrownRuntimeState() {
+  wordleDateField = null;
+  crownModeReady = false;
+  crownContext = createCrownContext();
+}
+
+function clearRenderedData() {
+  $('previewTable').innerHTML = '';
+  const table = $('crownTable');
+  if (!table) return;
+  table.innerHTML = '';
+  table.classList.remove('crownTable--visible');
+}
+
+function resetLoadedDataset() {
+  stateStore.setRawData([], []);
+  stateStore.setNormalizedWordle([]);
+  stateStore.setLastDays(0);
+  resetCrownRuntimeState();
+}
 
 function updateLastDaysDefault(maxDay) {
   const input = $('lastDays');
@@ -469,64 +490,61 @@ function expandEarnedBadgeById(badgeId, root = document) {
   return true;
 }
 
+function formatGuessLabel(guessKey) {
+  return guessKey === 'X' ? 'X/6 (fail)' : `${guessKey}/6`;
+}
+
+function buildRoundBreakdownRowData(metrics, roundBreakdownBadges) {
+  const rowData = GUESS_ORDER.map((guessKey) => ({
+    guessKey,
+    label: formatGuessLabel(guessKey),
+    total: metrics.buckets[guessKey] || 0,
+    crown: metrics.crownBuckets[guessKey] || 0,
+    crownBadges: buildRoundBreakdownCellBadgeMarkup(roundBreakdownBadges, 'crownWins', guessKey)
+  }));
+  const highestTotal = Math.max(...rowData.map((row) => row.total), 0);
+  const highestCrown = Math.max(...rowData.map((row) => row.crown), 0);
+  return rowData.map((row) => ({
+    ...row,
+    isHighestTotal: highestTotal > 0 && row.total === highestTotal,
+    isHighestCrown: highestCrown > 0 && row.crown === highestCrown
+  }));
+}
+
 function buildPlayerStatsMarkup(player, metrics, badgeMarkup, roundBreakdownBadges = null) {
-  const guessOrder = ['1','2','3','4','5','6','X'];
-  let highestCrownRows = { val: null, rows:[]};
-  let highestTotalRows = { val: null, rows:[]};
-  let rows = guessOrder.map((g) => {
-    const label = g === 'X' ? 'X/6 (fail)' : `${g}/6`;
-    const total = metrics.buckets[g] || 0;
-    const crown = metrics.crownBuckets[g] || 0;
-    const crownBadges = buildRoundBreakdownCellBadgeMarkup(roundBreakdownBadges, 'crownWins', g);
-
-    // Track which guess counts have the highest crown wins for potential highlighting
-    if (highestCrownRows.val === null || crown > highestCrownRows.val) {
-      highestCrownRows.val = crown;
-      highestCrownRows.rows = [g];
-    } else if (crown === highestCrownRows.val) {
-      highestCrownRows.rows.push(g);
-    }
-
-    if (highestTotalRows.val === null || total > highestTotalRows.val) {
-      highestTotalRows.val = total;
-      highestTotalRows.rows = [g];
-    } else if (total === highestTotalRows.val) {
-      highestTotalRows.rows.push(g);
-    }
-
-    return `
-      <tr id='playerCardRow_${g}'>
-        <td>${label}</td>
+  const rows = buildRoundBreakdownRowData(metrics, roundBreakdownBadges)
+    .map((row) => `
+      <tr id="playerCardRow_${row.guessKey}">
+        <td>${row.label}</td>
         <td>
           <span class="playerCard__tableMetric">
             <span class="playerCard__tablePrefix">
-              <span id='playerCardTotalHighlight_${g}' class="playerCard__total--highlight_hidden">⬆</span>
+              <span
+                id="playerCardTotalHighlight_${row.guessKey}"
+                class="${row.isHighestTotal ? 'playerCard__total--highlight_visible' : 'playerCard__total--highlight_hidden'}"
+                ${row.isHighestTotal ? 'title="Highest total wins for this player"' : ''}
+              >⬆</span>
             </span>
-            <span class="playerCard__tableNumber">${total}</span>
+            <span class="playerCard__tableNumber">${row.total}</span>
             <span class="playerCard__tableSuffix"></span>
           </span>
         </td>
-        <td id='playerCardCrown_${g}'>
+        <td id="playerCardCrown_${row.guessKey}">
           <span class="playerCard__tableMetric">
             <span class="playerCard__tablePrefix">
-              <span id='playerCardCrownHighlight_${g}' class="playerCard__crown--highlight_hidden">⬆</span>
+              <span
+                id="playerCardCrownHighlight_${row.guessKey}"
+                class="${row.isHighestCrown ? 'playerCard__crown--highlight_visible' : 'playerCard__crown--highlight_hidden'}"
+                ${row.isHighestCrown ? 'title="Highest crown wins for this player"' : ''}
+              >⬆</span>
             </span>
-            <span class="playerCard__tableNumber">${crown}</span>
-            <span class="playerCard__tableSuffix">${crownBadges}</span>
+            <span class="playerCard__tableNumber">${row.crown}</span>
+            <span class="playerCard__tableSuffix">${row.crownBadges}</span>
           </span>
         </td>
       </tr>
-    `;
-  }).join('');
-
-  // Determine which guess count has the highest crown wins for potential highlighting
-  highestCrownRows.rows.forEach((g) => {
-    rows = rows.replace(`id='playerCardCrownHighlight_${g}' class="playerCard__crown--highlight_hidden"`, `id='playerCardCrownHighlight_${g}' class="playerCard__crown--highlight_visible" title="Highest crown wins for this player"`);
-  });
-
-   highestTotalRows.rows.forEach((g) => {
-    rows = rows.replace(`id='playerCardTotalHighlight_${g}' class="playerCard__total--highlight_hidden"`, `id='playerCardTotalHighlight_${g}' class="playerCard__total--highlight_visible" title="Highest total wins for this player"`);
-  });
+    `)
+    .join('');
 
   const badgeBlock = badgeMarkup
     ? `<div class="playerCard__badgeWrap">${badgeMarkup}</div>`
@@ -536,11 +554,11 @@ function buildPlayerStatsMarkup(player, metrics, badgeMarkup, roundBreakdownBadg
     <div class="playerCard">
       <div class="playerCard__header">
         <div class="playerCard__title">${escapeHtml(player)}</div>
-        <button class="crownTable__panelBtn" type="button" data-crown-group-panel="true">✖</button>
+        <button class="crownTable__panelBtn" type="button" data-crown-group-panel="true" aria-label="Close player details">&times;</button>
       </div>
       ${badgeBlock}
+      <div class="playerCard__badgeGroupTitle">⭕ Round Breakdown</div>
       <table class="playerCard__table">
-        <div class="playerCard__badgeGroupTitle">⭕ Round Breakdown</div>
         <thead><tr><th>Round</th><th>Wins</th><th>👑 Wins</th></tr></thead>
         <tbody>
           ${rows}
@@ -553,13 +571,13 @@ function buildPlayerStatsMarkup(player, metrics, badgeMarkup, roundBreakdownBadg
 function buildGroupStatsMarkup(dataset, metrics, callouts) {
   const players = new Set(dataset.map((r) => r.player)).size;
   const ratioPct = metrics.totalGames ? ((metrics.crownWins / metrics.totalGames) * 100).toFixed(1) : '0.0';
-  const guessOrder = ['1','2','3','4','5','6','X'];
-  const rows = guessOrder.map((g) => {
-    const label = g === 'X' ? 'X/6 (fail)' : `${g}/6`;
-    const total = metrics.buckets[g] || 0;
-    const crown = metrics.crownBuckets[g] || 0;
-    return `<tr><td>${label}</td><td>${total}</td><td>${crown}</td></tr>`;
-  }).join('');
+  const rows = GUESS_ORDER
+    .map((guessKey) => {
+      const total = metrics.buckets[guessKey] || 0;
+      const crown = metrics.crownBuckets[guessKey] || 0;
+      return `<tr><td>${formatGuessLabel(guessKey)}</td><td>${total}</td><td>${crown}</td></tr>`;
+    })
+    .join('');
   const calloutsMarkup =
     Array.isArray(callouts) && callouts.length
       ? `
@@ -768,8 +786,7 @@ function onCsvLoaded(rows, columns, sourceName) {
   stateStore.setRawData(rows, columns);
   stateStore.setNormalizedWordle([]);
   stateStore.setLastDays(0);
-  wordleDateField = null;
-  crownModeReady = false;
+  resetCrownRuntimeState();
 
   const wordle = looksLikeWordleSummary(columns);
   $('btnExport').disabled = !wordle;
@@ -825,15 +842,12 @@ function parseCsvText(text, sourceName) {
       const rows = res.data || [];
       const columns = res.meta && res.meta.fields ? res.meta.fields : (rows[0] ? Object.keys(rows[0]) : []);
       if (!rows.length) {
+        resetLoadedDataset();
         setStatus($('loadStatus'), 'CSV parsed but found zero data rows.', 'warn');
-        crownModeReady = false;
-        stateStore.setRawData([], []);
-        stateStore.setNormalizedWordle([]);
-        stateStore.setLastDays(0);
         $('btnExport').disabled = true;
+        $('lastDays').disabled = true;
         setStatus($('leaderboardStatus'), '', '');
-        renderCrownTable([], [], stateStore.getLastDaysSubset());
-        $('previewTable').innerHTML = '';
+        clearRenderedData();
         return;
       }
       onCsvLoaded(rows, columns, sourceName);
@@ -932,14 +946,8 @@ function exportNormalized() {
 function clearAll() {
   stateStore.reset();
   stateStore.setLeaderboardLimit(autoRenderConfig.limit);
-  wordleDateField = null;
-  crownModeReady = false;
-  $('previewTable').innerHTML = '';
-  const table = $('crownTable');
-  if (table) {
-    table.innerHTML = '';
-    table.classList.remove('crownTable--visible');
-  }
+  resetCrownRuntimeState();
+  clearRenderedData();
   $('file').value = '';
   $('limit').value = autoRenderConfig.limit;
   $('lastDays').value = '';

@@ -37,8 +37,8 @@ If any required column is missing the app leaves the controls disabled and surfa
 
 ## Data & Rendering Flow
 1. **Load** – `parseCsvText()` (script.js) runs PapaParse with `header: true` and stamps each raw row with a hidden `__rowIndex`.
-2. **Detect** – `onCsvLoaded()` validates the schema, normalizes rows via `normalizeWordle()`, and populates the "Last N days" input with the total day count.
-3. **Render** – `render()` builds the day subset, feeds it to `wordleCrownWins()`, renders the leaderboard, and syncs the preview table to the same subset.
+2. **Detect** – `onCsvLoaded()` validates the schema, normalizes rows via `normalizeWordle()`, stores the raw + normalized data in `stateStore`, and populates the "Last N days" input with the total day count.
+3. **Render** – `render()` asks `stateStore` for the active day-window subset, feeds it to `wordleCrownWins()`, renders the leaderboard, and syncs the preview table to the same subset.
 4. **Interact** – clicking rows in the crown-table updates the player card, converts non-table stats into badge tiles, and keeps the Crown Wins table visible. Clicking/Enter/Space on a badge expands it to show metrics + requirements; clicking "Close" returns to group stats. Round Breakdown values can also show inline badge icons when a manifest entry declares matching `roundBreakdownSlots`; clicking one of those inline icons expands the matching badge tile in the Earned/Locked board.
 
 ## Project Layout
@@ -49,7 +49,7 @@ script.js     # DOM orchestration + subset logic
 crownWinsCore.js # reusable normalization helpers (UMD-style)
 badges.js     # badge rules + metrics helpers (UMD-style)
 resources/    # sample CSV data
-tests/        # node --test suites for core + badges
+tests/        # Node test suites + sequential test entrypoint
 package.json  # npm scripts (npm test)
 ```
 Only PapaParse is loaded at runtime. Chart.js has been removed entirely.
@@ -78,13 +78,14 @@ Only PapaParse is loaded at runtime. Chart.js has been removed entirely.
 - Export normalized CSV -> downloaded file opens in Excel with crowns rendered correctly.
 
 ## Tests
-Run `npm test` to execute the Node test runner. The suite currently covers:
+Run `npm test` to execute the Node-based test suite. The package script uses `tests/run-tests.js` so the suite also works in restricted environments where `node --test` cannot spawn worker processes. Coverage currently includes:
 - `normalizeWordle` edge cases (crowns, failed rows, date parsing).
 - `wordleCrownWins` ordering logic.
+- State-store day window filtering and memoized player subset lookups.
 - Badge selection heuristics, earned/locked player-card badge resolution, and badge markup limits/order for player-card badges.
 
 ## Known Limitations
-- **Global mutable state** – the browser implementation still keeps `rawRows`, `normalizedWordle`, and `crownContext` in module scope, so further modularization would help.
+- **Remaining UI globals** – the browser app now routes dataset/filter state through `stateStore`, but `script.js` still keeps UI orchestration and `crownContext` in module scope.
 - **Performance** – normalization is synchronous and recomputes on every render; workers or memoization would help on 5k+ row CSVs.
 - **Accessibility polish** – the crown-table rows are focusable, but announcing context (row place, instructions) still needs ARIA work.
 - **No persistence** – user preferences (Top N, Last N days, developer toggle) reset on refresh.

@@ -1,11 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const CrownWinsCore = require('../crownWinsCore');
-global.CrownWinsCore = CrownWinsCore;
-require('../stateManager');
-
-const { createStateStore } = global.CrownState;
+global.CrownWinsCore = require('../crownWinsCore');
+const { createStateStore } = require('../stateManager');
 
 function buildNormalizedRows() {
   return [
