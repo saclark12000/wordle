@@ -410,9 +410,9 @@
   ];
   const SOLO_CROWN_WINS_LADDER = [
     { min: 1, max: 1, tier: 0 },
-    { min: 3, max: 5, tier: 1 },
-    { min: 6, max: 11, tier: 2 },
-    { min: 12, max: Infinity, tier: 3 }
+    { min: 2, max: 2, tier: 1 },
+    { min: 3, max: 3, tier: 2 },
+    { min: 4, max: Infinity, tier: 3 }
   ];
 
   function getTierFromLadder(value, ladder = []) {
@@ -779,7 +779,7 @@
       progress: (ctx) => {
         const soloCrownWins = getMetricNumber(ctx, 'soloCrownWins', 0);
         const tierStars = getTierFromLadder(soloCrownWins, SOLO_CROWN_WINS_LADDER);
-        return `${formatCountLabel(soloCrownWins, 'solo crown')}. Tier: ${tierStars}🏅`;
+        return `${formatCountLabel(soloCrownWins, 'solo crown')}. Tier: ${tierStars}⭐`;
       },
       predicate: (ctx) => getMetricNumber(ctx, 'soloCrownWins', 0) >= getLadderUnlockThreshold(SOLO_CROWN_WINS_LADDER)
     },

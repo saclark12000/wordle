@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title># wordle-hurdle · Group Stats</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="groupStatsStandalone">
+  <main class="groupStatsStandalone__main">
+    <header class="groupStatsStandalone__header">
+      <h1># wordle-hurdle</h1>
+      <p id="groupStatsMeta">Loading group stats...</p>
+    </header>
+    <div id="groupStatsRoot" class="card">
+      <div class="status">Loading sample data...</div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="crownWinsCore.js"></script>
+  <script src="groupStats.js"></script>
+  <script>
+    const DEFAULT_CSV_PATH = 'resources/game_data/wordleData.csv';
+    const { detectDateField, normalizeWordle } = window.CrownWinsCore || {};
+    const {
+      DEFAULT_GROUP_STATS_LEADERBOARD_ID,
+      deriveGroupStatsData,
+      deriveGroupStatsCallouts,
+      isGroupStatsLeaderboardId,
+      buildGroupStatsPanelMarkup
+    } = window.GroupStats || {};
+
+    if (!detectDateField || !normalizeWordle || !deriveGroupStatsData || !buildGroupStatsPanelMarkup) {
+      throw new Error('Required modules failed to load for group-stats.html');
+    }
+
+    const root = document.getElementById('groupStatsRoot');
+    const meta = document.getElementById('groupStatsMeta');
+    let activeLeaderboardId = DEFAULT_GROUP_STATS_LEADERBOARD_ID;
+    let groupStatsPayload = null;
+
+    function renderPanel(data) {
+      root.innerHTML = buildGroupStatsPanelMarkup(data, {
+        title: 'Group Stats Preview',
+        activeLeaderboardId,
+        callouts: deriveGroupStatsCallouts(data)
+      });
+      meta.textContent = `Last ${data.totalDays} day(s) · Latest: ${data.latestDate || 'n/a'}`;
+    }
+
+    root.addEventListener('click', (event) => {
+      const navButton = event.target.closest('[data-group-stats-leaderboard]');
+      if (!navButton) return;
+      const requestedId = navButton.dataset.groupStatsLeaderboard || '';
+      if (!isGroupStatsLeaderboardId(requestedId) || !groupStatsPayload) return;
+      activeLeaderboardId = requestedId;
+      renderPanel(groupStatsPayload);
+    });
+
+    async function init() {
+      try {
+        const response = await fetch(DEFAULT_CSV_PATH, { cache: 'no-cache' });
+        if (!response.ok) {
+          throw new Error(`Could not load CSV: HTTP ${response.status}`);
+        }
+        const csvText = await response.text();
+        const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+        if (parsed.errors && parsed.errors.length) {
+          throw new Error(parsed.errors[0].message);
+        }
+        const rows = (parsed.data || []).map((row, index) => ({ ...row, __rowIndex: index }));
+        const dateField = detectDateField(parsed.meta && parsed.meta.fields ? parsed.meta.fields : Object.keys(rows[0] || {}));
+        const normalized = normalizeWordle(rows, dateField);
+        groupStatsPayload = deriveGroupStatsData(normalized);
+        renderPanel(groupStatsPayload);
+      } catch (error) {
+        meta.textContent = 'Failed to load group stats preview.';
+        root.innerHTML = `<div class="status warn">${String(error && error.message ? error.message : error)}</div>`;
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

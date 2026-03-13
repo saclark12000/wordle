@@ -22,7 +22,7 @@
 
 ### Badges & Insights
 - Surface richer player insights (streaks, average guesses when crowned, participation rate) as first-class card stats instead of badge-only metrics.
-- Experiment with group-level callouts (e.g., "Newcomer surge" when new players earn crowns) to add narrative context.
+- Add trend deltas to the shared Group Stats panel so leaderboard changes between windows are visible without manual comparison.
 - Break the badge manifest and badge helper logic into smaller modules to keep future badge additions reviewable.
 
 ### Data Handling

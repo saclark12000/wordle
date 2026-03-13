@@ -10,6 +10,7 @@ Single-page web app focused on a single job: ingest the standardized Wordle/Hurd
 - **UTF-8 safe parsing** – file picker reads files as UTF-8, the built-in sample ships with proper crown text, and exports include a BOM so spreadsheets stop showing mojibake.
 - **Normalization pipeline** – `crownWinsCore.js` exposes pure helpers (`normalizeWordle`, `wordleCrownWins`, etc.) that convert emoji columns into tidy player/day rows and can now be unit tested in isolation.
 - **Leaderboard view** – `renderCrownTable()` replaces the old Chart.js canvas with the dedicated crown-table layout, including player detail panes and multi-badge toggles.
+- **Shared Group Stats panel** – the default side panel now reuses the richer `group-stats.html` summary/sidebar leaderboard content through `groupStats.js`, so the standalone preview and in-app Group Stats view stay aligned.
 - **Preview + export** – the data preview only shows the rows backing the current "Last N days" window, and you can download the normalized rows with **Export normalized CSV**.
 - **Badge system** – `badges.js` drives the player-card badge board (`PLAYER_CARD_BADGE_MANIFEST`) from the full manifest. Earned tiles are full-color, locked tiles render as black boxes, and expanding a tile shows current progress plus requirements.
 - **Rank badge series update** – `top_ten_rank` was replaced by place-specific badges: `crown_wins_1_place`, `crown_wins_2-5_place` (tiered), `crown_wins_6-9_place` (tiered), and `crown_wins_10_place`.
@@ -42,13 +43,15 @@ If any required column is missing the app leaves the controls disabled and surfa
 1. **Load** – `parseCsvText()` (script.js) runs PapaParse with `header: true` and stamps each raw row with a hidden `__rowIndex`.
 2. **Detect** – `onCsvLoaded()` validates the schema, normalizes rows via `normalizeWordle()`, stores the raw + normalized data in `stateStore`, and populates the "Last N days" input with the total day count.
 3. **Render** – `render()` asks `stateStore` for the active day-window subset, feeds it to `wordleCrownWins()`, renders the leaderboard, and syncs the preview table to the same subset.
-4. **Interact** – clicking rows in the crown-table updates the player card, converts non-table stats into badge tiles, and keeps the Crown Wins table visible. Clicking/Enter/Space on a badge expands it to show metrics + requirements; clicking "Close" returns to group stats. Round Breakdown values can also show inline badge icons when a manifest entry declares matching `roundBreakdownSlots`; clicking one of those inline icons expands the matching badge tile in the Earned/Locked board.
+4. **Interact** – the Group Stats panel defaults to the shared summary + leaderboard sidebar view from `group-stats.html`; clicking sidebar metrics swaps the active leaderboard in place. Clicking rows in the crown-table updates the player card, converts non-table stats into badge tiles, and keeps the Crown Wins table visible. Clicking/Enter/Space on a badge expands it to show metrics + requirements; clicking "Close" returns to group stats. Round Breakdown values can also show inline badge icons when a manifest entry declares matching `roundBreakdownSlots`; clicking one of those inline icons expands the matching badge tile in the Earned/Locked board.
 
 ## Project Layout
 ```
 index.html    # lean control panel + leaderboard card
 style.css     # dark theme, developer tools, crown-table, badges
 script.js     # DOM orchestration + subset logic
+groupStats.js # shared group-stats derivation + panel markup
+group-stats.html # standalone preview using the shared group-stats renderer
 crownWinsCore.js # reusable normalization helpers (UMD-style)
 badges.js     # badge rules + metrics helpers (UMD-style)
 resources/    # sample CSV data
@@ -62,6 +65,7 @@ Only PapaParse is loaded at runtime. Chart.js has been removed entirely.
 2. Click **Load built-in sample** to confirm the leaderboard renders.
 3. Drop your latest Wordle/Hurdle export, tweak **Top N** and **Last N days**, then click player rows to inspect badges and per-guess stats.
 4. Hit **Export normalized CSV** if you need the tidy format for spreadsheets or other tooling.
+5. Open `group-stats.html` if you want the standalone preview of the same Group Stats panel used in-app.
 
 ## Support Resources
 - Refer to `resources/support/PLAYER_BADGE_MANIFEST.md` for a step-by-step checklist on adding or updating `PLAYER_CARD_BADGE_MANIFEST` entries. It explains manifest fields (including progress/requirement copy), the `ctx.metric*` API, and the test workflow.
@@ -86,6 +90,7 @@ Run `npm test` to execute the Node-based test suite. The package script uses `te
 - `wordleCrownWins` ordering logic.
 - State-store day window filtering and memoized player subset lookups.
 - Badge selection heuristics, earned/locked player-card badge resolution, and badge markup limits/order for player-card badges.
+- Group stats derivation, leaderboard ordering, and shared Group Stats panel markup.
 
 ## Known Limitations
 - **Remaining UI globals** – the browser app now routes dataset/filter state through `stateStore`, but `script.js` still keeps UI orchestration and `crownContext` in module scope.

@@ -25,17 +25,30 @@ if (typeof createStateStore !== 'function') {
   throw new Error('State manager module failed to load.');
 }
 
+const {
+  DEFAULT_GROUP_STATS_LEADERBOARD_ID,
+  deriveGroupStatsData,
+  deriveGroupStatsCallouts,
+  isGroupStatsLeaderboardId,
+  buildGroupStatsPanelMarkup
+} = window.GroupStats || {};
+
+if (
+  !DEFAULT_GROUP_STATS_LEADERBOARD_ID ||
+  typeof deriveGroupStatsData !== 'function' ||
+  typeof deriveGroupStatsCallouts !== 'function' ||
+  typeof isGroupStatsLeaderboardId !== 'function' ||
+  typeof buildGroupStatsPanelMarkup !== 'function'
+) {
+  throw new Error('GroupStats module failed to load.');
+}
+
 const stateStore = createStateStore();
 const UTF8_DECODER = typeof TextDecoder !== 'undefined' ? new TextDecoder('utf-8') : null;
 const GUESS_ORDER = ['1', '2', '3', '4', '5', '6', 'X'];
 
 function uniq(arr) {
   return [...new Set(arr)];
-}
-
-function formatPercent(value, digits = 1) {
-  if (!Number.isFinite(value)) return '0%';
-  return `${(value * 100).toFixed(digits)}%`;
 }
 
 function downloadText(filename, text) {
@@ -58,8 +71,6 @@ let wordleDateField = null;
 let crownModeReady = false;
 const {
   createCrownContext,
-  createEmptyPlayerMetrics,
-  updatePlayerMetricsFromRow,
   buildPlayerMetricsMap,
   buildLeaderboardRankings,
   getPlayerMetrics,
@@ -107,14 +118,6 @@ function updateLastDaysDefault(maxDay) {
   } else {
     input.value = '';
   }
-}
-
-function summarizeMetrics(rows) {
-  const metrics = createEmptyPlayerMetrics(null, { trackRows: false });
-  for (const r of rows || []) {
-    updatePlayerMetricsFromRow(metrics, r);
-  }
-  return metrics;
 }
 
 function computePlayerInsights(metrics, opts = {}) {
@@ -165,50 +168,6 @@ function computePlayerInsights(metrics, opts = {}) {
     avgGuessWhenCrowned: avgGuess,
     participationRate
   };
-}
-
-function deriveGroupCallouts(dataset, metrics) {
-  if (!Array.isArray(dataset) || !dataset.length) return [];
-  const callouts = [];
-  const perPlayer = buildPlayerMetricsMap(dataset);
-  const totalPlayers = perPlayer.size || 0;
-  const totalCrowns = dataset.filter((row) => row && row.isCrown).length;
-  const newcomerPlayers = [];
-  perPlayer.forEach((playerMetrics, player) => {
-    if (!playerMetrics) return;
-    if (playerMetrics.totalGames <= 3 && playerMetrics.crownWins > 0) {
-      newcomerPlayers.push(player);
-    }
-  });
-  if (newcomerPlayers.length >= Math.max(2, Math.ceil(totalPlayers * 0.2))) {
-    callouts.push({
-      title: 'Newcomer surge',
-      detail: `${newcomerPlayers.length} newer players earned crowns this window.`,
-      meta: newcomerPlayers.slice(0, 3).join(', ')
-    });
-  }
-  if (totalCrowns > 0 && totalPlayers > 0) {
-    const leaderboard = wordleCrownWins(dataset, totalPlayers);
-    if (leaderboard.length) {
-      const leader = leaderboard[0];
-      const share = leader.winCount ? leader.winCount / totalCrowns : 0;
-      if (share >= 0.35) {
-        callouts.push({
-          title: 'Crown concentration',
-          detail: `${leader.player} owns ${formatPercent(share, 0)} of crowns (${leader.winCount}/${totalCrowns}).`
-        });
-      }
-    }
-  }
-  const ratioPct =
-    metrics && metrics.totalGames ? (metrics.crownWins / metrics.totalGames) : 0;
-  if (ratioPct >= 0.6) {
-    callouts.push({
-      title: 'Consistent crowd',
-      detail: `Group crown conversion is ${formatPercent(ratioPct, 0)} this window.`
-    });
-  }
-  return callouts;
 }
 
 // Rendering
@@ -402,6 +361,9 @@ function renderCrownTable(rows, dataset, windowMeta = null) {
     leaderboard: leaderboardRows,
     dataset,
     selectedPlayer: null,
+    groupStats: {
+      activeLeaderboardId: DEFAULT_GROUP_STATS_LEADERBOARD_ID
+    },
     playerMetrics: playerMetricsMap,
     badgeMetricSources: {
       custom: {}
@@ -568,50 +530,6 @@ function buildPlayerStatsMarkup(player, metrics, badgeMarkup, roundBreakdownBadg
   `;
 }
 
-function buildGroupStatsMarkup(dataset, metrics, callouts) {
-  const players = new Set(dataset.map((r) => r.player)).size;
-  const ratioPct = metrics.totalGames ? ((metrics.crownWins / metrics.totalGames) * 100).toFixed(1) : '0.0';
-  const rows = GUESS_ORDER
-    .map((guessKey) => {
-      const total = metrics.buckets[guessKey] || 0;
-      const crown = metrics.crownBuckets[guessKey] || 0;
-      return `<tr><td>${formatGuessLabel(guessKey)}</td><td>${total}</td><td>${crown}</td></tr>`;
-    })
-    .join('');
-  const calloutsMarkup =
-    Array.isArray(callouts) && callouts.length
-      ? `
-      <div class="groupCallouts">
-        ${callouts
-          .map(
-            (entry) => `
-            <div class="groupCallouts__item">
-              <div class="groupCallouts__title">${escapeHtml(entry.title)}</div>
-              <div class="groupCallouts__detail">${escapeHtml(entry.detail)}</div>
-              ${entry.meta ? `<div class="groupCallouts__meta">${escapeHtml(entry.meta)}</div>` : ''}
-            </div>
-          `
-          )
-          .join('')}
-      </div>
-    `
-      : '';
-  return `
-    <div class="playerCard">
-      <div class="playerCard__title">Group Stats</div>
-      <div class="playerCard__stat">Total players: <strong>${players}</strong></div>
-      <div class="playerCard__stat">Total games: <strong>${metrics.totalGames}</strong></div>
-      <div class="playerCard__stat">Total 👑 wins: <strong>${metrics.crownWins}</strong> (${ratioPct}%)</div>
-      ${calloutsMarkup}
-      <table class="playerCard__table">
-        <thead><tr><th>Round</th><th>Total</th><th>👑 Wins</th></tr></thead>
-        <tbody>
-          ${rows}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
 function getPlayerBadgeRenderData(context, player, insights) {
   const badgeOpts = {
     windowDays: context && context.windowDays ? context.windowDays : 0,
@@ -651,7 +569,7 @@ function setActiveCrownPlayer(player) {
   });
 }
 
-function setGroupStatsPanel() {
+function setGroupStatsPanel(activeLeaderboardId = null) {
   const panel = $('crownTablePanel');
   const container = $('crownTable');
   if (!panel) return;
@@ -660,10 +578,20 @@ function setGroupStatsPanel() {
     panel.innerHTML = '<div class="status">Load a Wordle CSV to see group stats.</div>';
     return;
   }
-  const metrics = summarizeMetrics(dataset);
-  const callouts = deriveGroupCallouts(dataset, metrics);
-  panel.innerHTML = buildGroupStatsMarkup(dataset, metrics, callouts);
+  const groupStats = deriveGroupStatsData(dataset);
+  const nextActiveLeaderboardId = isGroupStatsLeaderboardId(activeLeaderboardId)
+    ? activeLeaderboardId
+    : crownContext.groupStats && isGroupStatsLeaderboardId(crownContext.groupStats.activeLeaderboardId)
+      ? crownContext.groupStats.activeLeaderboardId
+      : DEFAULT_GROUP_STATS_LEADERBOARD_ID;
+  panel.innerHTML = buildGroupStatsPanelMarkup(groupStats, {
+    activeLeaderboardId: nextActiveLeaderboardId,
+    callouts: deriveGroupStatsCallouts(groupStats)
+  });
   crownContext.selectedPlayer = null;
+  crownContext.groupStats = {
+    activeLeaderboardId: nextActiveLeaderboardId
+  };
   if (container) {
     container.querySelectorAll('[data-crown-player-row]').forEach((row) => {
       row.classList.remove('crownTable__row--active');
@@ -987,6 +915,12 @@ if (btnLogCtx) {
 }
 
 $('crownTable').addEventListener('click', (event) => {
+  const groupStatsNav = event.target.closest('[data-group-stats-leaderboard]');
+  if (groupStatsNav) {
+    event.preventDefault();
+    setGroupStatsPanel(groupStatsNav.dataset.groupStatsLeaderboard || '');
+    return;
+  }
   const badgeClose = event.target.closest('[data-player-badge-close]');
   if (badgeClose) {
     event.preventDefault();
