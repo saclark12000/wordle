@@ -1042,23 +1042,30 @@ a.crownTable__panelBtn {
 }
 
 .groupStatsPanel__sidebarBtn {
-  width: 100%;
+  width: calc(100% - 16px);
   display: block;
   text-align: left;
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   border-left: 3px solid transparent;
-  color: var(--muted2);
-  padding: 10px 16px;
+  border-radius: 12px;
+  color: var(--accent-secondary);
+  margin: 0 8px;
+  padding: 11px 14px;
   font-size: 13px;
   font-family: inherit;
   cursor: pointer;
+  box-shadow: none;
+  transform: none;
   transition: background .15s ease, color .15s ease, border-color .15s ease;
 }
 
 .groupStatsPanel__sidebarBtn:hover {
-  color: var(--text);
+  color: var(--accent);
   background: rgba(255,255,255,.04);
+  border-color: rgba(255,255,255,.08);
+  box-shadow: none;
+  transform: none;
 }
 
 .groupStatsPanel__sidebarBtn:focus-visible {
@@ -1068,9 +1075,16 @@ a.crownTable__panelBtn {
 
 .groupStatsPanel__sidebarBtn--active {
   color: var(--accent-secondary);
-  background: rgba(201,180,88,.08);
+  background: rgba(201,180,88,.18);
   border-left-color: var(--accent-secondary);
+  border-color: rgba(201,180,88,.32);
   font-weight: 600;
+}
+
+.groupStatsPanel__sidebarBtn--active:hover {
+  color: var(--accent-secondary);
+  background: rgba(201,180,88,.18);
+  border-color: rgba(201,180,88,.32);
 }
 
 .groupStatsPanel__content {
