@@ -221,7 +221,7 @@ test('resolvePlayerCardBadges returns all player-card badges by default', () => 
   const badgeCollector = badges.find((badge) => badge.id === 'badge_collector');
   assert.ok(badgeCollector);
   assert.equal(badgeCollector.earned, true);
-  assert.equal(badgeCollector.progress, '7 badges earned');
+  assert.equal(badgeCollector.progress, '8 badges earned');
 });
 
 test('resolvePlayerCardBadges honors maxBadges option', () => {
@@ -391,6 +391,73 @@ test('resolvePlayerCardBadges allows custom metric overrides without expanding c
   assert.ok(badges.find((badge) => badge.id === 'always_guessing').icon.includes('badgeIconTier'));
   assert.ok(badges.find((badge) => badge.id === 'always_guessing').icon.includes('data-stars="3"'));
   assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').progress, 'Current avg: 3.2 guesses');
+});
+
+test('resolvePlayerCardBadges awards whimsy badges for late crowns, crown variety, and full range', () => {
+  const dataset = [
+    { player: '@ace', guesses: 1, solved: true, isCrown: true },
+    { player: '@ace', guesses: 2, solved: true, isCrown: true },
+    { player: '@ace', guesses: 5, solved: true, isCrown: true },
+    { player: '@ace', guesses: 6, solved: true, isCrown: true },
+    { player: '@buck', guesses: 2, solved: true, isCrown: true }
+  ];
+  const ctx = createCrownContext();
+  ctx.dataset = dataset;
+  ctx.playerMetrics = buildPlayerMetricsMap(dataset);
+
+  const badges = resolvePlayerCardBadges(ctx, '@ace');
+  const clutchCrowns = badges.find((badge) => badge.id === 'clutch_crowns');
+  const chaosMode = badges.find((badge) => badge.id === 'chaos_mode');
+  const fullDramaRange = badges.find((badge) => badge.id === 'full_drama_range');
+  const roundBreakdownMap = buildRoundBreakdownBadgeMap(badges);
+
+  assert.ok(clutchCrowns);
+  assert.equal(clutchCrowns.earned, true);
+  assert.ok(clutchCrowns.icon.includes('data-stars="1"'));
+  assert.ok(clutchCrowns.progress.includes('2 late crowns'));
+  assert.ok(clutchCrowns.progress.includes('Tier: 1'));
+
+  assert.ok(chaosMode);
+  assert.equal(chaosMode.earned, true);
+  assert.ok(chaosMode.icon.includes('data-stars="1"'));
+  assert.ok(chaosMode.progress.includes('4 crown buckets visited'));
+
+  assert.ok(fullDramaRange);
+  assert.equal(fullDramaRange.earned, true);
+  assert.equal(fullDramaRange.progress, 'Fast crowns: 2. Late crowns: 2.');
+
+  assert.ok(roundBreakdownMap.crownWins['1'].some((badge) => badge.id === 'chaos_mode'));
+  assert.ok(roundBreakdownMap.crownWins['1'].some((badge) => badge.id === 'full_drama_range'));
+  assert.ok(roundBreakdownMap.crownWins['5'].some((badge) => badge.id === 'clutch_crowns'));
+  assert.ok(roundBreakdownMap.crownWins['6'].some((badge) => badge.id === 'chaos_mode'));
+});
+
+test('chaos_mode icon stars follow crown bucket variety tiers (0-3)', () => {
+  const scenarios = [
+    { buckets: [1, 2, 3], stars: 0 },
+    { buckets: [1, 2, 3, 4], stars: 1 },
+    { buckets: [1, 2, 3, 4, 5], stars: 2 },
+    { buckets: [1, 2, 3, 4, 5, 6], stars: 3 }
+  ];
+
+  scenarios.forEach(({ buckets, stars }) => {
+    const dataset = buckets.map((guessBucket) => ({
+      player: '@chaos',
+      guesses: guessBucket,
+      solved: true,
+      isCrown: true
+    }));
+    const ctx = createCrownContext();
+    ctx.dataset = dataset;
+    ctx.playerMetrics = buildPlayerMetricsMap(dataset);
+
+    const chaosMode = resolvePlayerCardBadges(ctx, '@chaos').find((badge) => badge.id === 'chaos_mode');
+
+    assert.ok(chaosMode);
+    assert.equal(chaosMode.earned, true);
+    assert.ok(chaosMode.icon.includes(`data-stars="${stars}"`));
+    assert.ok(chaosMode.progress.includes(`Tier: ${stars}`));
+  });
 });
 
 test('crown_win_streak icon tiers follow streak ladder (0-3)', () => {

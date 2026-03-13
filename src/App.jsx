@@ -25,9 +25,45 @@ import './app.css';
 
 const EMPTY_STATUS = { html: '', kind: '' };
 const DEFAULT_DEVTOOLS_STATUS = { html: 'Logs appear in browser developer console.', kind: '' };
+const TITLE_SECRET_TAP_TARGET = 5;
+const TITLE_SECRET_RESET_MS = 2200;
+const SECRET_STATUS_DURATION_MS = 4800;
+const SECRET_VISUAL_DURATION_MS = 7000;
+const SECRET_WORD = 'crown';
+const SECRET_CROWN_TOKENS = [
+  { label: '👑', kind: 'crown', top: 16, right: 8, drift: -16, lift: 86, rotateStart: -18, rotateEnd: 20, duration: 1720, delay: 0 },
+  { label: '✨', kind: 'spark', top: 56, right: 22, drift: -42, lift: 108, rotateStart: -4, rotateEnd: 32, duration: 1460, delay: 80 },
+  { label: '👑', kind: 'crown', top: 34, right: 48, drift: -26, lift: 118, rotateStart: -10, rotateEnd: 18, duration: 1680, delay: 140 },
+  { label: '✦', kind: 'spark', top: 76, right: 66, drift: -58, lift: 96, rotateStart: 0, rotateEnd: 26, duration: 1520, delay: 210 },
+  { label: '👑', kind: 'crown', top: 14, right: 92, drift: -20, lift: 92, rotateStart: -16, rotateEnd: 16, duration: 1640, delay: 270 },
+  { label: '✨', kind: 'spark', top: 44, right: 112, drift: -46, lift: 126, rotateStart: -6, rotateEnd: 30, duration: 1500, delay: 330 },
+  { label: '👑', kind: 'crown', top: 82, right: 132, drift: -38, lift: 104, rotateStart: -12, rotateEnd: 14, duration: 1700, delay: 390 },
+  { label: '✦', kind: 'spark', top: 18, right: 156, drift: -30, lift: 88, rotateStart: 4, rotateEnd: 28, duration: 1480, delay: 450 },
+  { label: '👑', kind: 'crown', top: 58, right: 178, drift: -54, lift: 112, rotateStart: -14, rotateEnd: 22, duration: 1740, delay: 510 },
+  { label: '✨', kind: 'spark', top: 10, right: 202, drift: -36, lift: 98, rotateStart: -8, rotateEnd: 26, duration: 1500, delay: 570 },
+  { label: '👑', kind: 'crown', top: 88, right: 224, drift: -60, lift: 130, rotateStart: -10, rotateEnd: 18, duration: 1820, delay: 640 },
+  { label: '✦', kind: 'spark', top: 38, right: 248, drift: -44, lift: 92, rotateStart: 2, rotateEnd: 22, duration: 1460, delay: 710 }
+];
+const SECRET_WORDPLAY_TOKENS = [
+  { label: 'C', kind: 'word', top: 18, right: 180, drift: -8, lift: 40, rotateStart: -6, rotateEnd: 4, duration: 1100, delay: 0 },
+  { label: 'R', kind: 'word', top: 18, right: 146, drift: -4, lift: 48, rotateStart: -4, rotateEnd: 2, duration: 1100, delay: 60 },
+  { label: 'O', kind: 'word', top: 18, right: 112, drift: 0, lift: 44, rotateStart: -2, rotateEnd: 1, duration: 1100, delay: 120 },
+  { label: 'W', kind: 'word', top: 18, right: 74, drift: 4, lift: 48, rotateStart: 2, rotateEnd: -2, duration: 1100, delay: 180 },
+  { label: 'N', kind: 'word', top: 18, right: 40, drift: 8, lift: 42, rotateStart: 4, rotateEnd: -4, duration: 1100, delay: 240 },
+  { label: '🟩', kind: 'tile', top: 72, right: 152, drift: -12, lift: 24, rotateStart: -4, rotateEnd: 2, duration: 1200, delay: 100 },
+  { label: '⬛', kind: 'tile', top: 72, right: 114, drift: -6, lift: 28, rotateStart: -2, rotateEnd: 2, duration: 1200, delay: 160 },
+  { label: '🟨', kind: 'tile', top: 72, right: 76, drift: 6, lift: 26, rotateStart: 2, rotateEnd: -2, duration: 1200, delay: 220 }
+];
 
 function toStatus(html, kind = '') {
   return { html, kind };
+}
+
+function isTextEntryTarget(target) {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+  );
 }
 
 export default function App() {
@@ -36,12 +72,15 @@ export default function App() {
     []
   );
   const panelRef = useRef(null);
+  const keyBufferRef = useRef('');
+  const titleTapTimerRef = useRef(0);
+  const whimsyTimerRef = useRef(0);
+  const visualTimerRef = useRef(0);
 
   const [rawRows, setRawRows] = useState([]);
   const [rawColumns, setRawColumns] = useState([]);
   const [normalizedRows, setNormalizedRows] = useState([]);
   const [wordleDetected, setWordleDetected] = useState(false);
-  const [dataSource, setDataSource] = useState('');
   const [pendingLimit, setPendingLimit] = useState('25');
   const [pendingLastDays, setPendingLastDays] = useState('');
   const [appliedFilters, setAppliedFilters] = useState({ limit: 25, lastDays: 0 });
@@ -51,11 +90,15 @@ export default function App() {
   );
   const [loadStatus, setLoadStatus] = useState(toStatus('No CSV loaded.'));
   const [leaderboardStatus, setLeaderboardStatus] = useState(EMPTY_STATUS);
+  const [whimsyStatus, setWhimsyStatus] = useState(EMPTY_STATUS);
   const [devToolsStatus, setDevToolsStatus] = useState(DEFAULT_DEVTOOLS_STATUS);
   const [developerDocs, setDeveloperDocs] = useState({
     loading: developerMode,
     entries: []
   });
+  const [titleTapCount, setTitleTapCount] = useState(0);
+  const [activeEasterEgg, setActiveEasterEgg] = useState('');
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   useEffect(() => {
     document.body.classList.toggle('developer-mode', developerMode);
@@ -63,6 +106,23 @@ export default function App() {
       document.body.classList.remove('developer-mode');
     };
   }, [developerMode]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const handleChange = () => setPrefersReducedMotion(mediaQuery.matches);
+    handleChange();
+    mediaQuery.addEventListener('change', handleChange);
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange);
+    };
+  }, []);
+
+  useEffect(() => () => {
+    window.clearTimeout(titleTapTimerRef.current);
+    window.clearTimeout(whimsyTimerRef.current);
+    window.clearTimeout(visualTimerRef.current);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -227,11 +287,70 @@ export default function App() {
     );
   }, [activeGroupStatsId, crownContext, groupStatsData, selectedPlayer, windowMeta.data, wordleDetected]);
 
+  const secretTokens = activeEasterEgg === 'crowns'
+    ? SECRET_CROWN_TOKENS
+    : activeEasterEgg === 'wordplay'
+      ? SECRET_WORDPLAY_TOKENS
+      : [];
+
   useEffect(() => {
     if (selectedPlayer && !playerMetricsMap.has(selectedPlayer)) {
       setSelectedPlayer(null);
     }
   }, [playerMetricsMap, selectedPlayer]);
+
+  useEffect(() => {
+    window.clearTimeout(titleTapTimerRef.current);
+    if (!titleTapCount) return undefined;
+    titleTapTimerRef.current = window.setTimeout(() => {
+      setTitleTapCount(0);
+    }, TITLE_SECRET_RESET_MS);
+    return () => {
+      window.clearTimeout(titleTapTimerRef.current);
+    };
+  }, [titleTapCount]);
+
+  function showWhimsyStatus(html) {
+    setWhimsyStatus(toStatus(html, 'ok'));
+    window.clearTimeout(whimsyTimerRef.current);
+    whimsyTimerRef.current = window.setTimeout(() => {
+      setWhimsyStatus(EMPTY_STATUS);
+    }, SECRET_STATUS_DURATION_MS);
+  }
+
+  function activateEasterEgg(mode, html) {
+    setActiveEasterEgg(mode);
+    showWhimsyStatus(html);
+    window.clearTimeout(visualTimerRef.current);
+    visualTimerRef.current = window.setTimeout(() => {
+      setActiveEasterEgg('');
+    }, SECRET_VISUAL_DURATION_MS);
+  }
+
+  useEffect(() => {
+    function handleSecretKeydown(event) {
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if (isTextEntryTarget(event.target)) return;
+      const key = typeof event.key === 'string' ? event.key.toLowerCase() : '';
+      if (!/^[a-z]$/.test(key)) return;
+
+      keyBufferRef.current = `${keyBufferRef.current}${key}`.slice(-SECRET_WORD.length);
+      if (keyBufferRef.current !== SECRET_WORD) return;
+
+      keyBufferRef.current = '';
+      activateEasterEgg(
+        'wordplay',
+        prefersReducedMotion
+          ? 'Secret phrase found. Quiet wordplay mode is active for a few seconds.'
+          : 'Secret phrase found. Wordplay mode is active for a few seconds.'
+      );
+    }
+
+    document.addEventListener('keydown', handleSecretKeydown);
+    return () => {
+      document.removeEventListener('keydown', handleSecretKeydown);
+    };
+  }, [prefersReducedMotion]);
 
   useEffect(() => {
     if (!rawRows.length) {
@@ -271,7 +390,6 @@ export default function App() {
       setRawColumns([]);
       setNormalizedRows([]);
       setWordleDetected(false);
-      setDataSource('');
       setPendingLimit('25');
       setPendingLastDays('');
       setAppliedFilters({ limit: 25, lastDays: 0 });
@@ -305,7 +423,6 @@ export default function App() {
       setRawColumns(columns);
       setNormalizedRows(normalized);
       setWordleDetected(looksLikeWordle);
-      setDataSource(sourceName);
       setPendingLimit('25');
       setPendingLastDays(defaultWindow ? String(defaultWindow) : '');
       setAppliedFilters({ limit: 25, lastDays: defaultWindow });
@@ -382,11 +499,29 @@ export default function App() {
     resetData();
     setLoadStatus(toStatus('No CSV loaded.'));
     setLeaderboardStatus(EMPTY_STATUS);
+    setWhimsyStatus(EMPTY_STATUS);
     setDevToolsStatus(DEFAULT_DEVTOOLS_STATUS);
   }
 
   function handleSelectPlayer(player) {
     setSelectedPlayer(player);
+  }
+
+  function handleTitleSecret() {
+    setTitleTapCount((current) => {
+      const nextCount = current + 1;
+      if (nextCount < TITLE_SECRET_TAP_TARGET) {
+        return nextCount;
+      }
+
+      activateEasterEgg(
+        'crowns',
+        prefersReducedMotion
+          ? 'Secret found. The crown offered a respectful nod.'
+          : 'Secret found. Tiny crown parade activated for a few seconds.'
+      );
+      return 0;
+    });
   }
 
   function handlePanelClick(event) {
@@ -542,12 +677,43 @@ export default function App() {
           lastDaysDisabled={!wordleDetected}
         />
 
-        <section className="card workspaceCard">
+        <section className={`card workspaceCard${activeEasterEgg ? ` workspaceCard--egg workspaceCard--egg-${activeEasterEgg}` : ''}`}>
           <div className="workspaceCard__header">
             <div>
-              <h1 id="pageTitle"># wordle-hurdle</h1>
+              <h1 className="workspaceCard__title">
+                <button
+                  id="pageTitle"
+                  type="button"
+                  className="pageTitleButton"
+                  onClick={handleTitleSecret}
+                  aria-label={`# wordle-hurdle. Hidden surprise after ${TITLE_SECRET_TAP_TARGET} taps.`}
+                >
+                  <span className="pageTitleButton__text"># wordle-hurdle</span>
+                </button>
+              </h1>
+            </div>
+            <div className={`workspaceCard__secretStage workspaceCard__secretStage--${activeEasterEgg || 'idle'}`} aria-hidden="true">
+              {secretTokens.map((token, index) => (
+                <span
+                  key={`${activeEasterEgg || 'idle'}-${token.label}-${index}`}
+                  className={`workspaceCard__secretToken workspaceCard__secretToken--${token.kind}`}
+                  style={{
+                    '--token-delay': `${token.delay}ms`,
+                    '--token-duration': `${token.duration}ms`,
+                    '--token-drift': `${token.drift}px`,
+                    '--token-lift': `${token.lift}px`,
+                    '--token-right': `${token.right}px`,
+                    '--token-rotate-end': `${token.rotateEnd}deg`,
+                    '--token-rotate-start': `${token.rotateStart}deg`,
+                    '--token-top': `${token.top}px`
+                  }}
+                >
+                  {token.label}
+                </span>
+              ))}
             </div>
           </div>
+          <StatusMessage status={whimsyStatus} className="workspaceCard__whimsyStatus" />
 
           <div className="canvasWrap">
             <CrownTable

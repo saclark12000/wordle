@@ -22567,6 +22567,18 @@ var require_badges = __commonJS({
         { min: 3, max: 3, tier: 2 },
         { min: 4, max: Infinity, tier: 3 }
       ];
+      const LATE_CROWN_WINS_LADDER = [
+        { min: 1, max: 1, tier: 0 },
+        { min: 2, max: 3, tier: 1 },
+        { min: 4, max: 5, tier: 2 },
+        { min: 6, max: Infinity, tier: 3 }
+      ];
+      const CHAOS_BUCKET_VARIETY_LADDER = [
+        { min: 3, max: 3, tier: 0 },
+        { min: 4, max: 4, tier: 1 },
+        { min: 5, max: 5, tier: 2 },
+        { min: 6, max: Infinity, tier: 3 }
+      ];
       function getTierFromLadder(value, ladder = []) {
         const parsedValue = Number(value);
         if (!Number.isFinite(parsedValue) || parsedValue <= 0) return 0;
@@ -22660,6 +22672,27 @@ var require_badges = __commonJS({
           }
         });
         return total;
+      }
+      function getCrownBucketCount(ctx, bucketKey) {
+        return getMetricNumber(ctx, `crownBuckets.${bucketKey}`, 0);
+      }
+      function getFastCrownWins(ctx) {
+        return getCrownBucketCount(ctx, "1") + getCrownBucketCount(ctx, "2");
+      }
+      function getLateCrownWins(ctx) {
+        return getCrownBucketCount(ctx, "5") + getCrownBucketCount(ctx, "6");
+      }
+      function getCrownBucketVariety(ctx) {
+        return CROWN_GUESS_BUCKETS.filter((bucketKey) => getCrownBucketCount(ctx, bucketKey) > 0).length;
+      }
+      function getCrownBucketRoundBreakdownSlots(ctx, predicate) {
+        return CROWN_GUESS_BUCKETS.filter((bucketKey) => {
+          if (getCrownBucketCount(ctx, bucketKey) <= 0) return false;
+          return typeof predicate === "function" ? !!predicate(bucketKey) : true;
+        }).map((round) => ({
+          round,
+          column: "crownWins"
+        }));
       }
       function getMetricValue(ctx, key, fallback) {
         if (ctx && typeof ctx.metric === "function") {
@@ -22943,6 +22976,57 @@ var require_badges = __commonJS({
             if (raw === null || raw === void 0 || raw === "") return false;
             return Number.isFinite(avg) && avg < 4;
           }
+        },
+        {
+          id: "clutch_crowns",
+          icon: (ctx) => buildLayeredBadgeIcon({
+            stars: getTierFromLadder(getLateCrownWins(ctx), LATE_CROWN_WINS_LADDER),
+            starIcon: "\u2728",
+            medalIcon: "\u23F0"
+          }),
+          title: "Clutch Gremlin",
+          description: (ctx) => `${ctx.player} keeps turning panic rounds into crowns.`,
+          requirement: "Earn at least one crown on 5/6 or 6/6.",
+          tierInfo: "1 late crown = 0\u2728, 2-3 = 1\u2728, 4-5 = 2\u2728, 6+ = 3\u2728.",
+          progress: (ctx) => {
+            const lateCrownWins = getLateCrownWins(ctx);
+            const tierStars = getTierFromLadder(lateCrownWins, LATE_CROWN_WINS_LADDER);
+            return `${formatCountLabel(lateCrownWins, "late crown")} (5/6-6/6). Tier: ${tierStars}\u2728`;
+          },
+          roundBreakdownSlots: (ctx) => getCrownBucketRoundBreakdownSlots(ctx, (bucketKey) => bucketKey === "5" || bucketKey === "6"),
+          predicate: (ctx) => getLateCrownWins(ctx) >= getLadderUnlockThreshold(LATE_CROWN_WINS_LADDER)
+        },
+        {
+          id: "chaos_mode",
+          icon: (ctx) => buildLayeredBadgeIcon({
+            stars: getTierFromLadder(getCrownBucketVariety(ctx), CHAOS_BUCKET_VARIETY_LADDER),
+            starIcon: "\u{1F3B2}",
+            medalIcon: "\u{1F3B0}"
+          }),
+          title: "Chaos Mode",
+          description: (ctx) => `${ctx.player} has crowns spread across an alarming number of solve buckets.`,
+          requirement: "Earn crowns in at least 3 different solve buckets.",
+          tierInfo: "3 buckets = 0\u{1F3B2}, 4 buckets = 1\u{1F3B2}, 5 buckets = 2\u{1F3B2}, 6 buckets = 3\u{1F3B2}.",
+          progress: (ctx) => {
+            const crownBucketVariety = getCrownBucketVariety(ctx);
+            const tierStars = getTierFromLadder(crownBucketVariety, CHAOS_BUCKET_VARIETY_LADDER);
+            return `${formatCountLabel(crownBucketVariety, "crown bucket")} visited. Tier: ${tierStars}\u{1F3B2}`;
+          },
+          roundBreakdownSlots: (ctx) => getCrownBucketRoundBreakdownSlots(ctx),
+          predicate: (ctx) => getCrownBucketVariety(ctx) >= getLadderUnlockThreshold(CHAOS_BUCKET_VARIETY_LADDER)
+        },
+        {
+          id: "full_drama_range",
+          icon: "\u{1F3AD}",
+          title: "Full Drama Range",
+          description: (ctx) => `${ctx.player} can snag crowns fast or survive until the final guesses.`,
+          requirement: "Earn at least one fast crown (1/6-2/6) and one late crown (5/6-6/6).",
+          progress: (ctx) => `Fast crowns: ${getFastCrownWins(ctx)}. Late crowns: ${getLateCrownWins(ctx)}.`,
+          roundBreakdownSlots: (ctx) => getCrownBucketRoundBreakdownSlots(
+            ctx,
+            (bucketKey) => bucketKey === "1" || bucketKey === "2" || bucketKey === "5" || bucketKey === "6"
+          ),
+          predicate: (ctx) => getFastCrownWins(ctx) > 0 && getLateCrownWins(ctx) > 0
         },
         {
           id: "bucket_master",

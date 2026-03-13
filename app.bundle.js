@@ -22836,6 +22836,18 @@ var require_badges = __commonJS({
         { min: 3, max: 3, tier: 2 },
         { min: 4, max: Infinity, tier: 3 }
       ];
+      const LATE_CROWN_WINS_LADDER = [
+        { min: 1, max: 1, tier: 0 },
+        { min: 2, max: 3, tier: 1 },
+        { min: 4, max: 5, tier: 2 },
+        { min: 6, max: Infinity, tier: 3 }
+      ];
+      const CHAOS_BUCKET_VARIETY_LADDER = [
+        { min: 3, max: 3, tier: 0 },
+        { min: 4, max: 4, tier: 1 },
+        { min: 5, max: 5, tier: 2 },
+        { min: 6, max: Infinity, tier: 3 }
+      ];
       function getTierFromLadder(value, ladder = []) {
         const parsedValue = Number(value);
         if (!Number.isFinite(parsedValue) || parsedValue <= 0) return 0;
@@ -22929,6 +22941,27 @@ var require_badges = __commonJS({
           }
         });
         return total;
+      }
+      function getCrownBucketCount(ctx, bucketKey) {
+        return getMetricNumber(ctx, `crownBuckets.${bucketKey}`, 0);
+      }
+      function getFastCrownWins(ctx) {
+        return getCrownBucketCount(ctx, "1") + getCrownBucketCount(ctx, "2");
+      }
+      function getLateCrownWins(ctx) {
+        return getCrownBucketCount(ctx, "5") + getCrownBucketCount(ctx, "6");
+      }
+      function getCrownBucketVariety(ctx) {
+        return CROWN_GUESS_BUCKETS.filter((bucketKey) => getCrownBucketCount(ctx, bucketKey) > 0).length;
+      }
+      function getCrownBucketRoundBreakdownSlots(ctx, predicate) {
+        return CROWN_GUESS_BUCKETS.filter((bucketKey) => {
+          if (getCrownBucketCount(ctx, bucketKey) <= 0) return false;
+          return typeof predicate === "function" ? !!predicate(bucketKey) : true;
+        }).map((round) => ({
+          round,
+          column: "crownWins"
+        }));
       }
       function getMetricValue(ctx, key, fallback) {
         if (ctx && typeof ctx.metric === "function") {
@@ -23212,6 +23245,57 @@ var require_badges = __commonJS({
             if (raw === null || raw === void 0 || raw === "") return false;
             return Number.isFinite(avg) && avg < 4;
           }
+        },
+        {
+          id: "clutch_crowns",
+          icon: (ctx) => buildLayeredBadgeIcon({
+            stars: getTierFromLadder(getLateCrownWins(ctx), LATE_CROWN_WINS_LADDER),
+            starIcon: "\u2728",
+            medalIcon: "\u23F0"
+          }),
+          title: "Clutch Gremlin",
+          description: (ctx) => `${ctx.player} keeps turning panic rounds into crowns.`,
+          requirement: "Earn at least one crown on 5/6 or 6/6.",
+          tierInfo: "1 late crown = 0\u2728, 2-3 = 1\u2728, 4-5 = 2\u2728, 6+ = 3\u2728.",
+          progress: (ctx) => {
+            const lateCrownWins = getLateCrownWins(ctx);
+            const tierStars = getTierFromLadder(lateCrownWins, LATE_CROWN_WINS_LADDER);
+            return `${formatCountLabel(lateCrownWins, "late crown")} (5/6-6/6). Tier: ${tierStars}\u2728`;
+          },
+          roundBreakdownSlots: (ctx) => getCrownBucketRoundBreakdownSlots(ctx, (bucketKey) => bucketKey === "5" || bucketKey === "6"),
+          predicate: (ctx) => getLateCrownWins(ctx) >= getLadderUnlockThreshold(LATE_CROWN_WINS_LADDER)
+        },
+        {
+          id: "chaos_mode",
+          icon: (ctx) => buildLayeredBadgeIcon({
+            stars: getTierFromLadder(getCrownBucketVariety(ctx), CHAOS_BUCKET_VARIETY_LADDER),
+            starIcon: "\u{1F3B2}",
+            medalIcon: "\u{1F3B0}"
+          }),
+          title: "Chaos Mode",
+          description: (ctx) => `${ctx.player} has crowns spread across an alarming number of solve buckets.`,
+          requirement: "Earn crowns in at least 3 different solve buckets.",
+          tierInfo: "3 buckets = 0\u{1F3B2}, 4 buckets = 1\u{1F3B2}, 5 buckets = 2\u{1F3B2}, 6 buckets = 3\u{1F3B2}.",
+          progress: (ctx) => {
+            const crownBucketVariety = getCrownBucketVariety(ctx);
+            const tierStars = getTierFromLadder(crownBucketVariety, CHAOS_BUCKET_VARIETY_LADDER);
+            return `${formatCountLabel(crownBucketVariety, "crown bucket")} visited. Tier: ${tierStars}\u{1F3B2}`;
+          },
+          roundBreakdownSlots: (ctx) => getCrownBucketRoundBreakdownSlots(ctx),
+          predicate: (ctx) => getCrownBucketVariety(ctx) >= getLadderUnlockThreshold(CHAOS_BUCKET_VARIETY_LADDER)
+        },
+        {
+          id: "full_drama_range",
+          icon: "\u{1F3AD}",
+          title: "Full Drama Range",
+          description: (ctx) => `${ctx.player} can snag crowns fast or survive until the final guesses.`,
+          requirement: "Earn at least one fast crown (1/6-2/6) and one late crown (5/6-6/6).",
+          progress: (ctx) => `Fast crowns: ${getFastCrownWins(ctx)}. Late crowns: ${getLateCrownWins(ctx)}.`,
+          roundBreakdownSlots: (ctx) => getCrownBucketRoundBreakdownSlots(
+            ctx,
+            (bucketKey) => bucketKey === "1" || bucketKey === "2" || bucketKey === "5" || bucketKey === "6"
+          ),
+          predicate: (ctx) => getFastCrownWins(ctx) > 0 && getLateCrownWins(ctx) > 0
         },
         {
           id: "bucket_master",
@@ -24776,8 +24860,40 @@ function buildNormalizedCsvText(normalizedRows) {
 var import_jsx_runtime6 = __toESM(require_jsx_runtime());
 var EMPTY_STATUS = { html: "", kind: "" };
 var DEFAULT_DEVTOOLS_STATUS = { html: "Logs appear in browser developer console.", kind: "" };
+var TITLE_SECRET_TAP_TARGET = 5;
+var TITLE_SECRET_RESET_MS = 2200;
+var SECRET_STATUS_DURATION_MS = 4800;
+var SECRET_VISUAL_DURATION_MS = 7e3;
+var SECRET_WORD = "crown";
+var SECRET_CROWN_TOKENS = [
+  { label: "\u{1F451}", kind: "crown", top: 16, right: 8, drift: -16, lift: 86, rotateStart: -18, rotateEnd: 20, duration: 1720, delay: 0 },
+  { label: "\u2728", kind: "spark", top: 56, right: 22, drift: -42, lift: 108, rotateStart: -4, rotateEnd: 32, duration: 1460, delay: 80 },
+  { label: "\u{1F451}", kind: "crown", top: 34, right: 48, drift: -26, lift: 118, rotateStart: -10, rotateEnd: 18, duration: 1680, delay: 140 },
+  { label: "\u2726", kind: "spark", top: 76, right: 66, drift: -58, lift: 96, rotateStart: 0, rotateEnd: 26, duration: 1520, delay: 210 },
+  { label: "\u{1F451}", kind: "crown", top: 14, right: 92, drift: -20, lift: 92, rotateStart: -16, rotateEnd: 16, duration: 1640, delay: 270 },
+  { label: "\u2728", kind: "spark", top: 44, right: 112, drift: -46, lift: 126, rotateStart: -6, rotateEnd: 30, duration: 1500, delay: 330 },
+  { label: "\u{1F451}", kind: "crown", top: 82, right: 132, drift: -38, lift: 104, rotateStart: -12, rotateEnd: 14, duration: 1700, delay: 390 },
+  { label: "\u2726", kind: "spark", top: 18, right: 156, drift: -30, lift: 88, rotateStart: 4, rotateEnd: 28, duration: 1480, delay: 450 },
+  { label: "\u{1F451}", kind: "crown", top: 58, right: 178, drift: -54, lift: 112, rotateStart: -14, rotateEnd: 22, duration: 1740, delay: 510 },
+  { label: "\u2728", kind: "spark", top: 10, right: 202, drift: -36, lift: 98, rotateStart: -8, rotateEnd: 26, duration: 1500, delay: 570 },
+  { label: "\u{1F451}", kind: "crown", top: 88, right: 224, drift: -60, lift: 130, rotateStart: -10, rotateEnd: 18, duration: 1820, delay: 640 },
+  { label: "\u2726", kind: "spark", top: 38, right: 248, drift: -44, lift: 92, rotateStart: 2, rotateEnd: 22, duration: 1460, delay: 710 }
+];
+var SECRET_WORDPLAY_TOKENS = [
+  { label: "C", kind: "word", top: 18, right: 180, drift: -8, lift: 40, rotateStart: -6, rotateEnd: 4, duration: 1100, delay: 0 },
+  { label: "R", kind: "word", top: 18, right: 146, drift: -4, lift: 48, rotateStart: -4, rotateEnd: 2, duration: 1100, delay: 60 },
+  { label: "O", kind: "word", top: 18, right: 112, drift: 0, lift: 44, rotateStart: -2, rotateEnd: 1, duration: 1100, delay: 120 },
+  { label: "W", kind: "word", top: 18, right: 74, drift: 4, lift: 48, rotateStart: 2, rotateEnd: -2, duration: 1100, delay: 180 },
+  { label: "N", kind: "word", top: 18, right: 40, drift: 8, lift: 42, rotateStart: 4, rotateEnd: -4, duration: 1100, delay: 240 },
+  { label: "\u{1F7E9}", kind: "tile", top: 72, right: 152, drift: -12, lift: 24, rotateStart: -4, rotateEnd: 2, duration: 1200, delay: 100 },
+  { label: "\u2B1B", kind: "tile", top: 72, right: 114, drift: -6, lift: 28, rotateStart: -2, rotateEnd: 2, duration: 1200, delay: 160 },
+  { label: "\u{1F7E8}", kind: "tile", top: 72, right: 76, drift: 6, lift: 26, rotateStart: 2, rotateEnd: -2, duration: 1200, delay: 220 }
+];
 function toStatus(html, kind = "") {
   return { html, kind };
+}
+function isTextEntryTarget(target) {
+  return target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 }
 function App() {
   const developerMode = (0, import_react2.useMemo)(
@@ -24785,11 +24901,14 @@ function App() {
     []
   );
   const panelRef = (0, import_react2.useRef)(null);
+  const keyBufferRef = (0, import_react2.useRef)("");
+  const titleTapTimerRef = (0, import_react2.useRef)(0);
+  const whimsyTimerRef = (0, import_react2.useRef)(0);
+  const visualTimerRef = (0, import_react2.useRef)(0);
   const [rawRows, setRawRows] = (0, import_react2.useState)([]);
   const [rawColumns, setRawColumns] = (0, import_react2.useState)([]);
   const [normalizedRows, setNormalizedRows] = (0, import_react2.useState)([]);
   const [wordleDetected, setWordleDetected] = (0, import_react2.useState)(false);
-  const [dataSource, setDataSource] = (0, import_react2.useState)("");
   const [pendingLimit, setPendingLimit] = (0, import_react2.useState)("25");
   const [pendingLastDays, setPendingLastDays] = (0, import_react2.useState)("");
   const [appliedFilters, setAppliedFilters] = (0, import_react2.useState)({ limit: 25, lastDays: 0 });
@@ -24799,17 +24918,36 @@ function App() {
   );
   const [loadStatus, setLoadStatus] = (0, import_react2.useState)(toStatus("No CSV loaded."));
   const [leaderboardStatus, setLeaderboardStatus] = (0, import_react2.useState)(EMPTY_STATUS);
+  const [whimsyStatus, setWhimsyStatus] = (0, import_react2.useState)(EMPTY_STATUS);
   const [devToolsStatus, setDevToolsStatus] = (0, import_react2.useState)(DEFAULT_DEVTOOLS_STATUS);
   const [developerDocs, setDeveloperDocs] = (0, import_react2.useState)({
     loading: developerMode,
     entries: []
   });
+  const [titleTapCount, setTitleTapCount] = (0, import_react2.useState)(0);
+  const [activeEasterEgg, setActiveEasterEgg] = (0, import_react2.useState)("");
+  const [prefersReducedMotion, setPrefersReducedMotion] = (0, import_react2.useState)(false);
   (0, import_react2.useEffect)(() => {
     document.body.classList.toggle("developer-mode", developerMode);
     return () => {
       document.body.classList.remove("developer-mode");
     };
   }, [developerMode]);
+  (0, import_react2.useEffect)(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return void 0;
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const handleChange = () => setPrefersReducedMotion(mediaQuery.matches);
+    handleChange();
+    mediaQuery.addEventListener("change", handleChange);
+    return () => {
+      mediaQuery.removeEventListener("change", handleChange);
+    };
+  }, []);
+  (0, import_react2.useEffect)(() => () => {
+    window.clearTimeout(titleTapTimerRef.current);
+    window.clearTimeout(whimsyTimerRef.current);
+    window.clearTimeout(visualTimerRef.current);
+  }, []);
   (0, import_react2.useEffect)(() => {
     let cancelled = false;
     async function loadDocs() {
@@ -24951,11 +25089,56 @@ function App() {
       roundBreakdownBadges
     );
   }, [activeGroupStatsId, crownContext, groupStatsData, selectedPlayer, windowMeta.data, wordleDetected]);
+  const secretTokens = activeEasterEgg === "crowns" ? SECRET_CROWN_TOKENS : activeEasterEgg === "wordplay" ? SECRET_WORDPLAY_TOKENS : [];
   (0, import_react2.useEffect)(() => {
     if (selectedPlayer && !playerMetricsMap.has(selectedPlayer)) {
       setSelectedPlayer(null);
     }
   }, [playerMetricsMap, selectedPlayer]);
+  (0, import_react2.useEffect)(() => {
+    window.clearTimeout(titleTapTimerRef.current);
+    if (!titleTapCount) return void 0;
+    titleTapTimerRef.current = window.setTimeout(() => {
+      setTitleTapCount(0);
+    }, TITLE_SECRET_RESET_MS);
+    return () => {
+      window.clearTimeout(titleTapTimerRef.current);
+    };
+  }, [titleTapCount]);
+  function showWhimsyStatus(html) {
+    setWhimsyStatus(toStatus(html, "ok"));
+    window.clearTimeout(whimsyTimerRef.current);
+    whimsyTimerRef.current = window.setTimeout(() => {
+      setWhimsyStatus(EMPTY_STATUS);
+    }, SECRET_STATUS_DURATION_MS);
+  }
+  function activateEasterEgg(mode, html) {
+    setActiveEasterEgg(mode);
+    showWhimsyStatus(html);
+    window.clearTimeout(visualTimerRef.current);
+    visualTimerRef.current = window.setTimeout(() => {
+      setActiveEasterEgg("");
+    }, SECRET_VISUAL_DURATION_MS);
+  }
+  (0, import_react2.useEffect)(() => {
+    function handleSecretKeydown(event) {
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if (isTextEntryTarget(event.target)) return;
+      const key = typeof event.key === "string" ? event.key.toLowerCase() : "";
+      if (!/^[a-z]$/.test(key)) return;
+      keyBufferRef.current = `${keyBufferRef.current}${key}`.slice(-SECRET_WORD.length);
+      if (keyBufferRef.current !== SECRET_WORD) return;
+      keyBufferRef.current = "";
+      activateEasterEgg(
+        "wordplay",
+        prefersReducedMotion ? "Secret phrase found. Quiet wordplay mode is active for a few seconds." : "Secret phrase found. Wordplay mode is active for a few seconds."
+      );
+    }
+    document.addEventListener("keydown", handleSecretKeydown);
+    return () => {
+      document.removeEventListener("keydown", handleSecretKeydown);
+    };
+  }, [prefersReducedMotion]);
   (0, import_react2.useEffect)(() => {
     if (!rawRows.length) {
       setLeaderboardStatus(EMPTY_STATUS);
@@ -24985,7 +25168,6 @@ function App() {
       setRawColumns([]);
       setNormalizedRows([]);
       setWordleDetected(false);
-      setDataSource("");
       setPendingLimit("25");
       setPendingLastDays("");
       setAppliedFilters({ limit: 25, lastDays: 0 });
@@ -25013,7 +25195,6 @@ function App() {
       setRawColumns(columns);
       setNormalizedRows(normalized);
       setWordleDetected(looksLikeWordle);
-      setDataSource(sourceName);
       setPendingLimit("25");
       setPendingLastDays(defaultWindow ? String(defaultWindow) : "");
       setAppliedFilters({ limit: 25, lastDays: defaultWindow });
@@ -25079,10 +25260,24 @@ function App() {
     resetData();
     setLoadStatus(toStatus("No CSV loaded."));
     setLeaderboardStatus(EMPTY_STATUS);
+    setWhimsyStatus(EMPTY_STATUS);
     setDevToolsStatus(DEFAULT_DEVTOOLS_STATUS);
   }
   function handleSelectPlayer(player) {
     setSelectedPlayer(player);
+  }
+  function handleTitleSecret() {
+    setTitleTapCount((current) => {
+      const nextCount = current + 1;
+      if (nextCount < TITLE_SECRET_TAP_TARGET) {
+        return nextCount;
+      }
+      activateEasterEgg(
+        "crowns",
+        prefersReducedMotion ? "Secret found. The crown offered a respectful nod." : "Secret found. Tiny crown parade activated for a few seconds."
+      );
+      return 0;
+    });
   }
   function handlePanelClick(event) {
     const target = event.target;
@@ -25212,8 +25407,39 @@ function App() {
         lastDaysDisabled: !wordleDetected
       }
     ),
-    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("section", { className: "card workspaceCard", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "workspaceCard__header", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h1", { id: "pageTitle", children: "# wordle-hurdle" }) }) }),
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("section", { className: `card workspaceCard${activeEasterEgg ? ` workspaceCard--egg workspaceCard--egg-${activeEasterEgg}` : ""}`, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "workspaceCard__header", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h1", { className: "workspaceCard__title", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+          "button",
+          {
+            id: "pageTitle",
+            type: "button",
+            className: "pageTitleButton",
+            onClick: handleTitleSecret,
+            "aria-label": `# wordle-hurdle. Hidden surprise after ${TITLE_SECRET_TAP_TARGET} taps.`,
+            children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "pageTitleButton__text", children: "# wordle-hurdle" })
+          }
+        ) }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: `workspaceCard__secretStage workspaceCard__secretStage--${activeEasterEgg || "idle"}`, "aria-hidden": "true", children: secretTokens.map((token, index) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+          "span",
+          {
+            className: `workspaceCard__secretToken workspaceCard__secretToken--${token.kind}`,
+            style: {
+              "--token-delay": `${token.delay}ms`,
+              "--token-duration": `${token.duration}ms`,
+              "--token-drift": `${token.drift}px`,
+              "--token-lift": `${token.lift}px`,
+              "--token-right": `${token.right}px`,
+              "--token-rotate-end": `${token.rotateEnd}deg`,
+              "--token-rotate-start": `${token.rotateStart}deg`,
+              "--token-top": `${token.top}px`
+            },
+            children: token.label
+          },
+          `${activeEasterEgg || "idle"}-${token.label}-${index}`
+        )) })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(StatusMessage, { status: whimsyStatus, className: "workspaceCard__whimsyStatus" }),
       /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "canvasWrap", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
         CrownTable,
         {
