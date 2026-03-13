@@ -1,0 +1,209 @@
+:root {
+  --bg: #091118;
+  --bg-soft: #112331;
+  --bg-grid-dark: rgba(150, 192, 214, 0.06);
+  --bg-grid-light: rgba(150, 192, 214, 0.03);
+  --card: rgba(12, 26, 37, 0.82);
+  --muted: rgba(221, 232, 239, 0.78);
+  --muted2: rgba(221, 232, 239, 0.58);
+  --accent: #8fd694;
+  --accent-secondary: #f0c76e;
+  --danger: #d2644a;
+  --ok: #8fd694;
+  --border: rgba(221, 232, 239, 0.12);
+  --text: #f7fbfd;
+}
+
+body {
+  font-family: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(143, 214, 148, 0.18), transparent 28%),
+    radial-gradient(circle at top right, rgba(240, 199, 110, 0.12), transparent 24%),
+    linear-gradient(180deg, rgba(8, 20, 29, 0.95), rgba(5, 10, 15, 1)),
+    repeating-linear-gradient(90deg, var(--bg-grid-dark) 0, var(--bg-grid-dark) 24px, transparent 24px, transparent 48px),
+    repeating-linear-gradient(0deg, var(--bg-grid-light) 0, var(--bg-grid-light) 24px, transparent 24px, transparent 48px),
+    var(--bg);
+}
+
+code,
+pre,
+.developerDocs__content code {
+  font-family: 'Source Code Pro', Consolas, monospace;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+  box-shadow: none;
+}
+
+.appShell {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 26px 18px 34px;
+}
+
+.appHero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+  gap: 16px;
+  margin: 0 auto 18px;
+  align-items: end;
+}
+
+.appHero__eyebrow,
+.workspaceCard__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(240, 199, 110, 0.25);
+  background: rgba(240, 199, 110, 0.08);
+  color: var(--accent-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.appHero h1 {
+  margin-top: 14px;
+  font-size: clamp(34px, 4vw, 54px);
+  letter-spacing: -0.04em;
+}
+
+.appHero__copy {
+  max-width: 720px;
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.appHero__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.appHero__stat {
+  min-height: 94px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(17, 35, 49, 0.88), rgba(11, 24, 34, 0.94));
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.22);
+}
+
+.appHero__stat span {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--muted2);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.appHero__stat strong {
+  display: block;
+  word-break: break-word;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.controlCard {
+  align-self: start;
+  position: sticky;
+  top: 18px;
+}
+
+.workspaceCard {
+  overflow: hidden;
+}
+
+.workspaceCard__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: end;
+  margin-bottom: 14px;
+}
+
+.workspaceCard__header h2 {
+  margin-top: 12px;
+  font-size: 20px;
+}
+
+.workspaceCard__subcopy {
+  max-width: 440px;
+  margin: 0;
+  color: var(--muted2);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.workspaceCard__previewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 16px;
+}
+
+.crownTable--visible {
+  display: block;
+}
+
+.crownTable__row {
+  cursor: pointer;
+  transition: background-color 140ms ease, transform 140ms ease;
+}
+
+.crownTable__row:focus-visible {
+  outline: 2px solid rgba(143, 214, 148, 0.85);
+  outline-offset: -2px;
+}
+
+.crownTable__name {
+  color: rgba(247, 251, 253, 0.94);
+}
+
+.groupStatsStandalone__header.appStandalone__header {
+  margin-bottom: 20px;
+}
+
+.appStandalone {
+  padding-top: 26px;
+}
+
+@media (max-width: 980px) {
+  .appHero {
+    grid-template-columns: 1fr;
+  }
+
+  .workspaceCard__header {
+    flex-direction: column;
+    align-items: start;
+  }
+
+  .controlCard {
+    position: static;
+  }
+}
+
+@media (max-width: 720px) {
+  .appShell {
+    padding-inline: 14px;
+  }
+
+  .appHero__stats {
+    grid-template-columns: 1fr;
+  }
+}

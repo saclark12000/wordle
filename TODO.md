@@ -12,7 +12,7 @@
 ### Architecture & Performance
 - Cache `wordleCrownWins()` results per day window and per leaderboard limit to make "Last N days" tweaks instant on multi-thousand-row datasets.
 - Explore moving normalization + badge metric work to a Web Worker so the UI thread stays responsive on large CSVs.
-- Split `script.js` into smaller view/controller modules so leaderboard rendering, CSV loading, and developer tooling are no longer coupled in one file.
+- Replace the remaining legacy HTML-string renderers (`groupStats.js`, `badges.js`) with typed React components so the new frontend no longer depends on delegated DOM patches.
 
 ### UX & Accessibility
 - Make crown-table rows fully keyboard navigable (arrow keys for focus, Enter/Space to open, Esc to close) and announce context via ARIA live regions.

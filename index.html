@@ -4,81 +4,21 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title># wordle-hurdle</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta
+    name="description"
+    content="React-powered Wordle crown wins leaderboard with CSV ingest, group stats, badges, and normalized export."
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Source+Code+Pro:wght@400;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/app.bundle.css" />
 </head>
 <body>
-  <main class="grid">
-    <section class="card developerPanel">
-      <div class="btnrow">
-        <a class="crownTable__panelBtn" href="?developer=false" aria-label="Close developer panel">&times;</a>
-      </div>
-      <h2>Load CSV</h2>
-      <input id="file" type="file" accept=".csv,text/csv" />
-      <div class="btnrow">
-        <button id="btnLoadSample">Load built-in sample</button>
-        <button id="btnClear" class="danger">Clear</button>
-      </div>
-      <div id="loadStatus" class="status">No CSV loaded.</div>
-
-      <div class="divider"></div>
-
-      <h2>Leaderboard Controls</h2>
-      <label for="limit">Top N (leaderboard)</label>
-      <input id="limit" type="number" min="3" max="50" value="25" />
-
-      <label for="lastDays">Last N days</label>
-      <input id="lastDays" type="number" min="1" placeholder="e.g. 30" />
-
-      <div class="btnrow">
-        <button id="btnRender" class="primary">Render leaderboard</button>
-        <button id="btnExport">Export normalized CSV</button>
-      </div>
-
-      <div class="hint small">
-        Only official Wordle/Hurdle CSV exports are supported.
-      </div>
-
-      <div class="divider"></div>
-
-      <h2>Developer Tools</h2>
-      <div class="btnrow">
-        <button id="btnLogCtx">Log current badge ctx</button>
-      </div>
-      <div id="devToolsStatus" class="status">Logs appear in browser developer console.</div>
-
-      <div class="divider"></div>
-
-      <h2>Developer Docs</h2>
-      <div id="developerDocs" class="developerDocs">
-        <div class="status">Loading documentation...</div>
-      </div>
-    </section>
-
-    <section class="card">
-      <header>
-        <h1 id="pageTitle"># wordle-hurdle</h1>
-      </header>
-      <div class="canvasWrap">
-        <div id="crownTable" class="crownTable"></div>
-      </div>
-      <div id="leaderboardStatus" class="status"></div>
-
-      <div class="divider"></div>
-
-      <h2>Data preview</h2>
-      <div class="small">Rows from the uploaded CSV that feed the leaderboard.</div>
-      <div class="tableWrap">
-        <table id="previewTable"></table>
-      </div>
-    </section>
-  </main>
-
-  <!-- CSV parsing + leaderboard logic -->
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="crownWinsCore.js"></script>
-  <script src="stateManager.js"></script>
-  <script src="badges.js"></script>
-  <script src="groupStats.js"></script>
-  <script src="script.js"></script>
+  <div id="root"></div>
+  <script type="module" src="/app.bundle.js"></script>
 </body>
 </html>

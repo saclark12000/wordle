@@ -3,13 +3,14 @@ It's mostly AI generated code. Some small bits handwritten, but everything mostl
 
 # Crown Wins Leaderboard
 
-Single-page web app focused on a single job: ingest the standardized Wordle/Hurdle group CSV export and render the "Crown Wins" leaderboard with player stats and badge callouts. All former generic charting paths have been removed; every control now maps directly to the leaderboard workflow.
+React/Vite web app focused on a single job: ingest the standardized Wordle/Hurdle group CSV export and render the "Crown Wins" leaderboard with player stats and badge callouts. The core leaderboard, badge, and normalization logic still lives in the reusable plain-JS modules, while the browser UI now runs through React entry points for the main app and the standalone Group Stats page.
 
 ## Current Capabilities
+- **React frontend shell** – `src/App.jsx` and `src/GroupStatsApp.jsx` now drive the main leaderboard and standalone Group Stats experiences, replacing the old direct DOM bootstrapping in `script.js`.
 - **Strict Wordle detection** – the loader validates that the CSV contains the `1/6` through `X/6` columns plus the crown metadata before any UI is enabled.
 - **UTF-8 safe parsing** – file picker reads files as UTF-8, the built-in sample ships with proper crown text, and exports include a BOM so spreadsheets stop showing mojibake.
 - **Normalization pipeline** – `crownWinsCore.js` exposes pure helpers (`normalizeWordle`, `wordleCrownWins`, etc.) that convert emoji columns into tidy player/day rows and can now be unit tested in isolation.
-- **Leaderboard view** – `renderCrownTable()` replaces the old Chart.js canvas with the dedicated crown-table layout, including player detail panes and multi-badge toggles.
+- **Leaderboard view** – the React crown-table keeps the dedicated leaderboard layout, including player detail panes, badge expansion, and group-stats navigation.
 - **Shared Group Stats panel** – the default side panel now reuses the richer `group-stats.html` summary/sidebar leaderboard content through `groupStats.js`, so the standalone preview and in-app Group Stats view stay aligned.
 - **Preview + export** – the data preview only shows the rows backing the current "Last N days" window, and you can download the normalized rows with **Export normalized CSV**.
 - **Badge system** – `badges.js` drives the player-card badge board (`PLAYER_CARD_BADGE_MANIFEST`) from the full manifest. Earned tiles are full-color, locked tiles render as black boxes, and expanding a tile shows current progress plus requirements.
@@ -40,32 +41,34 @@ The parser looks for:
 If any required column is missing the app leaves the controls disabled and surfaces a warning.
 
 ## Data & Rendering Flow
-1. **Load** – `parseCsvText()` (script.js) runs PapaParse with `header: true` and stamps each raw row with a hidden `__rowIndex`.
-2. **Detect** – `onCsvLoaded()` validates the schema, normalizes rows via `normalizeWordle()`, stores the raw + normalized data in `stateStore`, and populates the "Last N days" input with the total day count.
-3. **Render** – `render()` asks `stateStore` for the active day-window subset, feeds it to `wordleCrownWins()`, renders the leaderboard, and syncs the preview table to the same subset.
+1. **Load** – `src/lib/csv-utils.js` runs PapaParse with `header: true`, stamps each raw row with a hidden `__rowIndex`, and hands the document to the React app.
+2. **Detect** – `src/App.jsx` validates the schema, normalizes rows via `normalizeWordle()`, and seeds the active "Last N days" window with the full dataset.
+3. **Render** – React derives the active day-window subset, feeds it to `wordleCrownWins()`, renders the leaderboard, and keeps the preview table aligned to the same subset.
 4. **Interact** – the Group Stats panel defaults to the shared summary + leaderboard sidebar view from `group-stats.html`; clicking sidebar metrics swaps the active leaderboard in place. Clicking rows in the crown-table updates the player card, converts non-table stats into badge tiles, and keeps the Crown Wins table visible. Clicking/Enter/Space on a badge expands it to show metrics + requirements; clicking "Close" returns to group stats. Round Breakdown values can also show inline badge icons when a manifest entry declares matching `roundBreakdownSlots`; clicking one of those inline icons expands the matching badge tile in the Earned/Locked board.
 
 ## Project Layout
 ```
-index.html    # lean control panel + leaderboard card
-style.css     # dark theme, developer tools, crown-table, badges
-script.js     # DOM orchestration + subset logic
-groupStats.js # shared group-stats derivation + panel markup
-group-stats.html # standalone preview using the shared group-stats renderer
-crownWinsCore.js # reusable normalization helpers (UMD-style)
-badges.js     # badge rules + metrics helpers (UMD-style)
-resources/    # sample CSV data
-tests/        # Node test suites + sequential test entrypoint
-package.json  # npm scripts (npm test)
+index.html         # Vite entry for the main React app
+group-stats.html   # Vite entry for the standalone Group Stats page
+src/               # React app shell, components, and browser-side helpers
+style.css          # existing badge / group-stats / table styling
+script.js          # legacy DOM bootstrap kept for reference during migration
+groupStats.js      # shared group-stats derivation + panel markup
+crownWinsCore.js   # reusable normalization helpers (UMD-style)
+badges.js          # badge rules + metrics helpers (UMD-style)
+resources/         # sample CSV data
+tests/             # Node test suites + sequential test entrypoint
+package.json       # npm scripts (dev/build/preview/test)
 ```
-Only PapaParse is loaded at runtime. Chart.js has been removed entirely.
+Runtime dependencies are now bundled through Vite. Chart.js remains removed.
 
 ## Local Usage
-1. Serve the folder via a static file server (or open `index.html` directly in a browser that allows `fetch`ing local files).
-2. Click **Load built-in sample** to confirm the leaderboard renders.
-3. Drop your latest Wordle/Hurdle export, tweak **Top N** and **Last N days**, then click player rows to inspect badges and per-guess stats.
-4. Hit **Export normalized CSV** if you need the tidy format for spreadsheets or other tooling.
-5. Open `group-stats.html` if you want the standalone preview of the same Group Stats panel used in-app.
+1. Run `npm install`.
+2. Run `npm run dev` and open the local Vite URL.
+3. Click **Load built-in sample** to confirm the leaderboard renders, or open `?developer=true` to expose CSV upload controls and in-app docs.
+4. Drop your latest Wordle/Hurdle export, tweak **Top N** and **Last N days**, then click player rows to inspect badges and per-guess stats.
+5. Hit **Export normalized CSV** if you need the tidy format for spreadsheets or other tooling.
+6. Open `/group-stats.html` in the dev server (or use `npm run build`) if you want the standalone preview of the same Group Stats panel used in-app.
 
 ## Support Resources
 - Refer to `resources/support/PLAYER_BADGE_MANIFEST.md` for a step-by-step checklist on adding or updating `PLAYER_CARD_BADGE_MANIFEST` entries. It explains manifest fields (including progress/requirement copy), the `ctx.metric*` API, and the test workflow.
@@ -93,9 +96,9 @@ Run `npm test` to execute the Node-based test suite. The package script uses `te
 - Group stats derivation, leaderboard ordering, and shared Group Stats panel markup.
 
 ## Known Limitations
-- **Remaining UI globals** – the browser app now routes dataset/filter state through `stateStore`, but `script.js` still keeps UI orchestration and `crownContext` in module scope.
+- **Legacy markup generators** – Group Stats and badge boards still rely on HTML string builders from `groupStats.js` / `badges.js`; moving those to typed React components would improve maintainability.
 - **Performance** – normalization is synchronous and recomputes on every render; workers or memoization would help on 5k+ row CSVs.
-- **Accessibility polish** – the crown-table rows are focusable, but announcing context (row place, instructions) still needs ARIA work.
+- **Accessibility polish** – the crown-table rows are focusable, but announcing context (row place, instructions) still needs richer ARIA work.
 - **No persistence** – user preferences (Top N, Last N days, developer toggle) reset on refresh.
 
 ## Contributing

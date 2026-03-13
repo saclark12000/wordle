@@ -3,7 +3,21 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "build:browser": "node scripts/build-browser.mjs",
+    "build:browser:watch": "node scripts/build-browser.mjs --watch",
+    "dev": "npm run build:browser && vite",
+    "build": "npm run build:browser && vite build",
+    "preview": "vite preview",
     "test": "node tests/run-tests.js"
+  },
+  "dependencies": {
+    "papaparse": "^5.5.3",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.7.0",
+    "esbuild": "^0.27.4",
+    "vite": "^6.4.1"
   }
 }
-
