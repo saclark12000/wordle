@@ -24153,7 +24153,7 @@ function CrownTable({
 }) {
   const hasRows = rows.length > 0;
   return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: `crownTable${hasRows ? " crownTable--visible" : ""}`, children: !hasRows ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "status", children: emptyMessage }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "crownTable__heading", children: "Crown Wins Leaderboard" }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "crownTable__heading", children: "\u{1F451} Wins Leaderboard" }),
     /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "crownTable__layout", children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "crownTable__leaderboard", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("table", { children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("tr", { children: [
@@ -25189,94 +25189,53 @@ function App() {
     console.groupEnd();
     setDevToolsStatus(toStatus(`Logged badge ctx snapshot for ${escapeHtml(selected)}.`, "ok"));
   }
-  const summaryStats = [
-    {
-      label: "Source",
-      value: dataSource || DEFAULT_CSV_PATH
-    },
-    {
-      label: "Days tracked",
-      value: wordleDetected ? String(windowMeta.limit || totalDays || 0) : "--"
-    },
-    {
-      label: "Players",
-      value: wordleDetected ? String(new Set(normalizedRows.map((row) => row.player)).size) : "--"
-    },
-    {
-      label: "Rows",
-      value: wordleDetected ? String(windowMeta.data.length || 0) : String(rawRows.length || 0)
-    }
-  ];
   const emptyTableMessage = !rawRows.length ? "Loading leaderboard..." : wordleDetected ? "No Crown Wins detected." : "Load a Wordle CSV to see the leaderboard.";
-  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "appShell", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("header", { className: "appHero", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "appHero__eyebrow", children: "React Frontend" }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h1", { id: "pageTitle", children: "# wordle-hurdle" }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { className: "appHero__copy", children: "Crown wins leaderboard, group stats, badge inspection, and normalized exports on top of the existing Wordle parsing and ranking logic." })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "appHero__stats", "aria-label": "Dataset summary", children: summaryStats.map((stat) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "appHero__stat", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { children: stat.label }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("strong", { children: stat.value })
-      ] }, stat.label)) })
-    ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("main", { className: "grid", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
-        ControlPanel,
+  return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "appShell", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("main", { className: "grid", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+      ControlPanel,
+      {
+        developerMode,
+        pendingLimit,
+        pendingLastDays,
+        onLimitChange: (event) => setPendingLimit(event.target.value),
+        onLastDaysChange: (event) => setPendingLastDays(event.target.value),
+        onFileChange: handleFileChange,
+        onLoadSample: handleLoadSample,
+        onRender: handleRender,
+        onExport: handleExport,
+        onClear: handleClear,
+        onLogBadgeContext: handleLogBadgeContext,
+        loadStatus,
+        devToolsStatus,
+        docs: developerDocs,
+        exportDisabled: !wordleDetected,
+        lastDaysDisabled: !wordleDetected
+      }
+    ),
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("section", { className: "card workspaceCard", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "workspaceCard__header", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h1", { id: "pageTitle", children: "# wordle-hurdle" }) }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "canvasWrap", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+        CrownTable,
         {
-          developerMode,
-          pendingLimit,
-          pendingLastDays,
-          onLimitChange: (event) => setPendingLimit(event.target.value),
-          onLastDaysChange: (event) => setPendingLastDays(event.target.value),
-          onFileChange: handleFileChange,
-          onLoadSample: handleLoadSample,
-          onRender: handleRender,
-          onExport: handleExport,
-          onClear: handleClear,
-          onLogBadgeContext: handleLogBadgeContext,
-          loadStatus,
-          devToolsStatus,
-          docs: developerDocs,
-          exportDisabled: !wordleDetected,
-          lastDaysDisabled: !wordleDetected
+          rows: leaderboardRows,
+          selectedPlayer,
+          onSelectPlayer: handleSelectPlayer,
+          panelHtml,
+          emptyMessage: emptyTableMessage,
+          panelRef,
+          onPanelClick: handlePanelClick,
+          onPanelKeyDown: handlePanelKeyDown
         }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("section", { className: "card workspaceCard", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "workspaceCard__header", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "workspaceCard__eyebrow", children: "Leaderboard Workspace" }),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h2", { children: "Current Window" })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("p", { className: "workspaceCard__subcopy", children: [
-            "Default sample data loads automatically. Open ",
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("code", { children: "?developer=true" }),
-            " for CSV upload controls and in-app docs."
-          ] })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "canvasWrap", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
-          CrownTable,
-          {
-            rows: leaderboardRows,
-            selectedPlayer,
-            onSelectPlayer: handleSelectPlayer,
-            panelHtml,
-            emptyMessage: emptyTableMessage,
-            panelRef,
-            onPanelClick: handlePanelClick,
-            onPanelKeyDown: handlePanelKeyDown
-          }
-        ) }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(StatusMessage, { status: leaderboardStatus }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "divider" }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "workspaceCard__previewHeader", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h2", { children: "Data preview" }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "small", children: "Rows from the uploaded CSV that feed the current leaderboard window." })
-        ] }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(PreviewTable, { rows: previewRows, columns: rawColumns })
-      ] })
+      ) }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(StatusMessage, { status: leaderboardStatus }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "divider" }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "workspaceCard__previewHeader", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h2", { children: "Data preview" }),
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "small", children: "Rows from the uploaded CSV that feed the current leaderboard window." })
+      ] }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(PreviewTable, { rows: previewRows, columns: rawColumns })
     ] })
-  ] });
+  ] }) });
 }
 
 // src/main.jsx

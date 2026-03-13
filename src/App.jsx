@@ -513,25 +513,6 @@ export default function App() {
     setDevToolsStatus(toStatus(`Logged badge ctx snapshot for ${escapeHtml(selected)}.`, 'ok'));
   }
 
-  const summaryStats = [
-    {
-      label: 'Source',
-      value: dataSource || DEFAULT_CSV_PATH
-    },
-    {
-      label: 'Days tracked',
-      value: wordleDetected ? String(windowMeta.limit || totalDays || 0) : '--'
-    },
-    {
-      label: 'Players',
-      value: wordleDetected ? String(new Set(normalizedRows.map((row) => row.player)).size) : '--'
-    },
-    {
-      label: 'Rows',
-      value: wordleDetected ? String(windowMeta.data.length || 0) : String(rawRows.length || 0)
-    }
-  ];
-
   const emptyTableMessage = !rawRows.length
     ? 'Loading leaderboard...'
     : wordleDetected
@@ -540,24 +521,6 @@ export default function App() {
 
   return (
     <div className="appShell">
-      <header className="appHero">
-        <div>
-          <div className="appHero__eyebrow">React Frontend</div>
-          <h1 id="pageTitle"># wordle-hurdle</h1>
-          <p className="appHero__copy">
-            Crown wins leaderboard, group stats, badge inspection, and normalized exports on top
-            of the existing Wordle parsing and ranking logic.
-          </p>
-        </div>
-        <div className="appHero__stats" aria-label="Dataset summary">
-          {summaryStats.map((stat) => (
-            <div key={stat.label} className="appHero__stat">
-              <span>{stat.label}</span>
-              <strong>{stat.value}</strong>
-            </div>
-          ))}
-        </div>
-      </header>
 
       <main className="grid">
         <ControlPanel
@@ -582,13 +545,8 @@ export default function App() {
         <section className="card workspaceCard">
           <div className="workspaceCard__header">
             <div>
-              <div className="workspaceCard__eyebrow">Leaderboard Workspace</div>
-              <h2>Current Window</h2>
+              <h1 id="pageTitle"># wordle-hurdle</h1>
             </div>
-            <p className="workspaceCard__subcopy">
-              Default sample data loads automatically. Open <code>?developer=true</code> for CSV
-              upload controls and in-app docs.
-            </p>
           </div>
 
           <div className="canvasWrap">

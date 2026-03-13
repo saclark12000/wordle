@@ -16,7 +16,7 @@ export function CrownTable({
         <div className="status">{emptyMessage}</div>
       ) : (
         <>
-          <div className="crownTable__heading">Crown Wins Leaderboard</div>
+          <div className="crownTable__heading">👑 Wins Leaderboard</div>
           <div className="crownTable__layout">
             <div className="crownTable__leaderboard">
               <table>
