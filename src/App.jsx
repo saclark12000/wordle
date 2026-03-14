@@ -1,5 +1,5 @@
 import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
-import { CrownTable } from './components/CrownTable';
+import { MainPanel } from './components/MainPanel';
 import { ControlPanel } from './components/ControlPanel';
 import { PreviewTable } from './components/PreviewTable';
 import { StatusMessage } from './components/StatusMessage';
@@ -695,66 +695,70 @@ export default function App() {
           lastDaysDisabled={!wordleDetected}
         />
 
-        <section className={`card workspaceCard${activeEasterEgg ? ` workspaceCard--egg workspaceCard--egg-${activeEasterEgg}` : ''}`}>
-          <div className="workspaceCard__header">
-            <div>
-              <h1 className="workspaceCard__title">
-                <button
-                  id="pageTitle"
-                  type="button"
-                  className="pageTitleButton"
-                  onClick={handleTitleSecret}
-                  aria-label={`# wordle-hurdle. Hidden surprise after ${TITLE_SECRET_TAP_TARGET} taps.`}
-                >
-                  <span className="pageTitleButton__text"># wordle-hurdle</span>
-                </button>
-              </h1>
+        <div className="workspaceStack">
+          <section className={`card workspaceCard${activeEasterEgg ? ` workspaceCard--egg workspaceCard--egg-${activeEasterEgg}` : ''}`}>
+            <div className="workspaceCard__header">
+              <div>
+                <h1 className="workspaceCard__title">
+                  <button
+                    id="pageTitle"
+                    type="button"
+                    className="pageTitleButton"
+                    onClick={handleTitleSecret}
+                    aria-label={`# wordle-hurdle. Hidden surprise after ${TITLE_SECRET_TAP_TARGET} taps.`}
+                  >
+                    <span className="pageTitleButton__text"># wordle-hurdle</span>
+                  </button>
+                </h1>
+              </div>
+              <div className={`workspaceCard__secretStage workspaceCard__secretStage--${activeEasterEgg || 'idle'}`} aria-hidden="true">
+                {secretTokens.map((token, index) => (
+                  <span
+                    key={`${activeEasterEgg || 'idle'}-${token.label}-${index}`}
+                    className={`workspaceCard__secretToken workspaceCard__secretToken--${token.kind}`}
+                    style={{
+                      '--token-delay': `${token.delay}ms`,
+                      '--token-duration': `${token.duration}ms`,
+                      '--token-drift': `${token.drift}px`,
+                      '--token-lift': `${token.lift}px`,
+                      '--token-right': `${token.right}px`,
+                      '--token-rotate-end': `${token.rotateEnd}deg`,
+                      '--token-rotate-start': `${token.rotateStart}deg`,
+                      '--token-top': `${token.top}px`
+                    }}
+                  >
+                    {token.label}
+                  </span>
+                ))}
+              </div>
             </div>
-            <div className={`workspaceCard__secretStage workspaceCard__secretStage--${activeEasterEgg || 'idle'}`} aria-hidden="true">
-              {secretTokens.map((token, index) => (
-                <span
-                  key={`${activeEasterEgg || 'idle'}-${token.label}-${index}`}
-                  className={`workspaceCard__secretToken workspaceCard__secretToken--${token.kind}`}
-                  style={{
-                    '--token-delay': `${token.delay}ms`,
-                    '--token-duration': `${token.duration}ms`,
-                    '--token-drift': `${token.drift}px`,
-                    '--token-lift': `${token.lift}px`,
-                    '--token-right': `${token.right}px`,
-                    '--token-rotate-end': `${token.rotateEnd}deg`,
-                    '--token-rotate-start': `${token.rotateStart}deg`,
-                    '--token-top': `${token.top}px`
-                  }}
-                >
-                  {token.label}
-                </span>
-              ))}
+            <StatusMessage status={whimsyStatus} className="workspaceCard__whimsyStatus" />
+
+            <div className="canvasWrap">
+              <MainPanel
+                rows={leaderboardRows}
+                panelHtml={panelHtml}
+                emptyMessage={emptyTableMessage}
+                panelRef={panelRef}
+                onPanelClick={handlePanelClick}
+                onPanelKeyDown={handlePanelKeyDown}
+              />
             </div>
-          </div>
-          <StatusMessage status={whimsyStatus} className="workspaceCard__whimsyStatus" />
+            <StatusMessage status={leaderboardStatus} />
+          </section>
 
-          <div className="canvasWrap">
-            <CrownTable
-              rows={leaderboardRows}
-              panelHtml={panelHtml}
-              emptyMessage={emptyTableMessage}
-              panelRef={panelRef}
-              onPanelClick={handlePanelClick}
-              onPanelKeyDown={handlePanelKeyDown}
-            />
-          </div>
-          <StatusMessage status={leaderboardStatus} />
-
-          <div className="divider"></div>
-
-          <div className="workspaceCard__previewHeader">
-            <div>
-              <h2>Data preview</h2>
-              <div className="small">Rows from the uploaded CSV that feed the current leaderboard window.</div>
-            </div>
-          </div>
-          <PreviewTable rows={previewRows} columns={rawColumns} />
-        </section>
+          {developerMode ? (
+            <section className="card previewCard">
+              <div className="previewCard__header">
+                <div>
+                  <h2>Data preview</h2>
+                  <div className="small">Rows from the uploaded CSV that feed the current leaderboard window.</div>
+                </div>
+              </div>
+              <PreviewTable rows={previewRows} columns={rawColumns} />
+            </section>
+          ) : null}
+        </div>
       </main>
     </div>
   );

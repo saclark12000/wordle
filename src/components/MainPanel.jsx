@@ -1,4 +1,4 @@
-export function CrownTable({
+export function MainPanel({
   rows,
   panelHtml,
   emptyMessage,

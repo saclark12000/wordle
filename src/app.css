@@ -111,6 +111,12 @@ button:disabled {
   top: 18px;
 }
 
+.workspaceStack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 .workspaceCard {
   overflow: hidden;
   position: relative;
@@ -266,6 +272,18 @@ button:disabled {
   justify-content: space-between;
   align-items: end;
   gap: 16px;
+}
+
+.previewCard {
+  overflow: hidden;
+}
+
+.previewCard__header {
+  margin-bottom: 12px;
+}
+
+.previewCard__header h2 {
+  margin: 0 0 8px;
 }
 
 .crownTable--visible {
