@@ -364,7 +364,7 @@ export function buildPlayerStatsMarkup(player, metrics, badgeMarkup, roundBreakd
     <div class="playerCard">
       <div class="playerCard__header">
         <div class="playerCard__title">${escapeHtml(player)}</div>
-        <button class="crownTable__panelBtn" type="button" data-crown-group-panel="true" aria-label="Close player details">&times;</button>
+        <button class="panelActionBtn" type="button" data-crown-group-panel="true" aria-label="Close player details">&times;</button>
       </div>
       ${badgeBlock}
       <div class="playerCard__badgeGroupTitle">Round Breakdown</div>

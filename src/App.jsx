@@ -675,31 +675,12 @@ export default function App() {
   return (
     <div className="appShell">
 
-      <main className="grid">
-        <ControlPanel
-          developerMode={developerMode}
-          pendingLimit={pendingLimit}
-          pendingLastDays={pendingLastDays}
-          onLimitChange={(event) => setPendingLimit(event.target.value)}
-          onLastDaysChange={(event) => setPendingLastDays(event.target.value)}
-          onFileChange={handleFileChange}
-          onLoadSample={handleLoadSample}
-          onRender={handleRender}
-          onExport={handleExport}
-          onClear={handleClear}
-          onLogBadgeContext={handleLogBadgeContext}
-          loadStatus={loadStatus}
-          devToolsStatus={devToolsStatus}
-          docs={developerDocs}
-          exportDisabled={!wordleDetected}
-          lastDaysDisabled={!wordleDetected}
-        />
-
-        <div className="workspaceStack">
-          <section className={`card workspaceCard${activeEasterEgg ? ` workspaceCard--egg workspaceCard--egg-${activeEasterEgg}` : ''}`}>
-            <div className="workspaceCard__header">
+      <main className="grid appLayout">
+        <div className="contentStack">
+          <section className={`card mainStageCard${activeEasterEgg ? ` mainStageCard--egg mainStageCard--egg-${activeEasterEgg}` : ''}`}>
+            <div className="mainStageCard__header">
               <div>
-                <h1 className="workspaceCard__title">
+                <h1 className="mainStageCard__title">
                   <button
                     id="pageTitle"
                     type="button"
@@ -711,11 +692,11 @@ export default function App() {
                   </button>
                 </h1>
               </div>
-              <div className={`workspaceCard__secretStage workspaceCard__secretStage--${activeEasterEgg || 'idle'}`} aria-hidden="true">
+              <div className={`mainStageCard__secretStage mainStageCard__secretStage--${activeEasterEgg || 'idle'}`} aria-hidden="true">
                 {secretTokens.map((token, index) => (
                   <span
                     key={`${activeEasterEgg || 'idle'}-${token.label}-${index}`}
-                    className={`workspaceCard__secretToken workspaceCard__secretToken--${token.kind}`}
+                    className={`mainStageCard__secretToken mainStageCard__secretToken--${token.kind}`}
                     style={{
                       '--token-delay': `${token.delay}ms`,
                       '--token-duration': `${token.duration}ms`,
@@ -732,7 +713,7 @@ export default function App() {
                 ))}
               </div>
             </div>
-            <StatusMessage status={whimsyStatus} className="workspaceCard__whimsyStatus" />
+            <StatusMessage status={whimsyStatus} className="mainStageCard__whimsyStatus" />
 
             <div className="canvasWrap">
               <MainPanel
@@ -748,8 +729,8 @@ export default function App() {
           </section>
 
           {developerMode ? (
-            <section className="card previewCard">
-              <div className="previewCard__header">
+            <section className="card developerPreviewCard">
+              <div className="developerPreviewCard__header">
                 <div>
                   <h2>Data preview</h2>
                   <div className="small">Rows from the uploaded CSV that feed the current leaderboard window.</div>
@@ -758,6 +739,25 @@ export default function App() {
               <PreviewTable rows={previewRows} columns={rawColumns} />
             </section>
           ) : null}
+
+          <ControlPanel
+            developerMode={developerMode}
+            pendingLimit={pendingLimit}
+            pendingLastDays={pendingLastDays}
+            onLimitChange={(event) => setPendingLimit(event.target.value)}
+            onLastDaysChange={(event) => setPendingLastDays(event.target.value)}
+            onFileChange={handleFileChange}
+            onLoadSample={handleLoadSample}
+            onRender={handleRender}
+            onExport={handleExport}
+            onClear={handleClear}
+            onLogBadgeContext={handleLogBadgeContext}
+            loadStatus={loadStatus}
+            devToolsStatus={devToolsStatus}
+            docs={developerDocs}
+            exportDisabled={!wordleDetected}
+            lastDaysDisabled={!wordleDetected}
+          />
         </div>
       </main>
     </div>

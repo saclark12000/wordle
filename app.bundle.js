@@ -24198,7 +24198,8 @@ var require_groupStats = __commonJS({
           ${leaderboard.filterNote ? `<span class="groupStatsPanel__filterNote">\xB7 ${escapeHtml2(leaderboard.filterNote)}</span>` : ""}
         </p>
       </div>
-      <table class="groupStatsPanel__table">
+      <div class="groupStatsPanel__tableWrap">
+        <table class="groupStatsPanel__table">
         <thead>
           <tr>
             <th class="groupStatsPanel__colPlace">Place</th>
@@ -24228,7 +24229,8 @@ var require_groupStats = __commonJS({
             </tr>
           `).join("")}
         </tbody>
-      </table>
+        </table>
+      </div>
       ${leaderboard.filterNote ? '<p class="groupStatsPanel__footnote">Only players meeting the minimum requirement are shown.</p>' : ""}
     `;
       }
@@ -24317,12 +24319,12 @@ function MainPanel({
   onPanelKeyDown
 }) {
   const hasRows = rows.length > 0;
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: `crownTable${hasRows ? " crownTable--visible" : ""}`, children: !hasRows ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "status", children: emptyMessage }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "crownTable__layout", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: `mainPanel${hasRows ? " mainPanel--visible" : ""}`, children: !hasRows ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "status", children: emptyMessage }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "mainPanel__layout", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
     "div",
     {
       ref: panelRef,
-      className: "crownTable__panel crownTable__panel--full",
-      id: "crownTablePanel",
+      className: "mainPanel__surface mainPanel__surface--full",
+      id: "mainPanelSurface",
       onClick: onPanelClick,
       onKeyDown: onPanelKeyDown,
       children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { dangerouslySetInnerHTML: { __html: panelHtml } })
@@ -24392,8 +24394,8 @@ function ControlPanel({
   if (!developerMode) {
     return null;
   }
-  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("section", { className: "card developerPanel controlCard", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "btnrow", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("a", { className: "crownTable__panelBtn", href: "?developer=false", "aria-label": "Close developer panel", children: "\xD7" }) }),
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("section", { className: "card developerPanel developerToolsCard", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "btnrow", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("a", { className: "panelActionBtn", href: "?developer=false", "aria-label": "Close developer panel", children: "\xD7" }) }),
     /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h2", { children: "Load CSV" }),
     /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("input", { id: "file", type: "file", accept: ".csv,text/csv", onChange: onFileChange }),
     /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "btnrow", children: [
@@ -24820,7 +24822,7 @@ function buildPlayerStatsMarkup(player, metrics, badgeMarkup, roundBreakdownBadg
     <div class="playerCard">
       <div class="playerCard__header">
         <div class="playerCard__title">${escapeHtml(player)}</div>
-        <button class="crownTable__panelBtn" type="button" data-crown-group-panel="true" aria-label="Close player details">&times;</button>
+        <button class="panelActionBtn" type="button" data-crown-group-panel="true" aria-label="Close player details">&times;</button>
       </div>
       ${badgeBlock}
       <div class="playerCard__badgeGroupTitle">Round Breakdown</div>
@@ -25440,7 +25442,60 @@ function App() {
     setDevToolsStatus(toStatus(`Logged badge ctx snapshot for ${escapeHtml(selected)}.`, "ok"));
   }
   const emptyTableMessage = !rawRows.length ? "Loading leaderboard..." : wordleDetected ? "No Crown Wins detected." : "Load a Wordle CSV to see the leaderboard.";
-  return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "appShell", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("main", { className: "grid", children: [
+  return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "appShell", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("main", { className: "grid appLayout", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "contentStack", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("section", { className: `card mainStageCard${activeEasterEgg ? ` mainStageCard--egg mainStageCard--egg-${activeEasterEgg}` : ""}`, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mainStageCard__header", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h1", { className: "mainStageCard__title", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+          "button",
+          {
+            id: "pageTitle",
+            type: "button",
+            className: "pageTitleButton",
+            onClick: handleTitleSecret,
+            "aria-label": `# wordle-hurdle. Hidden surprise after ${TITLE_SECRET_TAP_TARGET} taps.`,
+            children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "pageTitleButton__text", children: "# wordle-hurdle" })
+          }
+        ) }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: `mainStageCard__secretStage mainStageCard__secretStage--${activeEasterEgg || "idle"}`, "aria-hidden": "true", children: secretTokens.map((token, index) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+          "span",
+          {
+            className: `mainStageCard__secretToken mainStageCard__secretToken--${token.kind}`,
+            style: {
+              "--token-delay": `${token.delay}ms`,
+              "--token-duration": `${token.duration}ms`,
+              "--token-drift": `${token.drift}px`,
+              "--token-lift": `${token.lift}px`,
+              "--token-right": `${token.right}px`,
+              "--token-rotate-end": `${token.rotateEnd}deg`,
+              "--token-rotate-start": `${token.rotateStart}deg`,
+              "--token-top": `${token.top}px`
+            },
+            children: token.label
+          },
+          `${activeEasterEgg || "idle"}-${token.label}-${index}`
+        )) })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(StatusMessage, { status: whimsyStatus, className: "mainStageCard__whimsyStatus" }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "canvasWrap", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+        MainPanel,
+        {
+          rows: leaderboardRows,
+          panelHtml,
+          emptyMessage: emptyTableMessage,
+          panelRef,
+          onPanelClick: handlePanelClick,
+          onPanelKeyDown: handlePanelKeyDown
+        }
+      ) }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(StatusMessage, { status: leaderboardStatus })
+    ] }),
+    developerMode ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("section", { className: "card developerPreviewCard", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "developerPreviewCard__header", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h2", { children: "Data preview" }),
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "small", children: "Rows from the uploaded CSV that feed the current leaderboard window." })
+      ] }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(PreviewTable, { rows: previewRows, columns: rawColumns })
+    ] }) : null,
     /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
       ControlPanel,
       {
@@ -25461,63 +25516,8 @@ function App() {
         exportDisabled: !wordleDetected,
         lastDaysDisabled: !wordleDetected
       }
-    ),
-    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "workspaceStack", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("section", { className: `card workspaceCard${activeEasterEgg ? ` workspaceCard--egg workspaceCard--egg-${activeEasterEgg}` : ""}`, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "workspaceCard__header", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h1", { className: "workspaceCard__title", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
-            "button",
-            {
-              id: "pageTitle",
-              type: "button",
-              className: "pageTitleButton",
-              onClick: handleTitleSecret,
-              "aria-label": `# wordle-hurdle. Hidden surprise after ${TITLE_SECRET_TAP_TARGET} taps.`,
-              children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "pageTitleButton__text", children: "# wordle-hurdle" })
-            }
-          ) }) }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: `workspaceCard__secretStage workspaceCard__secretStage--${activeEasterEgg || "idle"}`, "aria-hidden": "true", children: secretTokens.map((token, index) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
-            "span",
-            {
-              className: `workspaceCard__secretToken workspaceCard__secretToken--${token.kind}`,
-              style: {
-                "--token-delay": `${token.delay}ms`,
-                "--token-duration": `${token.duration}ms`,
-                "--token-drift": `${token.drift}px`,
-                "--token-lift": `${token.lift}px`,
-                "--token-right": `${token.right}px`,
-                "--token-rotate-end": `${token.rotateEnd}deg`,
-                "--token-rotate-start": `${token.rotateStart}deg`,
-                "--token-top": `${token.top}px`
-              },
-              children: token.label
-            },
-            `${activeEasterEgg || "idle"}-${token.label}-${index}`
-          )) })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(StatusMessage, { status: whimsyStatus, className: "workspaceCard__whimsyStatus" }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "canvasWrap", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
-          MainPanel,
-          {
-            rows: leaderboardRows,
-            panelHtml,
-            emptyMessage: emptyTableMessage,
-            panelRef,
-            onPanelClick: handlePanelClick,
-            onPanelKeyDown: handlePanelKeyDown
-          }
-        ) }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(StatusMessage, { status: leaderboardStatus })
-      ] }),
-      developerMode ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("section", { className: "card previewCard", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "previewCard__header", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h2", { children: "Data preview" }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "small", children: "Rows from the uploaded CSV that feed the current leaderboard window." })
-        ] }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(PreviewTable, { rows: previewRows, columns: rawColumns })
-      ] }) : null
-    ] })
-  ] }) });
+    )
+  ] }) }) });
 }
 
 // src/main.jsx

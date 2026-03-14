@@ -397,7 +397,8 @@
           ${leaderboard.filterNote ? `<span class="groupStatsPanel__filterNote">· ${escapeHtml(leaderboard.filterNote)}</span>` : ''}
         </p>
       </div>
-      <table class="groupStatsPanel__table">
+      <div class="groupStatsPanel__tableWrap">
+        <table class="groupStatsPanel__table">
         <thead>
           <tr>
             <th class="groupStatsPanel__colPlace">Place</th>
@@ -429,7 +430,8 @@
             </tr>
           `).join('')}
         </tbody>
-      </table>
+        </table>
+      </div>
       ${leaderboard.filterNote ? '<p class="groupStatsPanel__footnote">Only players meeting the minimum requirement are shown.</p>' : ''}
     `;
   }

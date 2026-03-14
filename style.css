@@ -808,7 +808,7 @@ body:not(.developer-mode) .developerPanel {
   visibility: visible;
 }
 
-.crownTable__panelBtn {
+.panelActionBtn {
   border: 1px solid rgba(255,255,255,.15);
   background: rgba(255,255,255,.08);
   color: var(--text);
@@ -818,17 +818,17 @@ body:not(.developer-mode) .developerPanel {
   cursor: pointer;
 }
 
-a.crownTable__panelBtn {
+a.panelActionBtn {
   display: inline-block;
   text-decoration: none;
 }
 
-.crownTable__panelBtn:hover {
+.panelActionBtn:hover {
   border-color: var(--accent-secondary);
   color: var(--accent-secondary);
 }
 
-.playerCard__header .crownTable__panelBtn {
+.playerCard__header .panelActionBtn {
   margin-left: auto;
 }
 
@@ -846,7 +846,7 @@ a.crownTable__panelBtn {
     grid-template-columns: 1fr;
   }
 
-  .playerCard__header .crownTable__panelBtn {
+  .playerCard__header .panelActionBtn {
     margin-left: 0;
   }
 }
@@ -1083,6 +1083,14 @@ a.crownTable__panelBtn {
   flex: 1;
   min-width: 0;
   padding: 18px;
+}
+
+.groupStatsPanel__tableWrap {
+  max-height: 34rem;
+  overflow: auto;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px;
+  background: rgba(0,0,0,.22);
 }
 
 .groupStatsPanel__contentHeader {

@@ -23929,7 +23929,8 @@ var require_groupStats = __commonJS({
           ${leaderboard.filterNote ? `<span class="groupStatsPanel__filterNote">\xB7 ${escapeHtml(leaderboard.filterNote)}</span>` : ""}
         </p>
       </div>
-      <table class="groupStatsPanel__table">
+      <div class="groupStatsPanel__tableWrap">
+        <table class="groupStatsPanel__table">
         <thead>
           <tr>
             <th class="groupStatsPanel__colPlace">Place</th>
@@ -23959,7 +23960,8 @@ var require_groupStats = __commonJS({
             </tr>
           `).join("")}
         </tbody>
-      </table>
+        </table>
+      </div>
       ${leaderboard.filterNote ? '<p class="groupStatsPanel__footnote">Only players meeting the minimum requirement are shown.</p>' : ""}
     `;
       }

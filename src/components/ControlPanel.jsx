@@ -24,9 +24,9 @@ export function ControlPanel({
   }
 
   return (
-    <section className="card developerPanel controlCard">
+    <section className="card developerPanel developerToolsCard">
       <div className="btnrow">
-        <a className="crownTable__panelBtn" href="?developer=false" aria-label="Close developer panel">
+        <a className="panelActionBtn" href="?developer=false" aria-label="Close developer panel">
           &times;
         </a>
       </div>

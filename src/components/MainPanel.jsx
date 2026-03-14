@@ -9,15 +9,15 @@ export function MainPanel({
   const hasRows = rows.length > 0;
 
   return (
-    <div className={`crownTable${hasRows ? ' crownTable--visible' : ''}`}>
+    <div className={`mainPanel${hasRows ? ' mainPanel--visible' : ''}`}>
       {!hasRows ? (
         <div className="status">{emptyMessage}</div>
       ) : (
-        <div className="crownTable__layout">
+        <div className="mainPanel__layout">
           <div
             ref={panelRef}
-            className="crownTable__panel crownTable__panel--full"
-            id="crownTablePanel"
+            className="mainPanel__surface mainPanel__surface--full"
+            id="mainPanelSurface"
             onClick={onPanelClick}
             onKeyDown={onPanelKeyDown}
           >
