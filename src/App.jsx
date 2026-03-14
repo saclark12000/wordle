@@ -736,8 +736,6 @@ export default function App() {
           <div className="canvasWrap">
             <CrownTable
               rows={leaderboardRows}
-              selectedPlayer={selectedPlayer}
-              onSelectPlayer={handleSelectPlayer}
               panelHtml={panelHtml}
               emptyMessage={emptyTableMessage}
               panelRef={panelRef}

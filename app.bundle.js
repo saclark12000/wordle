@@ -24310,8 +24310,6 @@ var import_react2 = __toESM(require_react());
 var import_jsx_runtime = __toESM(require_jsx_runtime());
 function CrownTable({
   rows,
-  selectedPlayer,
-  onSelectPlayer,
   panelHtml,
   emptyMessage,
   panelRef,
@@ -24319,59 +24317,17 @@ function CrownTable({
   onPanelKeyDown
 }) {
   const hasRows = rows.length > 0;
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: `crownTable${hasRows ? " crownTable--visible" : ""}`, children: !hasRows ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "status", children: emptyMessage }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "crownTable__heading", children: "\u{1F451} Wins Leaderboard" }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "crownTable__layout", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "crownTable__leaderboard", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("table", { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("tr", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("th", { children: "Place" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("th", { children: "User Name" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("th", { children: "Total Crown Wins" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("th", { children: "Crown %" })
-        ] }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("tbody", { children: rows.map((row) => {
-          const ratioPct = (row.ratio * 100).toFixed(1);
-          const isActive = selectedPlayer === row.player;
-          return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-            "tr",
-            {
-              className: `crownTable__row${isActive ? " crownTable__row--active" : ""}`,
-              tabIndex: 0,
-              role: "button",
-              "aria-pressed": isActive,
-              onClick: () => onSelectPlayer(row.player),
-              onKeyDown: (event) => {
-                if (event.key !== "Enter" && event.key !== " ") return;
-                event.preventDefault();
-                onSelectPlayer(row.player);
-              },
-              children: [
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", { children: row.place }),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "crownTable__name", children: row.player }) }),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", { children: row.winCount }),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("td", { children: [
-                  ratioPct,
-                  "%"
-                ] })
-              ]
-            },
-            row.player
-          );
-        }) })
-      ] }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "div",
-        {
-          ref: panelRef,
-          className: "crownTable__panel",
-          id: "crownTablePanel",
-          onClick: onPanelClick,
-          onKeyDown: onPanelKeyDown,
-          children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { dangerouslySetInnerHTML: { __html: panelHtml } })
-        }
-      )
-    ] })
-  ] }) });
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: `crownTable${hasRows ? " crownTable--visible" : ""}`, children: !hasRows ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "status", children: emptyMessage }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "crownTable__layout", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+    "div",
+    {
+      ref: panelRef,
+      className: "crownTable__panel crownTable__panel--full",
+      id: "crownTablePanel",
+      onClick: onPanelClick,
+      onKeyDown: onPanelKeyDown,
+      children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { dangerouslySetInnerHTML: { __html: panelHtml } })
+    }
+  ) }) });
 }
 
 // src/components/DeveloperDocs.jsx
@@ -25543,8 +25499,6 @@ function App() {
         CrownTable,
         {
           rows: leaderboardRows,
-          selectedPlayer,
-          onSelectPlayer: handleSelectPlayer,
           panelHtml,
           emptyMessage: emptyTableMessage,
           panelRef,
