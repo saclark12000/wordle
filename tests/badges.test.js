@@ -118,6 +118,7 @@ test('buildBadgeContext exposes metric helpers and merged metric sources', () =>
 
   assert.equal(badgeCtx.metricNumber('gamesPlayedTarget'), 20);
   assert.equal(badgeCtx.metricNumber('crownRatio').toFixed(1), '0.5');
+  assert.equal(badgeCtx.metricNumber('solveRate').toFixed(1), '1.0');
   assert.equal(badgeCtx.metric('participationRate'), 0.85);
   assert.equal(badgeCtx.metric('insights.participationRate'), 0.4);
   assert.equal(badgeCtx.metric('bonusMetric'), 42);
@@ -177,6 +178,7 @@ test('summarizeBadgeContextForDebug returns readable snapshot sections', () => {
   assert.equal(summary.player, '@ace');
   assert.equal(summary.metrics.totalGames, 2);
   assert.equal(summary.derived.gamesPlayedTarget, 2);
+  assert.equal(summary.derived.solveRate, 1);
   assert.equal(summary.sourceKeyCounts.insights, 1);
   assert.equal(summary.dataSummary.leaderboardCount, 2);
   assert.equal(summary.leaderboardPreview.length, 1);
@@ -221,7 +223,7 @@ test('resolvePlayerCardBadges returns all player-card badges by default', () => 
   const badgeCollector = badges.find((badge) => badge.id === 'badge_collector');
   assert.ok(badgeCollector);
   assert.equal(badgeCollector.earned, true);
-  assert.equal(badgeCollector.progress, '8 badges earned');
+  assert.equal(badgeCollector.progress, '8 progression badges earned');
 });
 
 test('resolvePlayerCardBadges honors maxBadges option', () => {
@@ -289,7 +291,45 @@ test('resolvePlayerCardBadges returns locked badges with progress and requiremen
   assert.ok(badges.find((badge) => badge.id === 'crown_wins_6-9_place').tierInfo);
   assert.ok(badges.find((badge) => badge.id === 'crown_win_streak').tierInfo);
   assert.equal(badges.find((badge) => badge.id === 'always_guessing').progress, '5% participation. 1 game played. Tier: 0⭐');
-  assert.equal(badges.find((badge) => badge.id === 'badge_collector').progress, '1 badge earned');
+  assert.equal(badges.find((badge) => badge.id === 'badge_collector').progress, '0 progression badges earned');
+});
+
+test('badge_collector ignores excluded joke and onboarding badges', () => {
+  const dataset = Array.from({ length: 12 }, (_, index) => ({
+    player: `@p${index + 1}`,
+    guesses: 2,
+    solved: true,
+    isCrown: true
+  }));
+  dataset.push({ player: '@late', guesses: 3, solved: true, isCrown: false });
+
+  const ctx = createCrownContext();
+  ctx.dataset = dataset;
+  ctx.playerMetrics = buildPlayerMetricsMap(dataset);
+
+  const badges = resolvePlayerCardBadges(ctx, '@late', {
+    metricSources: {
+      custom: {
+        totalGames: 20,
+        solveRate: 0.5,
+        failGames: 4,
+        failRatio: 0.2,
+        maxFailGames: 4
+      }
+    }
+  });
+
+  const failedGames = badges.find((badge) => badge.id === 'failed_games');
+  const mostFailedGames = badges.find((badge) => badge.id === 'most_failed_games');
+  const badgeCollector = badges.find((badge) => badge.id === 'badge_collector');
+
+  assert.ok(failedGames);
+  assert.ok(mostFailedGames);
+  assert.ok(badgeCollector);
+  assert.equal(failedGames.earned, true);
+  assert.equal(mostFailedGames.earned, true);
+  assert.equal(badgeCollector.earned, false);
+  assert.equal(badgeCollector.progress, '0 progression badges earned');
 });
 
 test('rank badge series replaces top_ten_rank with place-specific tiers', () => {
@@ -375,7 +415,8 @@ test('resolvePlayerCardBadges allows custom metric overrides without expanding c
         activeCrownStreak: 4,
         bestCrownStreak: 6,
         avgGuessWhenCrowned: 3.2,
-        participationRate: 0.85
+        participationRate: 0.85,
+        crownWins: 10
       }
     }
   });
@@ -390,7 +431,8 @@ test('resolvePlayerCardBadges allows custom metric overrides without expanding c
   assert.equal(badges.find((badge) => badge.id === 'always_guessing').progress, '85% participation. 2 games played. Tier: 3⭐');
   assert.ok(badges.find((badge) => badge.id === 'always_guessing').icon.includes('badgeIconTier'));
   assert.ok(badges.find((badge) => badge.id === 'always_guessing').icon.includes('data-stars="3"'));
-  assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').progress, 'Current avg: 3.2 guesses');
+  assert.equal(badges.find((badge) => badge.id === 'efficient_crowns').progress, 'Current avg: 3.2 guesses across 10 crowns. Tier: 1✨');
+  assert.ok(badges.find((badge) => badge.id === 'efficient_crowns').icon.includes('data-stars="1"'));
 });
 
 test('resolvePlayerCardBadges awards whimsy badges for late crowns, crown variety, and full range', () => {
@@ -680,6 +722,49 @@ test('always_guessing remains locked below 15% participation', () => {
   assert.ok(badge.icon.includes('data-stars="0"'));
 });
 
+test('steady_solver rewards solve-rate tiers with a minimum sample size', () => {
+  const dataset = [
+    { player: '@steady', guesses: 3, solved: true, isCrown: false }
+  ];
+  const ctx = createCrownContext();
+  ctx.dataset = dataset;
+  ctx.playerMetrics = buildPlayerMetricsMap(dataset);
+
+  const low = resolvePlayerCardBadges(ctx, '@steady', {
+    metricSources: { custom: { totalGames: 12, solveRate: 0.8 } }
+  }).find((badge) => badge.id === 'steady_solver');
+
+  const mid = resolvePlayerCardBadges(ctx, '@steady', {
+    metricSources: { custom: { totalGames: 24, solveRate: 0.88 } }
+  }).find((badge) => badge.id === 'steady_solver');
+
+  const high = resolvePlayerCardBadges(ctx, '@steady', {
+    metricSources: { custom: { totalGames: 24, solveRate: 0.94 } }
+  }).find((badge) => badge.id === 'steady_solver');
+
+  const top = resolvePlayerCardBadges(ctx, '@steady', {
+    metricSources: { custom: { totalGames: 40, solveRate: 0.98 } }
+  }).find((badge) => badge.id === 'steady_solver');
+
+  const tooSmall = resolvePlayerCardBadges(ctx, '@steady', {
+    metricSources: { custom: { totalGames: 8, solveRate: 1 } }
+  }).find((badge) => badge.id === 'steady_solver');
+
+  assert.ok(low);
+  assert.ok(mid);
+  assert.ok(high);
+  assert.ok(top);
+  assert.ok(tooSmall);
+  assert.equal(low.earned, true);
+  assert.equal(tooSmall.earned, false);
+  assert.ok(low.icon.includes('data-stars="0"'));
+  assert.ok(mid.icon.includes('data-stars="1"'));
+  assert.ok(high.icon.includes('data-stars="2"'));
+  assert.ok(top.icon.includes('data-stars="3"'));
+  assert.equal(low.progress, 'Solve rate: 80.0%. 12 games tracked. Tier: 0⭐');
+  assert.equal(top.progress, 'Solve rate: 98.0%. 40 games tracked. Tier: 3⭐');
+});
+
 test('crown_win_ratio icon stars follow crown-ratio tiers (0-3)', () => {
   const dataset = [
     { player: '@ratio', guesses: 3, solved: true, isCrown: true }
@@ -689,19 +774,19 @@ test('crown_win_ratio icon stars follow crown-ratio tiers (0-3)', () => {
   ctx.playerMetrics = buildPlayerMetricsMap(dataset);
 
   const low = resolvePlayerCardBadges(ctx, '@ratio', {
-    metricSources: { custom: { crownRatio: 0.35 } }
+    metricSources: { custom: { totalGames: 12, crownRatio: 0.35 } }
   }).find((badge) => badge.id === 'crown_win_ratio');
 
   const mid = resolvePlayerCardBadges(ctx, '@ratio', {
-    metricSources: { custom: { crownRatio: 0.5 } }
+    metricSources: { custom: { totalGames: 12, crownRatio: 0.5 } }
   }).find((badge) => badge.id === 'crown_win_ratio');
 
   const high = resolvePlayerCardBadges(ctx, '@ratio', {
-    metricSources: { custom: { crownRatio: 0.65 } }
+    metricSources: { custom: { totalGames: 12, crownRatio: 0.65 } }
   }).find((badge) => badge.id === 'crown_win_ratio');
 
   const top = resolvePlayerCardBadges(ctx, '@ratio', {
-    metricSources: { custom: { crownRatio: 0.8 } }
+    metricSources: { custom: { totalGames: 12, crownRatio: 0.8 } }
   }).find((badge) => badge.id === 'crown_win_ratio');
 
   assert.ok(low);
@@ -731,12 +816,28 @@ test('crown_win_ratio remains locked below 30% crown ratio', () => {
   ctx.playerMetrics = buildPlayerMetricsMap(dataset);
 
   const badge = resolvePlayerCardBadges(ctx, '@ratio_low', {
-    metricSources: { custom: { crownRatio: 0.29 } }
+    metricSources: { custom: { totalGames: 12, crownRatio: 0.29 } }
   }).find((entry) => entry.id === 'crown_win_ratio');
 
   assert.ok(badge);
   assert.equal(badge.earned, false);
   assert.ok(badge.icon.includes('data-stars="0"'));
+});
+
+test('crown_win_ratio stays locked when the sample size is too small', () => {
+  const dataset = [
+    { player: '@ratio_small', guesses: 3, solved: true, isCrown: true }
+  ];
+  const ctx = createCrownContext();
+  ctx.dataset = dataset;
+  ctx.playerMetrics = buildPlayerMetricsMap(dataset);
+
+  const badge = resolvePlayerCardBadges(ctx, '@ratio_small', {
+    metricSources: { custom: { totalGames: 9, crownRatio: 0.8 } }
+  }).find((entry) => entry.id === 'crown_win_ratio');
+
+  assert.ok(badge);
+  assert.equal(badge.earned, false);
 });
 
 test('sus_wins icon eyes follow one-guess solve tiers (0-3)', () => {
@@ -815,13 +916,12 @@ test('resolvePlayerCardBadges awards most_failed_games to players tied for top f
   assert.ok(!mostFailedC.icon.includes('data-stars="'));
 });
 
-test('failed_games icon stars follow fail-count tiers (0-3) when player is group high', () => {
-  function failedGamesBadgeForTopFailCount(topFailCount) {
+test('failed_games icon stars follow fail-rate tiers (0-3)', () => {
+  function failedGamesBadgeForRatio(failCount, solvedCount) {
     const dataset = [
-      ...Array.from({ length: topFailCount }, () => ({ player: '@top', solved: false, isCrown: false })),
-      ...Array.from({ length: Math.max(0, topFailCount - 1) }, () => ({ player: '@other', solved: false, isCrown: false })),
-      { player: '@top', guesses: 3, solved: true, isCrown: false },
-      { player: '@other', guesses: 3, solved: true, isCrown: false }
+      ...Array.from({ length: failCount }, () => ({ player: '@top', solved: false, isCrown: false })),
+      ...Array.from({ length: solvedCount }, () => ({ player: '@top', guesses: 3, solved: true, isCrown: false })),
+      ...Array.from({ length: 3 }, () => ({ player: '@other', guesses: 3, solved: true, isCrown: false }))
     ];
     const ctx = createCrownContext();
     ctx.dataset = dataset;
@@ -829,50 +929,50 @@ test('failed_games icon stars follow fail-count tiers (0-3) when player is group
     return resolvePlayerCardBadges(ctx, '@top').find((badge) => badge.id === 'failed_games');
   }
 
-  const one = failedGamesBadgeForTopFailCount(1);
-  const four = failedGamesBadgeForTopFailCount(4);
-  const eight = failedGamesBadgeForTopFailCount(8);
-  const sixteen = failedGamesBadgeForTopFailCount(16);
+  const low = failedGamesBadgeForRatio(2, 18);
+  const mid = failedGamesBadgeForRatio(5, 17);
+  const high = failedGamesBadgeForRatio(6, 14);
+  const top = failedGamesBadgeForRatio(8, 12);
 
-  assert.ok(one);
-  assert.equal(one.earned, true);
-  assert.ok(one.tierInfo);
-  assert.ok(one.tierInfo.includes('16+'));
-  assert.ok(one.icon.includes('data-stars="0"'));
-  assert.ok(one.progress.includes('Tier: 0'));
+  assert.ok(low);
+  assert.equal(low.earned, true);
+  assert.ok(low.tierInfo);
+  assert.ok(low.tierInfo.includes('35%+'));
+  assert.ok(low.icon.includes('data-stars="0"'));
+  assert.equal(low.progress, 'Fail rate: 10.0% (2 fails in 20 games). Tier: 0⭐');
 
-  assert.ok(four.icon.includes('data-stars="1"'));
-  assert.ok(four.progress.includes('Tier: 1'));
+  assert.ok(mid.icon.includes('data-stars="1"'));
+  assert.ok(mid.progress.includes('Tier: 1'));
 
-  assert.ok(eight.icon.includes('data-stars="2"'));
-  assert.ok(eight.progress.includes('Tier: 2'));
+  assert.ok(high.icon.includes('data-stars="2"'));
+  assert.ok(high.progress.includes('Tier: 2'));
 
-  assert.ok(sixteen.icon.includes('data-stars="3"'));
-  assert.ok(sixteen.progress.includes('Tier: 3'));
+  assert.ok(top.icon.includes('data-stars="3"'));
+  assert.ok(top.progress.includes('Tier: 3'));
 });
 
-test('failed_games remains locked when failGames is zero', () => {
+test('failed_games remains locked below the fail-rate or sample-size threshold', () => {
   const dataset = [
-    { player: '@rate', solved: false, isCrown: false },
-    { player: '@rate', guesses: 4, solved: true, isCrown: false },
-    { player: '@edge', guesses: 4, solved: true, isCrown: false },
-    { player: '@edge', guesses: 5, solved: true, isCrown: false }
+    ...Array.from({ length: 1 }, () => ({ player: '@rate', solved: false, isCrown: false })),
+    ...Array.from({ length: 19 }, () => ({ player: '@rate', guesses: 4, solved: true, isCrown: false })),
+    ...Array.from({ length: 2 }, () => ({ player: '@small', solved: false, isCrown: false })),
+    ...Array.from({ length: 6 }, () => ({ player: '@small', guesses: 4, solved: true, isCrown: false }))
   ];
   const ctx = createCrownContext();
   ctx.dataset = dataset;
   ctx.playerMetrics = buildPlayerMetricsMap(dataset);
 
   const badgesRate = resolvePlayerCardBadges(ctx, '@rate');
-  const badgesEdge = resolvePlayerCardBadges(ctx, '@edge');
+  const badgesSmall = resolvePlayerCardBadges(ctx, '@small');
 
   const failedRate = badgesRate.find((badge) => badge.id === 'failed_games');
-  const failedEdge = badgesEdge.find((badge) => badge.id === 'failed_games');
+  const failedSmall = badgesSmall.find((badge) => badge.id === 'failed_games');
   assert.ok(failedRate);
-  assert.ok(failedEdge);
-  assert.equal(failedRate.earned, true);
-  assert.equal(failedEdge.earned, false);
+  assert.ok(failedSmall);
+  assert.equal(failedRate.earned, false);
+  assert.equal(failedSmall.earned, false);
   assert.ok(failedRate.progress.includes('Tier: 0'));
-  assert.ok(failedEdge.progress.includes('Tier: 0'));
+  assert.ok(failedSmall.progress.includes('Tier: 1'));
 });
 
 test('resolvePlayerCardBadges awards bucket_master when player leads a non-1/6 crown round', () => {

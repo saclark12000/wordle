@@ -14,16 +14,22 @@ React/Vite web app focused on a single job: ingest the standardized Wordle/Hurdl
 - **Shared Group Stats panel** – the default side panel now reuses the richer `group-stats.html` summary/sidebar leaderboard content through `groupStats.js`, so the standalone preview and in-app Group Stats view stay aligned.
 - **Preview + export** – the data preview only shows the rows backing the current "Last N days" window, and you can download the normalized rows with **Export normalized CSV**.
 - **Badge system** – `badges.js` drives the player-card badge board (`PLAYER_CARD_BADGE_MANIFEST`) from the full manifest. Earned tiles are full-color, locked tiles render as black boxes, and expanding a tile shows current progress plus requirements.
+- **Badge balance pass** – the individual player badge board now favors meaningful progression over free volume:
+  - Added `steady_solver` to reward reliable solve completion, even for players who are not crown leaders.
+  - Added sample-size gates to swingy ratio/average badges such as `crown_win_ratio` and `efficient_crowns`.
+  - `badge_collector` now counts progression badges only, so onboarding/comedy badges do not inflate completion.
 - **Rank badge series update** – `top_ten_rank` was replaced by place-specific badges: `crown_wins_1_place`, `crown_wins_2-5_place` (tiered), `crown_wins_6-9_place` (tiered), and `crown_wins_10_place`.
 - **Participation badge update** – manifest uses `always_guessing` (15% unlock, with higher tiers up to 85%+) to reward steady participation.
 - **Tiered badge icon helper** – `buildLayeredBadgeIcon(...)` in `badges.js` provides a reusable star-tier medal pattern (`0-3 ⭐` displayed in front of `🏅`, for example `always_guessing`).
   - Supports icon swaps (for example `starsIcon: '🎪'`, `medalIcon: '🎱'`).
   - Supports star placement config with `starsPosition: 'default' | 'over' | 'under'` (for example `sus_wins` uses `under`).
   - `always_guessing` unlocks at `15%` participation and uses tier mapping: `15-44% = 0`, `45-64% = 1`, `65-84% = 2`, `85%+ = 3`.
-  - `crown_win_ratio` unlocks at `30%` crown ratio and uses tier mapping: `30-44% = 0`, `45-59% = 1`, `60-74% = 2`, `75%+ = 3`.
+  - `steady_solver` unlocks at `75%` solve rate with `10+` tracked games and uses tier mapping: `75-84% = 0`, `85-91% = 1`, `92-96% = 2`, `97%+ = 3`.
+  - `crown_win_ratio` unlocks at `30%` crown ratio with `10+` tracked games and uses tier mapping: `30-44% = 0`, `45-59% = 1`, `60-74% = 2`, `75%+ = 3`.
   - `crown_win_streak` unlocks at `2` consecutive crown-win days and uses `🔥` tiers over `🍆`: `2 = 0`, `3-5 = 1`, `6-11 = 2`, `12+ = 3`.
   - `solo_crown_wins` unlocks at `1` uncontested crown and uses tier mapping: `1 = 0`, `2 = 1`, `3 = 2`, `4+ = 3`.
-  - `failed_games` uses fail-count tiers for any player with at least one fail: `1 fail = 0`, `4 = 1`, `8 = 2`, `16+ = 3`.
+  - `failed_games` now uses fail-rate tiers with a `10+` game minimum: `10-17% = 0`, `18-25% = 1`, `26-34% = 2`, `35%+ = 3`.
+  - `efficient_crowns` now requires `10+` crowns and a crowned-win average of `3.5` guesses or better, with bonus tiers at `3.3`, `3.1`, and `2.8`.
 - **Round Breakdown badge placements** – manifest entries can publish `roundBreakdownSlots` so a selected subset of earned badges render inline beside Round Breakdown values (for example, `bucket_master` icons in the 👑 wins column on awarding rounds).
   - `bucket_master` now uses tier mapping by non-`1/6` leading rounds: `1 lead = 0⚙`, `2 = 1⚙`, `3 = 2⚙`, `4+ = 3⚙`, with a gold `🥫` medal icon.
 - **Badge metric registry** – badge predicates now consume `ctx.metric(...)`/`ctx.metricNumber(...)` against namespaced metric sources (`core`, `derived`, `insights`, `custom`) so new metrics can be added without growing top-level badge context fields.
@@ -72,6 +78,7 @@ Runtime dependencies are now bundled through Vite. Chart.js remains removed.
 
 ## Support Resources
 - Refer to `resources/support/PLAYER_BADGE_MANIFEST.md` for a step-by-step checklist on adding or updating `PLAYER_CARD_BADGE_MANIFEST` entries. It explains manifest fields (including progress/requirement copy), the `ctx.metric*` API, and the test workflow.
+- Refer to `resources/support/INDIVIDUAL_PLAYER_BADGE_SYSTEM_GDD.md` for the badge-balance rationale, tuning targets, and changelog for the individual player badge board.
 
 ## Extending Badge Metrics
 - Store reusable or long-lived custom badge metrics on `crownContext.badgeMetricSources` (or pass them per-call via `resolvePlayerCardBadges(..., { metricSources })`).

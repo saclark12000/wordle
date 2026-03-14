@@ -2,7 +2,8 @@ export const DEFAULT_CSV_PATH = 'resources/game_data/wordleData.csv';
 
 export const DEVELOPER_DOC_FILES = [
   { title: 'README.md', path: 'README.md' },
-  { title: 'PLAYER_BADGE_MANIFEST.md', path: 'resources/support/PLAYER_BADGE_MANIFEST.md' }
+  { title: 'PLAYER_BADGE_MANIFEST.md', path: 'resources/support/PLAYER_BADGE_MANIFEST.md' },
+  { title: 'INDIVIDUAL_PLAYER_BADGE_SYSTEM_GDD.md', path: 'resources/support/INDIVIDUAL_PLAYER_BADGE_SYSTEM_GDD.md' }
 ];
 
 export const BUILT_IN_SAMPLE = [

@@ -26,6 +26,7 @@ Use these for `PLAYER_CARD_BADGE_MANIFEST` entries so locked badges still commun
 - `requirement` - String or function; shown in expanded details.
 - `tierInfo` - Optional string/function for tiered badges; when present it renders as a `Tier Ladder` detail row under `Requirement`.
 - `description` - Optional explanatory copy.
+- `collectorEligible` - Optional boolean (`true` by default). Set to `false` for onboarding/comedy badges that should not count toward `badge_collector`.
 - `roundBreakdownSlots` - Optional string/object/array or function returning slots for inline Round Breakdown rendering.
   - Supported slot keys: `round` (or `bucket`) and optional `column` (`crownWins` default, `wins` supported).
   - `round` values accept `1..6`, `X`, and `#/6` label form (for example `2/6`).
@@ -65,6 +66,7 @@ Use `ctx.metric('key')` or `ctx.metricNumber('key')`.
 `derived` keys (always present):
 - `crownRatio` - Exact crown conversion ratio (`crownWins / totalGames`).
 - `failRatio` - Exact fail ratio (`failGames / totalGames`).
+- `solveRate` - Exact solve ratio (`solvedGames / totalGames`).
 - `gamesPlayedTarget` - Current day-window count (`windowDays`) used by participation requirement copy (for example `always_guessing`).
 - `playerRank` - Same value as core `playerRank`; available in derived namespace for explicit lookup.
 - `maxFailGames` - Highest failed-game total among players in the current leaderboard window.
@@ -79,15 +81,19 @@ Use `ctx.metric('key')` or `ctx.metricNumber('key')`.
   - `crown_wins_10_place` (exactly 10th place).
 - Current participation/conversion badges:
   - `always_guessing` (earned at 15% participation, with icon tiers by participation: `15-44%=0`, `45-64%=1`, `65-84%=2`, `85%+=3`).
-  - `crown_win_ratio` (earned at 30% crown ratio, with icon tiers by crown ratio: `30-44%=0`, `45-59%=1`, `60-74%=2`, `75%+=3`).
+  - `steady_solver` (earned at `75%` solve rate with `10+` tracked games; tiers: `75-84%=0`, `85-91%=1`, `92-96%=2`, `97%+=3`).
+  - `crown_win_ratio` (earned at 30% crown ratio with `10+` tracked games, with icon tiers by crown ratio: `30-44%=0`, `45-59%=1`, `60-74%=2`, `75%+=3`).
 - Current solo crown badge:
   - `solo_crown_wins` (earned at 1 uncontested crown, with icon tiers by solo-crown count: `1=0⭐`, `2=1⭐`, `3=2⭐`, `4+=3⭐`).
 - Current streak-based tiered badge:
   - `crown_win_streak` (earned at 2 consecutive crown-win days, with `🔥` tiers over `🍆`: `2 days=0🔥`, `3-5=1🔥`, `6-11=2🔥`, `12+=3🔥`).
 - Current fail-based tiered badge:
-  - `failed_games` (earned when a player has at least one fail; tier map by fail count: `1=0⭐`, `4=1⭐`, `8=2⭐`, `16+=3⭐`).
+  - `failed_games` (earned at `10%+` fail rate with `10+` tracked games; tier map by fail ratio: `10-17%=0⭐`, `18-25%=1⭐`, `26-34%=2⭐`, `35%+=3⭐`).
+- Current crown-efficiency badge:
+  - `efficient_crowns` (earned at `10+` crowns with crowned-win average guesses `<= 3.5`; bonus tiers at `<= 3.3`, `<= 3.1`, and `<= 2.8`).
 - Current round-lead tiered badge:
   - `bucket_master` (earned when leading at least one non-`1/6` crown round; tier map: `1 lead=0⚙`, `2=1⚙`, `3=2⚙`, `4+=3⚙`; icon uses `medalIcon: '🥫'` with tier count from qualified round leads).
+- `badge_collector` counts only entries where `collectorEligible !== false`; onboarding/comedy badges such as `under_five_games`, `failed_games`, and `most_failed_games` are intentionally excluded from collector progress.
 
 `insights` keys (present when supplied via `metricSources.insights`):
 - `activeCrownStreak` - Current consecutive-day crown streak.
