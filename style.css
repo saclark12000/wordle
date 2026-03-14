@@ -1149,7 +1149,22 @@ a.crownTable__panelBtn {
   border-bottom: none;
 }
 
-.groupStatsPanel__table tbody tr:hover {
+.groupStatsPanel__tableRow {
+  cursor: pointer;
+  transition: background .15s ease;
+}
+
+.groupStatsPanel__tableRow:hover {
+  background: rgba(255,255,255,.03);
+}
+
+.groupStatsPanel__tableRow:hover .groupStatsPanel__playerName {
+  color: var(--accent);
+}
+
+.groupStatsPanel__tableRow:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
   background: rgba(255,255,255,.03);
 }
 
@@ -1175,6 +1190,7 @@ a.crownTable__panelBtn {
   color: var(--accent-secondary);
   font-weight: 600;
   margin-bottom: 6px;
+  transition: color .15s ease;
 }
 
 .groupStatsPanel__barTrack {

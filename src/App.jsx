@@ -537,6 +537,14 @@ export default function App() {
       return;
     }
 
+    const playerRow = target.closest('[data-group-stats-player-row]');
+    if (playerRow) {
+      const player = decodeURIComponent(playerRow.getAttribute('data-group-stats-player-row') || '');
+      if (!player) return;
+      setSelectedPlayer(player);
+      return;
+    }
+
     const badgeClose = target.closest('[data-player-badge-close]');
     if (badgeClose) {
       collapseBadgeExpansion(badgeClose.closest('[data-player-badge]'));
@@ -562,9 +570,19 @@ export default function App() {
   }
 
   function handlePanelKeyDown(event) {
-    if (event.key !== 'Enter' && event.key !== ' ') return;
     const target = event.target;
     if (!(target instanceof Element)) return;
+
+    const playerRow = target.closest('[data-group-stats-player-row]');
+    if (playerRow && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault();
+      const player = decodeURIComponent(playerRow.getAttribute('data-group-stats-player-row') || '');
+      if (!player) return;
+      setSelectedPlayer(player);
+      return;
+    }
+
+    if (event.key !== 'Enter' && event.key !== ' ') return;
     if (target.closest('[data-player-badge-close]')) return;
     const badge = target.closest('[data-player-badge]');
     if (!badge) return;

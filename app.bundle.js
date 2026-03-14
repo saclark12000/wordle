@@ -22821,9 +22821,31 @@ var require_badges = __commonJS({
         });
         return Math.max(0, Math.min(Number(maxStars) || 0, stars));
       }
+      function getInverseThresholdTierStars(value, thresholds = [1, 2, 3], maxStars = 3) {
+        const parsedValue = Number(value);
+        if (!Number.isFinite(parsedValue) || parsedValue <= 0) return 0;
+        const parsedThresholds = Array.isArray(thresholds) ? thresholds.map((value2) => Number(value2)).filter((value2) => Number.isFinite(value2) && value2 > 0).sort((a, b) => a - b) : [];
+        let stars = 0;
+        parsedThresholds.forEach((threshold) => {
+          if (parsedValue <= threshold) {
+            stars += 1;
+          }
+        });
+        return Math.max(0, Math.min(Number(maxStars) || 0, stars));
+      }
       const ALWAYS_GUESSING_UNLOCK_THRESHOLD = 0.15;
       const ALWAYS_GUESSING_STAR_THRESHOLDS = [0.45, 0.65, 0.85];
+      const STEADY_SOLVER_MIN_GAMES = 10;
+      const STEADY_SOLVER_UNLOCK_THRESHOLD = 0.75;
+      const STEADY_SOLVER_STAR_THRESHOLDS = [0.85, 0.92, 0.97];
       const BUCKET_MASTER_STAR_THRESHOLDS = [2, 3, 4];
+      const CROWN_WIN_RATIO_MIN_GAMES = 10;
+      const FAILED_GAMES_MIN_GAMES = 10;
+      const FAILED_GAMES_UNLOCK_THRESHOLD = 0.1;
+      const FAILED_GAMES_STAR_THRESHOLDS = [0.18, 0.26, 0.35];
+      const EFFICIENT_CROWNS_MIN_WINS = 10;
+      const EFFICIENT_CROWNS_UNLOCK_MAX_AVG = 3.5;
+      const EFFICIENT_CROWNS_STAR_THRESHOLDS = [3.3, 3.1, 2.8];
       const CROWN_WIN_STREAK_LADDER = [
         { min: 2, max: 2, tier: 0 },
         { min: 3, max: 5, tier: 1 },
@@ -22891,6 +22913,10 @@ var require_badges = __commonJS({
       function getFailRatio(metrics) {
         if (!metrics || !metrics.totalGames) return 0;
         return metrics.failGames / metrics.totalGames;
+      }
+      function getSolveRatio(metrics) {
+        if (!metrics || !metrics.totalGames) return 0;
+        return metrics.solvedGames / metrics.totalGames;
       }
       function getMaxFailGames(metricsMap) {
         if (!(metricsMap instanceof Map) || metricsMap.size === 0) return 0;
@@ -23124,12 +23150,34 @@ var require_badges = __commonJS({
           predicate: (ctx) => getMetricNumber(ctx, "participationRate", 0) >= ALWAYS_GUESSING_UNLOCK_THRESHOLD
         },
         {
+          id: "steady_solver",
+          icon: (ctx) => buildLayeredBadgeIcon({
+            stars: getThresholdTierStars(
+              getMetricNumber(ctx, "solveRate", 0),
+              STEADY_SOLVER_STAR_THRESHOLDS,
+              3
+            ),
+            medalIcon: "\u{1F9E9}"
+          }),
+          title: "Steady Solver",
+          description: (ctx) => `${ctx.player} keeps turning appearances into completed solves.`,
+          requirement: `Finish at least 75% of games across ${STEADY_SOLVER_MIN_GAMES}+ games.`,
+          tierInfo: "0\u2B50 75-84%, 1\u2B50 85-91%, 2\u2B50 92-96%, 3\u2B50 97%+.",
+          progress: (ctx) => {
+            const solveRate = getMetricNumber(ctx, "solveRate", 0);
+            const tierStars = getThresholdTierStars(solveRate, STEADY_SOLVER_STAR_THRESHOLDS, 3);
+            return `Solve rate: ${formatPercent(solveRate, 1)}. ${formatCountLabel(getMetricNumber(ctx, "totalGames", 0), "game")} tracked. Tier: ${tierStars}\u2B50`;
+          },
+          predicate: (ctx) => getMetricNumber(ctx, "totalGames", 0) >= STEADY_SOLVER_MIN_GAMES && getMetricNumber(ctx, "solveRate", 0) >= STEADY_SOLVER_UNLOCK_THRESHOLD
+        },
+        {
           id: "most_failed_games",
           icon: () => '<span class="badgeIcon--darkBlueCrown">\u{1F451}</span>',
           title: "L Crown",
           description: (ctx) => `${ctx.player}'s failed game count compared to the group.`,
           requirement: "Tie for the most failed # wordle-hurdle games.",
           progress: (ctx) => `${formatCountLabel(getMetricNumber(ctx, "failGames", 0), "fail")} (group high: ${getMetricNumber(ctx, "maxFailGames", 0)})`,
+          collectorEligible: false,
           predicate: (ctx) => {
             const failGames = getMetricNumber(ctx, "failGames", 0);
             const maxFailGames = getMetricNumber(ctx, "maxFailGames", 0);
@@ -23140,22 +23188,24 @@ var require_badges = __commonJS({
           id: "failed_games",
           icon: (ctx) => buildLayeredBadgeIcon({
             stars: getThresholdTierStars(
-              getMetricNumber(ctx, "failGames", 0),
-              [4, 8, 16],
+              getMetricNumber(ctx, "failRatio", 0),
+              FAILED_GAMES_STAR_THRESHOLDS,
               3
             ),
             medalIcon: "\u{1F480}"
           }),
           title: "L Collector",
-          description: (ctx) => `${ctx.player}'s running total of failed games.`,
-          requirement: "Record at least one failed game.",
-          tierInfo: "1 fail = 0\u2B50, 4 fails = 1\u2B50, 8 fails = 2\u2B50, 16+ fails = 3\u2B50.",
+          description: (ctx) => `${ctx.player}'s fail rate is high enough to become its own bit.`,
+          requirement: `Post a fail rate of at least 10% across ${FAILED_GAMES_MIN_GAMES}+ games.`,
+          tierInfo: "0\u2B50 10-17%, 1\u2B50 18-25%, 2\u2B50 26-34%, 3\u2B50 35%+.",
           progress: (ctx) => {
             const failGames = getMetricNumber(ctx, "failGames", 0);
-            const tierStars = getThresholdTierStars(failGames, [4, 8, 16], 3);
-            return `${formatCountLabel(failGames, "fail")} (group high: ${getMetricNumber(ctx, "maxFailGames", 0)}). Tier: ${tierStars}\u2B50`;
+            const failRatio = getMetricNumber(ctx, "failRatio", 0);
+            const tierStars = getThresholdTierStars(failRatio, FAILED_GAMES_STAR_THRESHOLDS, 3);
+            return `Fail rate: ${formatPercent(failRatio, 1)} (${formatCountLabel(failGames, "fail")} in ${formatCountLabel(getMetricNumber(ctx, "totalGames", 0), "game")}). Tier: ${tierStars}\u2B50`;
           },
-          predicate: (ctx) => getMetricNumber(ctx, "failGames", 0) > 0
+          collectorEligible: false,
+          predicate: (ctx) => getMetricNumber(ctx, "totalGames", 0) >= FAILED_GAMES_MIN_GAMES && getMetricNumber(ctx, "failRatio", 0) >= FAILED_GAMES_UNLOCK_THRESHOLD
         },
         {
           id: "crown_win_ratio",
@@ -23169,14 +23219,14 @@ var require_badges = __commonJS({
           }),
           title: "Sharp Shooter",
           description: (ctx) => `${ctx.player}'s crown win rate.`,
-          requirement: "Keep crown wins at 30% or higher of games played.",
+          requirement: `Keep crown wins at 30% or higher across ${CROWN_WIN_RATIO_MIN_GAMES}+ games.`,
           tierInfo: "30-44% = 0\u2B50, 45-59% = 1\u2B50, 60-74% = 2\u2B50, 75%+ = 3\u2B50.",
           progress: (ctx) => {
             const crownRatio = getMetricNumber(ctx, "crownRatio", 0);
             const tierStars = getThresholdTierStars(crownRatio, [0.45, 0.6, 0.75], 3);
             return `Crown win rate: ${formatPercent(crownRatio, 1)}. Tier: ${tierStars}\u2B50`;
           },
-          predicate: (ctx) => getMetricNumber(ctx, "crownRatio", 0) >= 0.3
+          predicate: (ctx) => getMetricNumber(ctx, "totalGames", 0) >= CROWN_WIN_RATIO_MIN_GAMES && getMetricNumber(ctx, "crownRatio", 0) >= 0.3
         },
         {
           id: "crown_win_streak",
@@ -23224,26 +23274,38 @@ var require_badges = __commonJS({
           description: (ctx) => `${ctx.player} has fewer than 5 # wordle-hurdle games.`,
           requirement: "Play fewer than 5 games.",
           progress: (ctx) => `${formatCountLabel(ctx.metricNumber("totalGames", 0), "game")} played.`,
+          collectorEligible: false,
           predicate: (ctx) => ctx.metricNumber("totalGames", 0) < 5
         },
         {
           id: "efficient_crowns",
-          icon: "\u{1F48E}",
+          icon: (ctx) => buildLayeredBadgeIcon({
+            stars: getInverseThresholdTierStars(
+              getMetricNumber(ctx, "avgGuessWhenCrowned", 0),
+              EFFICIENT_CROWNS_STAR_THRESHOLDS,
+              3
+            ),
+            starIcon: "\u2728",
+            medalIcon: "\u{1F48E}"
+          }),
           title: "Less is More",
           description: (ctx) => `${ctx.player}'s average guess count on crowned wins.`,
-          requirement: "Keep crowned-win average guesses at 4.0 or lower.",
+          requirement: `Earn at least ${EFFICIENT_CROWNS_MIN_WINS} crowns and keep crowned-win average guesses at ${EFFICIENT_CROWNS_UNLOCK_MAX_AVG.toFixed(1)} or lower.`,
+          tierInfo: "0\u2728 <= 3.5 avg, 1\u2728 <= 3.3 avg, 2\u2728 <= 3.1 avg, 3\u2728 <= 2.8 avg.",
           progress: (ctx) => {
             const raw = getMetricValue(ctx, "avgGuessWhenCrowned", null);
             const avg = Number(raw);
             if (raw === null || raw === void 0 || raw === "") return "No crowned wins yet.";
             if (!Number.isFinite(avg)) return "No crowned wins yet.";
-            return `Current avg: ${avg.toFixed(1)} guesses`;
+            const crownWins = getMetricNumber(ctx, "crownWins", 0);
+            const tierStars = getInverseThresholdTierStars(avg, EFFICIENT_CROWNS_STAR_THRESHOLDS, 3);
+            return `Current avg: ${avg.toFixed(1)} guesses across ${formatCountLabel(crownWins, "crown")}. Tier: ${tierStars}\u2728`;
           },
           predicate: (ctx) => {
             const raw = getMetricValue(ctx, "avgGuessWhenCrowned", null);
             const avg = Number(raw);
             if (raw === null || raw === void 0 || raw === "") return false;
-            return Number.isFinite(avg) && avg < 4;
+            return getMetricNumber(ctx, "crownWins", 0) >= EFFICIENT_CROWNS_MIN_WINS && Number.isFinite(avg) && avg <= EFFICIENT_CROWNS_UNLOCK_MAX_AVG;
           }
         },
         {
@@ -23404,9 +23466,9 @@ var require_badges = __commonJS({
           icon: "\u{1F381}",
           title: "Badge Collector",
           description: (ctx) => `${ctx.player}'s badge shelf is filling up.`,
-          requirement: "Earn at least 5 badges.",
-          progress: (ctx, helpers) => `${helpers.count(ctx.badgeState && ctx.badgeState.earnedBadgeCount, "badge")} earned`,
-          predicate: (ctx) => Number(ctx.badgeState && ctx.badgeState.earnedBadgeCount) >= 5
+          requirement: "Earn at least 5 progression badges.",
+          progress: (ctx, helpers) => `${helpers.count(ctx.badgeState && ctx.badgeState.collectorEligibleBadgeCount, "progression badge")} earned`,
+          predicate: (ctx) => Number(ctx.badgeState && ctx.badgeState.collectorEligibleBadgeCount) >= 5
         }
       ];
       function buildBadgePayload(entry, ctx, opts = {}) {
@@ -23471,9 +23533,12 @@ var require_badges = __commonJS({
           evaluated.push({ entry, earned: runPredicate(entry, ctx) });
         }
         const earnedBadgeIds = evaluated.filter((item) => item.earned).map((item) => item.entry.id).filter(Boolean);
+        const collectorEligibleBadgeIds = evaluated.filter((item) => item.earned && item.entry.collectorEligible !== false).map((item) => item.entry.id).filter((id) => id && id !== "badge_collector");
         const badgeState = {
           earnedBadgeIds,
-          earnedBadgeCount: earnedBadgeIds.length
+          earnedBadgeCount: earnedBadgeIds.length,
+          collectorEligibleBadgeIds,
+          collectorEligibleBadgeCount: collectorEligibleBadgeIds.length
         };
         const enrichedCtx = {
           ...ctx,
@@ -23531,6 +23596,7 @@ var require_badges = __commonJS({
           derived: {
             crownRatio: getCrownRatio(metrics),
             failRatio: getFailRatio(metrics),
+            solveRate: getSolveRatio(metrics),
             gamesPlayedTarget: windowDays,
             playerRank,
             maxFailGames: getMaxFailGames(metricsMap),
@@ -23557,7 +23623,9 @@ var require_badges = __commonJS({
           data: badgeDataContext,
           badgeState: {
             earnedBadgeIds: [],
-            earnedBadgeCount: 0
+            earnedBadgeCount: 0,
+            collectorEligibleBadgeIds: [],
+            collectorEligibleBadgeCount: 0
           }
         };
       }
@@ -23574,7 +23642,12 @@ var require_badges = __commonJS({
         const metricSources = ctx.metricSources && typeof ctx.metricSources === "object" ? ctx.metricSources : { core: {}, derived: {}, insights: {}, custom: {} };
         const coreMetrics = metricSources.core || {};
         const derivedMetrics = metricSources.derived || {};
-        const badgeState = ctx.badgeState || { earnedBadgeIds: [], earnedBadgeCount: 0 };
+        const badgeState = ctx.badgeState || {
+          earnedBadgeIds: [],
+          earnedBadgeCount: 0,
+          collectorEligibleBadgeIds: [],
+          collectorEligibleBadgeCount: 0
+        };
         const leaderboard = Array.isArray(data.leaderboard) ? data.leaderboard : [];
         const rows = Array.isArray(data.rows) ? data.rows : [];
         const leaderboardPreview = leaderboard.slice(0, maxLeaderboard).map((entry) => ({
@@ -23594,7 +23667,9 @@ var require_badges = __commonJS({
           player: ctx.player || null,
           badgeState: {
             earnedBadgeCount: Number(badgeState.earnedBadgeCount) || 0,
-            earnedBadgeIds: Array.isArray(badgeState.earnedBadgeIds) ? [...badgeState.earnedBadgeIds] : []
+            earnedBadgeIds: Array.isArray(badgeState.earnedBadgeIds) ? [...badgeState.earnedBadgeIds] : [],
+            collectorEligibleBadgeCount: Number(badgeState.collectorEligibleBadgeCount) || 0,
+            collectorEligibleBadgeIds: Array.isArray(badgeState.collectorEligibleBadgeIds) ? [...badgeState.collectorEligibleBadgeIds] : []
           },
           metrics: {
             totalGames: Number(coreMetrics.totalGames) || 0,
@@ -23608,8 +23683,10 @@ var require_badges = __commonJS({
           derived: {
             crownRatio: Number(derivedMetrics.crownRatio) || 0,
             failRatio: Number(derivedMetrics.failRatio) || 0,
+            solveRate: Number(derivedMetrics.solveRate) || 0,
             gamesPlayedTarget: Number(derivedMetrics.gamesPlayedTarget) || 0,
-            maxFailGames: Number(derivedMetrics.maxFailGames) || 0
+            maxFailGames: Number(derivedMetrics.maxFailGames) || 0,
+            soloCrownWins: Number(derivedMetrics.soloCrownWins) || 0
           },
           sourceKeyCounts: {
             core: Object.keys(coreMetrics).length,
@@ -24131,7 +24208,13 @@ var require_groupStats = __commonJS({
         </thead>
         <tbody>
           ${rows.map((entry) => `
-            <tr>
+            <tr
+              class="groupStatsPanel__tableRow"
+              data-group-stats-player-row="${escapeHtml2(encodeURIComponent(entry.player.name))}"
+              tabindex="0"
+              role="button"
+              aria-label="${escapeHtml2(`View ${entry.player.name} details`)}"
+            >
               <td class="groupStatsPanel__place">
                 ${entry.medal ? `<span class="groupStatsPanel__medal">${entry.medal}</span>` : `<span class="groupStatsPanel__rankNum" style="color:${entry.rankColor}">${entry.rank}</span>`}
               </td>
@@ -24422,7 +24505,8 @@ function PreviewTable({ rows, columns }) {
 var DEFAULT_CSV_PATH = "resources/game_data/wordleData.csv";
 var DEVELOPER_DOC_FILES = [
   { title: "README.md", path: "README.md" },
-  { title: "PLAYER_BADGE_MANIFEST.md", path: "resources/support/PLAYER_BADGE_MANIFEST.md" }
+  { title: "PLAYER_BADGE_MANIFEST.md", path: "resources/support/PLAYER_BADGE_MANIFEST.md" },
+  { title: "INDIVIDUAL_PLAYER_BADGE_SYSTEM_GDD.md", path: "resources/support/INDIVIDUAL_PLAYER_BADGE_SYSTEM_GDD.md" }
 ];
 var BUILT_IN_SAMPLE = [
   "date posted,day streak,crown round,crown,1/6,2/6,3/6,4/6,5/6,6/6,X/6",
@@ -25290,6 +25374,13 @@ function App() {
       setActiveGroupStatsId(nextId);
       return;
     }
+    const playerRow = target.closest("[data-group-stats-player-row]");
+    if (playerRow) {
+      const player = decodeURIComponent(playerRow.getAttribute("data-group-stats-player-row") || "");
+      if (!player) return;
+      setSelectedPlayer(player);
+      return;
+    }
     const badgeClose = target.closest("[data-player-badge-close]");
     if (badgeClose) {
       collapseBadgeExpansion(badgeClose.closest("[data-player-badge]"));
@@ -25311,9 +25402,17 @@ function App() {
     }
   }
   function handlePanelKeyDown(event) {
-    if (event.key !== "Enter" && event.key !== " ") return;
     const target = event.target;
     if (!(target instanceof Element)) return;
+    const playerRow = target.closest("[data-group-stats-player-row]");
+    if (playerRow && (event.key === "Enter" || event.key === " ")) {
+      event.preventDefault();
+      const player = decodeURIComponent(playerRow.getAttribute("data-group-stats-player-row") || "");
+      if (!player) return;
+      setSelectedPlayer(player);
+      return;
+    }
+    if (event.key !== "Enter" && event.key !== " ") return;
     if (target.closest("[data-player-badge-close]")) return;
     const badge = target.closest("[data-player-badge]");
     if (!badge) return;

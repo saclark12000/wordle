@@ -407,7 +407,13 @@
         </thead>
         <tbody>
           ${rows.map((entry) => `
-            <tr>
+            <tr
+              class="groupStatsPanel__tableRow"
+              data-group-stats-player-row="${escapeHtml(encodeURIComponent(entry.player.name))}"
+              tabindex="0"
+              role="button"
+              aria-label="${escapeHtml(`View ${entry.player.name} details`)}"
+            >
               <td class="groupStatsPanel__place">
                 ${entry.medal
                   ? `<span class="groupStatsPanel__medal">${entry.medal}</span>`
