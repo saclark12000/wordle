@@ -63,6 +63,7 @@
       crownWins: 0,
       totalGames: 0,
       fails: 0,
+      susWins: 0,
       soloCrowns: 0,
       crownGuessSum: 0,
       daysPlayed: new Set(),
@@ -146,6 +147,15 @@
       sortDir: 'desc'
     },
     {
+      id: 'susWins',
+      label: '👀 Sus Wins',
+      shortLabel: 'Sus Wins',
+      description: 'Total one-guess solves (1/6) per player',
+      getValue: (player) => player.susWins,
+      format: (value) => `${value}`,
+      sortDir: 'desc'
+    },
+    {
       id: 'fails',
       label: '💀 Fails',
       shortLabel: 'Fails',
@@ -205,6 +215,10 @@
         player.fails += 1;
       }
 
+      if (Number(row.guesses) === 1) {
+        player.susWins += 1;
+      }
+
       if (row.isCrown) {
         player.crownWins += 1;
         if (Number.isFinite(Number(row.guesses))) {
@@ -240,6 +254,7 @@
         participation: totalDays ? (player.daysPlayed.size / totalDays) * 100 : 0,
         avgGuesses: player.crownWins ? player.crownGuessSum / player.crownWins : null,
         fails: player.fails,
+        susWins: player.susWins,
         soloCrowns: player.soloCrowns,
         streak: computeBestStreak(player.crownDayEntries)
       }))

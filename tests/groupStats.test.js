@@ -38,11 +38,13 @@ test('deriveGroupStatsData computes summary totals and per-player metrics', () =
     participation: 66.66666666666666,
     avgGuesses: 1.5,
     fails: 0,
+    susWins: 1,
     soloCrowns: 1,
     streak: 2
   });
 
   assert.equal(buck.crownWins, 2);
+  assert.equal(buck.susWins, 0);
   assert.equal(buck.soloCrowns, 1);
   assert.equal(buck.streak, 2);
   assert.equal(cara.fails, 1);
@@ -94,6 +96,25 @@ test('getGroupStatsLeaderboardEntries sorts ascending leaderboards and filters n
   assert.equal(leaderboard.rows[0].formattedValue, '1.50');
   assert.equal(leaderboard.rows[1].player.name, '@buck');
   assert.equal(leaderboard.rows[0].barPct, 100);
+});
+
+test('getGroupStatsLeaderboardEntries includes Sus Wins leaderboard', () => {
+  const stats = {
+    players: [
+      { name: '@ace', susWins: 2 },
+      { name: '@buck', susWins: 0 },
+      { name: '@cara', susWins: 1 }
+    ]
+  };
+
+  const leaderboard = getGroupStatsLeaderboardEntries(stats, 'susWins');
+
+  assert.equal(leaderboard.leaderboard.shortLabel, 'Sus Wins');
+  assert.equal(leaderboard.rows.length, 3);
+  assert.equal(leaderboard.rows[0].player.name, '@ace');
+  assert.equal(leaderboard.rows[0].formattedValue, '2');
+  assert.equal(leaderboard.rows[1].player.name, '@cara');
+  assert.equal(leaderboard.rows[2].player.name, '@buck');
 });
 
 test('buildGroupStatsPanelMarkup renders summary cards and active navigation state', () => {

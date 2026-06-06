@@ -23642,6 +23642,7 @@ var require_groupStats = __commonJS({
           crownWins: 0,
           totalGames: 0,
           fails: 0,
+          susWins: 0,
           soloCrowns: 0,
           crownGuessSum: 0,
           daysPlayed: /* @__PURE__ */ new Set(),
@@ -23715,6 +23716,15 @@ var require_groupStats = __commonJS({
           sortDir: "desc"
         },
         {
+          id: "susWins",
+          label: "\u{1F440} Sus Wins",
+          shortLabel: "Sus Wins",
+          description: "Total one-guess solves (1/6) per player",
+          getValue: (player) => player.susWins,
+          format: (value) => `${value}`,
+          sortDir: "desc"
+        },
+        {
           id: "fails",
           label: "\u{1F480} Fails",
           shortLabel: "Fails",
@@ -23765,6 +23775,9 @@ var require_groupStats = __commonJS({
           if (!row.solved) {
             player.fails += 1;
           }
+          if (Number(row.guesses) === 1) {
+            player.susWins += 1;
+          }
           if (row.isCrown) {
             player.crownWins += 1;
             if (Number.isFinite(Number(row.guesses))) {
@@ -23796,6 +23809,7 @@ var require_groupStats = __commonJS({
           participation: totalDays ? player.daysPlayed.size / totalDays * 100 : 0,
           avgGuesses: player.crownWins ? player.crownGuessSum / player.crownWins : null,
           fails: player.fails,
+          susWins: player.susWins,
           soloCrowns: player.soloCrowns,
           streak: computeBestStreak(player.crownDayEntries)
         })).sort((a, b) => a.name.localeCompare(b.name));
